@@ -25,6 +25,12 @@ try {
 ul { margin-top: 0; }
 .version { margin-left: 8px; font-size: 12px; opacity: .55; font-variant-numeric: tabular-nums; }
 .status { margin: 0; padding-left: 40px; }
+.origin { margin-left: 8px; font-size: 12px; opacity: .55; }
+.origin::before { content: "· "; }
+.credits { font-size: 13px; line-height: 1.6; margin-top: 2rem; }
+.credits h3 { font-size: 14px; margin: 0 0 .4rem; }
+.credits ul { padding-left: 20px; margin: 0 0 .4rem; }
+.credits p { margin: 0; opacity: .7; }
 
 .theme-toggle {
   position: fixed;
@@ -285,6 +291,8 @@ ul { margin-top: 0; }
 [data-theme="noir"] .sources { margin: 0; padding-left: 40px; line-height: 1.5; font-size: 16px; }
 [data-theme="noir"] .empty,
 [data-theme="noir"] .status { color: var(--muted); }
+[data-theme="noir"] .credits { max-width: 920px; margin: 48px auto 0; color: var(--muted); }
+[data-theme="noir"] .credits h3 { color: var(--text); font-family: "Cormorant Garamond", "Times New Roman", serif; font-size: 20px; font-weight: 600; letter-spacing: .04em; }
 [data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
 
 @media (max-width: 560px) {
@@ -380,6 +388,7 @@ ul { margin-top: 0; }
 <p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
+<section class="credits js-credits" hidden></section>
 </div>
 </main>
 <footer class="noir-only js-footer">NightShadess24 Extensions (0.9 Test Version) · 23 sources · built 2026-10-14</footer>
@@ -391,7 +400,7 @@ ul { margin-top: 0; }
   var BUILD_SITE_ROOT = "https://nightshadess24.github.io/myprivaterepo-/";
   var RATING_TAGS = {"MATURE":{"label":"Mature","type":"warning"},"ADULT":{"label":"18+","type":"danger"}};
   var data = {};
-  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.","buildTime":"2026-10-14T09:57:36.278Z","sources":[{"name":"AllManga","description":"Extension that pulls content from allmanga.to.","version":"1.0.0-alpha.4","contentRating":"MATURE","badges":[]},{"name":"Atsumaru","description":"Extension that pulls content from atsu.moe.","version":"1.0.0-alpha.25","contentRating":"SAFE","badges":[]},{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.72","contentRating":"SAFE","badges":[]},{"name":"FlameComics","description":"Extension that pulls content from FlameComics.xyz.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[]},{"name":"HiveToons","description":"Extension that pulls content from hivetoons.org.","version":"1.0.0-alpha.3","contentRating":"MATURE","badges":[]},{"name":"LNori","description":"Extension that pulls content from LNori.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[{"label":"Novel","textColor":"#ffffff","backgroundColor":"#3baf4b"}]},{"name":"MangaDemon","description":"Extension that pulls content from demonicscans.org.","version":"1.0.0-alpha.15","contentRating":"SAFE","badges":[]},{"name":"MangaDex","description":"Extension that pulls content from mangadex.org.","version":"1.0.0-alpha.27","contentRating":"SAFE","badges":[]},{"name":"MangaDot","description":"Extension that pulls content from MangaDot.net","version":"1.0.0-alpha.6","contentRating":"SAFE","badges":[]},{"name":"MangaFire","description":"Extension that pulls content from mangafire.to.","version":"1.0.0-alpha.22","contentRating":"SAFE","badges":[]},{"name":"MangaFox","description":"Extension that pulls content from fanfox.net.","version":"1.0.0-alpha.13","contentRating":"MATURE","badges":[]},{"name":"Mangago","description":"Extension that pulls content from mangago.me.","version":"1.0.0-alpha.1","contentRating":"ADULT","badges":[]},{"name":"MangaKatana","description":"Extension that pulls content from mangakatana.com.","version":"1.0.0-alpha.15","contentRating":"MATURE","badges":[]},{"name":"Mangapill","description":"Extension that pulls content from mangapill.com.","version":"1.0.0-alpha.12","contentRating":"SAFE","badges":[]},{"name":"MangaPlus","description":"Extension that pulls content from mangaplus.shueisha.co.jp.","version":"1.0.0-alpha.11","contentRating":"SAFE","badges":[]},{"name":"MangaTaro","description":"Extension that pulls content from mangataro.org.","version":"1.0.0-alpha.3","contentRating":"SAFE","badges":[]},{"name":"Mgeko","description":"Extension that pulls content from mgeko.cc.","version":"1.0.0-alpha.29","contentRating":"SAFE","badges":[]},{"name":"PunkRecords","description":"Extension pour récupérer le contenu de punkrecordz.com.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[]},{"name":"QiScans","description":"Extension that pulls content from qimanhwa.com.","version":"1.0.0-alpha.15","contentRating":"SAFE","badges":[]},{"name":"Roliascan","description":"Extension that pulls content from roliascan.com.","version":"1.0.0-alpha.1","contentRating":"MATURE","badges":[]},{"name":"RoyalRoad","description":"Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.","version":"1.0.0-alpha.1","contentRating":"SAFE","badges":[]},{"name":"Webtoon","description":"Extension that pulls content from webtoons.com.","version":"1.0.0-alpha.18","contentRating":"SAFE","badges":[]},{"name":"WeebCentral","description":"Extension that pulls content from weebcentral.com.","version":"1.0.0-alpha.25","contentRating":"SAFE","badges":[]}]};
+  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.","buildTime":"2026-10-14T10:07:37.362Z","sources":[{"name":"AllManga","description":"Extension that pulls content from allmanga.to.","version":"1.0.0-alpha.4","contentRating":"MATURE","badges":[]},{"name":"Atsumaru","description":"Extension that pulls content from atsu.moe.","version":"1.0.0-alpha.25","contentRating":"SAFE","badges":[]},{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.72","contentRating":"SAFE","badges":[]},{"name":"FlameComics","description":"Extension that pulls content from FlameComics.xyz.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[]},{"name":"HiveToons","description":"Extension that pulls content from hivetoons.org.","version":"1.0.0-alpha.3","contentRating":"MATURE","badges":[]},{"name":"LNori","description":"Extension that pulls content from LNori.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[{"label":"Novel","textColor":"#ffffff","backgroundColor":"#3baf4b"}]},{"name":"MangaDemon","description":"Extension that pulls content from demonicscans.org.","version":"1.0.0-alpha.15","contentRating":"SAFE","badges":[]},{"name":"MangaDex","description":"Extension that pulls content from mangadex.org.","version":"1.0.0-alpha.27","contentRating":"SAFE","badges":[]},{"name":"MangaDot","description":"Extension that pulls content from MangaDot.net","version":"1.0.0-alpha.6","contentRating":"SAFE","badges":[]},{"name":"MangaFire","description":"Extension that pulls content from mangafire.to.","version":"1.0.0-alpha.22","contentRating":"SAFE","badges":[]},{"name":"MangaFox","description":"Extension that pulls content from fanfox.net.","version":"1.0.0-alpha.13","contentRating":"MATURE","badges":[]},{"name":"Mangago","description":"Extension that pulls content from mangago.me.","version":"1.0.0-alpha.1","contentRating":"ADULT","badges":[]},{"name":"MangaKatana","description":"Extension that pulls content from mangakatana.com.","version":"1.0.0-alpha.15","contentRating":"MATURE","badges":[]},{"name":"Mangapill","description":"Extension that pulls content from mangapill.com.","version":"1.0.0-alpha.12","contentRating":"SAFE","badges":[]},{"name":"MangaPlus","description":"Extension that pulls content from mangaplus.shueisha.co.jp.","version":"1.0.0-alpha.11","contentRating":"SAFE","badges":[]},{"name":"MangaTaro","description":"Extension that pulls content from mangataro.org.","version":"1.0.0-alpha.3","contentRating":"SAFE","badges":[]},{"name":"Mgeko","description":"Extension that pulls content from mgeko.cc.","version":"1.0.0-alpha.29","contentRating":"SAFE","badges":[]},{"name":"PunkRecords","description":"Extension pour récupérer le contenu de punkrecordz.com.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[]},{"name":"QiScans","description":"Extension that pulls content from qimanhwa.com.","version":"1.0.0-alpha.15","contentRating":"SAFE","badges":[]},{"name":"Roliascan","description":"Extension that pulls content from roliascan.com.","version":"1.0.0-alpha.1","contentRating":"MATURE","badges":[]},{"name":"RoyalRoad","description":"Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.","version":"1.0.0-alpha.1","contentRating":"SAFE","badges":[]},{"name":"Webtoon","description":"Extension that pulls content from webtoons.com.","version":"1.0.0-alpha.18","contentRating":"SAFE","badges":[]},{"name":"WeebCentral","description":"Extension that pulls content from weebcentral.com.","version":"1.0.0-alpha.25","contentRating":"SAFE","badges":[]}],"credits":[]};
 
   var root = document.documentElement;
   var themes = { noir: "☀ Classic", classic: "☾ Noir" };
@@ -443,17 +452,36 @@ ul { margin-top: 0; }
   function load(ref) {
     if (data[ref] || loading[ref]) return;
     loading[ref] = true;
-    fetch(baseUrlOf(ref) + "/versioning.json", { cache: "no-cache" })
-      .then(function (response) {
-        if (!response.ok) throw new Error("HTTP " + response.status);
+    var getJson = function (file, optional) {
+      return fetch(baseUrlOf(ref) + "/" + file, { cache: "no-cache" }).then(function (response) {
+        if (!response.ok) {
+          if (optional) return null;
+          throw new Error("HTTP " + response.status);
+        }
         return response.json();
-      })
-      .then(function (versioning) {
+      }, function (error) {
+        if (optional) return null;
+        throw error;
+      });
+    };
+    Promise.all([getJson("versioning.json", false), getJson("third-party.json", true)])
+      .then(function (both) {
+        var versioning = both[0];
+        var upstreams = (both[1] && both[1].upstreams) || [];
+        var origins = {};
+        upstreams.forEach(function (u) { (u.added || []).forEach(function (id) { origins[id] = u.label; }); });
         data[ref] = {
           name: versioning.repository.name,
           description: versioning.repository.description,
           buildTime: versioning.buildTime,
-          sources: versioning.sources.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }),
+          sources: versioning.sources
+            .map(function (s) { return Object.assign({}, s, { origin: origins[s.id] }); })
+            .sort(function (a, b) { return a.name.localeCompare(b.name); }),
+          credits: upstreams
+            .filter(function (u) { return u.added && u.added.length; })
+            .map(function (u) {
+              return { label: u.label, url: u.url, sourceCode: u.sourceCode, license: u.license, licenseFile: u.licenseFile, commit: String(u.commit || "").slice(0, 7), count: u.added.length };
+            }),
         };
       })
       .catch(function () {
@@ -504,6 +532,33 @@ ul { margin-top: 0; }
     });
   }
 
+  var creditsBox = document.querySelector(".js-credits");
+  function renderCredits(ref, list) {
+    creditsBox.textContent = "";
+    creditsBox.hidden = !list || !list.length;
+    if (creditsBox.hidden) return;
+    creditsBox.appendChild(el("h3", "", "Included from other repositories"));
+    var ul = el("ul");
+    list.forEach(function (c) {
+      var li = el("li");
+      var link = el("a", "", c.label);
+      link.href = c.url;
+      li.appendChild(link);
+      li.appendChild(document.createTextNode(" · " + c.count + " sources · " + c.license + " ("));
+      var lic = el("a", "", "license");
+      lic.href = baseUrlOf(ref) + "/licenses/" + c.licenseFile;
+      li.appendChild(lic);
+      li.appendChild(document.createTextNode(", "));
+      var code = el("a", "", "source code");
+      code.href = c.sourceCode;
+      li.appendChild(code);
+      li.appendChild(document.createTextNode(")" + (c.commit ? " · " + c.commit : "")));
+      ul.appendChild(li);
+    });
+    creditsBox.appendChild(ul);
+    creditsBox.appendChild(el("p", "", "Copied unchanged from those public repositories when this one is built; their authors keep the credit."));
+  }
+
   function renderSources(sources) {
     list.textContent = "";
     var labels = [];
@@ -513,6 +568,7 @@ ul { margin-top: 0; }
       item.title = source.description || "";
       item.dataset.tags = tags.map(function (t) { return t.label; }).join("|");
       item.appendChild(el("span", "version", source.version || ""));
+      if (source.origin) item.appendChild(el("span", "origin", source.origin));
       tags.forEach(function (tag) {
         var span = el("span", "el-tag el-tag--dark el-tag--mini" + (tag.type ? " el-tag--" + tag.type : ""), tag.label);
         if (tag.style) span.setAttribute("style", tag.style);
@@ -540,6 +596,7 @@ ul { margin-top: 0; }
       status.textContent = repo ? "This repository isn't published yet." : "Loading sources…";
       setText(".js-repo-name", labelOf(ref));
       setText(".js-repo-description", "");
+      renderCredits(ref, []);
       setText(".js-base-url", baseUrlOf(ref));
       if (!repo) load(ref);
       return;
@@ -552,6 +609,7 @@ ul { margin-top: 0; }
     document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = addRepoLink(repo.name, ref); });
     if (ref === selected) document.title = repo.name;
     renderSources(repo.sources);
+    renderCredits(ref, repo.credits);
   }
 
   // With a mouse, hovering a link shows that repository and leaving goes back
