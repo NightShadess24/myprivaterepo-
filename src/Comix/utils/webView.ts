@@ -646,8 +646,8 @@ const SITE_CHAPTERS_BOOTSTRAP = `
 })();
 `;
 
-// After the title page's own first page: pages of 100, newest first, each at
-// least CHAPTER_REQUEST_GAP_MS after the one before (the page's own included).
+// After the title page's own first page: pages of 20, newest first (like the
+// site's pager), each at least CHAPTER_REQUEST_GAP_MS after the one before.
 // A library refresh (`refresh`) only needs the newest page: the app merges
 // chapters.
 function buildChapterListInject(mangaId: string, refresh: boolean): string {
@@ -690,31 +690,47 @@ return (async function () {
 
   var path = "/manga/" + ${id} + "/chapters";
   var maxPages = ${refresh ? 1 : 1000};
-  var chapters = [];
-  var page = 1;
-  var lastPage = 1;
+  // Go on from the page's own first page (20 chapters), the same way its pager
+  // does: 20 at a time, newest first, 3 s apart. comix refuses bigger pages
+  // past the first ("captcha required"), even with a fresh pass.
+  var chapters = site ? site.items.slice() : [];
+  var page = site ? 2 : 1;
+  var lastPage = site ? ((site.meta || {}).lastPage || 1) : 1;
+  var stopBy = started + 130000;
+  // A refusal or failure partway keeps the chapters already read.
+  var partial = function (reason) {
+    return JSON.stringify({
+      ok: true, items: chapters, via: site ? "page+api" : "api", pages: page - 1, lastPage: lastPage,
+      frame: frame.seen, stopped: { page: page, reason: reason },
+    });
+  };
   // The page's own request was just before its answer arrived.
   var lastRequest = site ? site.at : Date.now() - GAP + 1000;
   try {
     while (page <= lastPage && page <= maxPages) {
+      if (Date.now() > stopBy) return partial("out of time");
       while (Date.now() < lastRequest + GAP) {
-        if (blocked()) return cloudflareResult();
-        if (stuck()) return checkResult();
+        if (blocked()) return chapters.length ? partial("Cloudflare refused") : cloudflareResult();
+        if (stuck()) return chapters.length ? partial("comix wanted its check") : checkResult();
         await sleep(100);
       }
       lastRequest = Date.now();
-      var resp = await orCheck(axios.get(path, { params: { page: page, limit: 100, "order[number]": "desc" } }));
-      if (stopper(resp)) return stopper(resp);
+      var resp = await orCheck(axios.get(path, { params: { page: page, limit: 20, "order[number]": "desc" } }));
+      if (stopper(resp)) return chapters.length ? partial("comix wanted its check") : stopper(resp);
       var data = resp.data || {};
       chapters = chapters.concat(data.items || []);
       var meta = data.meta || {};
       lastPage = meta.lastPage || page;
       page = page + 1;
     }
-    return done(chapters, "api", page - 1, lastPage);
+    return done(chapters, site ? "page+api" : "api", page - 1, lastPage);
   } catch (e) {
-    if (refused(e)) return checkResult();
+    var wanted = refused(e);
     var resp2 = e && e.response;
+    if (chapters.length) {
+      return partial(wanted ? "comix wanted its check" : "HTTP " + ((resp2 && resp2.status) || "error"));
+    }
+    if (wanted) return checkResult();
     return JSON.stringify({
       ok: false,
       cloudflare: blocked(),
@@ -744,6 +760,7 @@ export async function chapterListViaWebView(
     pages: number;
     lastPage: number;
     frame?: boolean;
+    stopped?: { page: number; reason: string };
   }>(
     await runProxiedWebView<unknown>(
       pageUrl,
@@ -776,11 +793,16 @@ export async function chapterListViaWebView(
     throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);
   }
 
-  if (!refresh) {
+  if (result.stopped) {
+    logEvent(
+      "chapter list cut short",
+      `${mangaId}: showing the newest ${result.items.length} chapters; page ${result.stopped.page} of ${result.lastPage} failed (${result.stopped.reason}). Open the manga again later for the rest.`,
+    );
+  } else if (!refresh) {
     const how =
       result.via === "page"
         ? "from the title page"
-        : `${result.pages} of ${result.lastPage} pages, 3 s apart`;
+        : `${result.pages} of ${result.lastPage} pages of 20, 3 s apart`;
     logEvent(
       "chapter list",
       `${mangaId}: ${result.items.length} chapters (${how}) in ${Math.round(
