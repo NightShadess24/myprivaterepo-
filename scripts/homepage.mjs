@@ -146,7 +146,7 @@ const filterLabels = [
   ...new Set(sources.flatMap((source) => sourceTags(source).map((t) => t.label))),
 ];
 const footerText = (repoName, count, buildTime) =>
-  `${repoName} · ${count} sources · built ${String(buildTime ?? "").slice(0, 10)}`;
+  `${repoName} · ${count} source${count === 1 ? "" : "s"} · built ${String(buildTime ?? "").slice(0, 10)}`;
 
 // What the page needs to redraw this repository after showing another one.
 const embedded = {
@@ -756,7 +756,8 @@ ${sources.map(sourceItem).join("\n")}
     setText(".js-repo-name", repo.name);
     setText(".js-repo-description", repo.description);
     setText(".js-base-url", baseUrlOf(ref));
-    setText(".js-footer", repo.name + " · " + repo.sources.length + " sources · built " + String(repo.buildTime || "").slice(0, 10));
+    var count = repo.sources.length;
+    setText(".js-footer", repo.name + " · " + count + (count === 1 ? " source" : " sources") + " · built " + String(repo.buildTime || "").slice(0, 10));
     document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = addRepoLink(repo.name, ref); });
     if (ref === selected) document.title = repo.name;
     renderSources(repo.sources);
