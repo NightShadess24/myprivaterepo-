@@ -55,10 +55,8 @@ import {
   describeCookies,
   loadClearance,
   logEvent,
-  passCandidates,
   saveClearance,
   saveSiteCookies,
-  saveWafPass,
   timeAgo,
   useQuickRefresh,
   withDiagnostics,
@@ -95,9 +93,6 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     this.globalRateLimiter.registerInterceptor();
     this.cookieStorageInterceptor.registerInterceptor();
     this.mainInterceptor.registerInterceptor();
-    // The settings page builds its puzzle browser synchronously; give it the
-    // app's user agent, which Cloudflare's and comix's passes are tied to.
-    Application.setState(await Application.getDefaultUserAgent(), "comix_user_agent");
 
     // Drop Cloudflare's leftover in-progress challenge cookies (cf_chl_*). Move
     // the Cloudflare pass into state, where every instance reads it.
@@ -134,12 +129,6 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     );
     if (strayPass) this.cookieStorageInterceptor.setCookie(strayPass);
     clearCloudflareChallenge();
-
-    // Hand the check screen's site cookies (its `session`, and `waf_pass` once
-    // comix's puzzle is solved) to every page. If the site still asks for its
-    // puzzle, the page drops them again, so a bad set is never replayed.
-    const candidates = passCandidates(site);
-    if (candidates.length > 0) saveWafPass(candidates, "check");
   }
 
   async getSettingsForm(): Promise<Form> {

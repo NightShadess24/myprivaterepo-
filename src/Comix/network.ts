@@ -5,6 +5,7 @@ import {
   CloudflareError,
   PaperbackInterceptor,
   URL,
+  type Cookie,
   type Request,
   type Response,
 } from "@paperback/types";
@@ -12,7 +13,7 @@ import {
 import { DOMAIN } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
-import { loadClearance, loadWafPass, logEvent } from "./utils/session";
+import { loadClearance, logEvent } from "./utils/session";
 
 // Once Cloudflare challenges, every further request only digs the hole deeper
 // (a library refresh would keep firing title after title). So after a
@@ -52,16 +53,14 @@ const pathOf = (url: string) => url.replace(/^https?:\/\/[^/]+/i, "").split("?")
 
 export class ComixInterceptor extends PaperbackInterceptor {
   override async interceptRequest(request: Request): Promise<Request> {
-    // Send the newest Cloudflare pass and the site's human-check pass from state
-    // (see utils/session.ts), over whatever the cookie store's in-memory copy
-    // holds.
+    // Send the newest Cloudflare pass from state (see utils/session.ts). The
+    // site's own cookies (its `session`) come from the cookie store, which keeps
+    // whatever the site last set, like a browser does.
     const headers = { ...request.headers, "user-agent": await Application.getDefaultUserAgent() };
     if (!isSiteUrl(request.url)) return { ...request, headers };
-    const cookies: Record<string, string> = { ...request.cookies };
-    for (const cookie of loadWafPass()) cookies[cookie.name] = cookie.value;
     const clearance = loadClearance();
-    if (clearance) cookies.cf_clearance = clearance.value;
-    return { ...request, headers, cookies };
+    if (!clearance) return { ...request, headers };
+    return { ...request, headers, cookies: { ...request.cookies, cf_clearance: clearance.value } };
   }
 
   override async interceptResponse(
@@ -121,6 +120,13 @@ export class ComixInterceptor extends PaperbackInterceptor {
 }
 
 export async function fetchText(url: string): Promise<string> {
+  return (await fetchPage(url)).text;
+}
+
+// Like fetchText, but also returns the cookies the page set (Set-Cookie). The
+// site hands out a fresh `session` with its pages; a WebView that runs the page
+// has to carry that same session, or the API refuses it with captcha_required.
+export async function fetchPage(url: string): Promise<{ text: string; cookies: Cookie[] }> {
   await throwIfChallenged();
   const [response, buffer] = await Application.scheduleRequest({ url, method: "GET" });
   const text = Application.arrayBufferToUTF8String(buffer);
@@ -140,7 +146,7 @@ export async function fetchText(url: string): Promise<string> {
       "Comix has blocked your network for now (usually after too many requests). Wait a while, then try again.",
     );
   }
-  return text;
+  return { text, cookies: response.cookies ?? [] };
 }
 
 export function browseUrl(query: Record<string, string | string[]>): string {

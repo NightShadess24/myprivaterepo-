@@ -7,24 +7,19 @@ import * as cheerio from "cheerio";
 import { type ChapterItem, type ChapterPages, type ResultManga, DOMAIN } from "../models";
 import {
   cloudflareChallenge,
-  fetchText,
+  fetchPage,
   markCloudflareChallenged,
   throwIfChallenged,
 } from "../network";
 import {
   clearanceCookie,
-  clearWafPass,
   describeCookies,
   getRefreshPace,
   isChallengeCookie,
   isSiteDomain,
-  loadWafPass,
   logEvent,
-  passCandidates,
   saveClearance,
   saveSiteCookies,
-  saveWafPass,
-  setLastCaptchaTitle,
 } from "./session";
 
 // A bootstrap resolves `window.__comixResult__` with this instead of data when it
@@ -81,10 +76,10 @@ export const isSiteCookie = isSiteDomain;
 // that made them.
 export const isKeptCookie = (cookie: Cookie) => !isChallengeCookie(cookie.name);
 
-// Saves cookies from the check screen or a page load: cf_clearance goes to
-// state (read fresh for every request). The site's other cookies are only
-// recorded by name for Diagnostics — sending saved copies of them overrode the
-// browser's fresh ones and made the human check loop (alpha.54).
+// Keeps the cookies a check screen or a page ended with, the way a browser
+// would: the site's own cookies (its `session`) go to the cookie store, which
+// sends them with the next page fetch, and cf_clearance also goes to state
+// (read fresh for every request).
 export function storeSiteCookies(
   cookieInterceptor: CookieStorageInterceptor,
   cookies: readonly Cookie[],
@@ -94,23 +89,33 @@ export function storeSiteCookies(
     (cookie) =>
       cookie.value && cookie.domain && isSiteCookie(cookie.domain) && isKeptCookie(cookie),
   );
-  const clearance = site.find((cookie) => cookie.name === "cf_clearance");
-  if (clearance) {
-    saveClearance(clearance, source);
-    cookieInterceptor.setCookie(clearance);
+  for (const cookie of site) {
+    if (cookie.name === "cf_clearance") saveClearance(cookie, source);
+    cookieInterceptor.setCookie(cookie);
   }
   saveSiteCookies(site, source);
 }
 
-// Cookies for a WebView run: the newest Cloudflare pass and, once one has been
-// confirmed, the site's human-check pass. Nothing unconfirmed is handed over:
-// replaying unverified copies made the check loop in alpha.54.
-function webViewCookies(): Cookie[] {
+// Cookies for a WebView run, as a browser would have them right after loading
+// the page: the cookie store (which kept what earlier pages set), then what
+// this page's own response just set (its fresh `session`), then the newest
+// Cloudflare pass. alpha.52–59 left the page's session out or replaced it with
+// an older copy, and the API refused every request with captcha_required.
+function webViewCookies(
+  cookieInterceptor: CookieStorageInterceptor,
+  pageSetCookies: readonly Cookie[],
+): Cookie[] {
+  const byName = new Map<string, Cookie>();
+  for (const cookie of cookieInterceptor.cookiesForUrl(`${DOMAIN}/`)) {
+    if (isKeptCookie(cookie)) byName.set(cookie.name, cookie);
+  }
+  for (const cookie of pageSetCookies) {
+    if (cookie.value && isKeptCookie(cookie)) byName.set(cookie.name, cookie);
+  }
   const clearance = clearanceCookie();
-  return [...loadWafPass(), ...(clearance ? [clearance] : [])];
+  if (clearance) byName.set(clearance.name, clearance);
+  return [...byName.values()];
 }
-
-const hidOfPage = (pageUrl: string) => /\/title\/([^/?#-]+)/.exec(pageUrl)?.[1];
 
 // Loads a Comix page in a WebView and lets the site's own JS run end-to-end:
 // the bundle signs API requests and decodes the answers internally, and the
@@ -133,9 +138,9 @@ async function runWebViewNow<T>(
 ): Promise<T> {
   await throwIfChallenged();
   const userAgent = await Application.getDefaultUserAgent();
-  const $ = cheerio.load(await fetchText(pageUrl));
-  // Read after the page fetch, which may have refreshed them.
-  const cookies = webViewCookies();
+  const fetched = await fetchPage(pageUrl);
+  const $ = cheerio.load(fetched.text);
+  const cookies = webViewCookies(cookieInterceptor, fetched.cookies);
 
   $("head").prepend(`<script>${bootstrap}</script>`);
 
@@ -145,23 +150,16 @@ async function runWebViewNow<T>(
     storage: { cookies },
   });
 
-  // Keep a Cloudflare pass the run renewed; note the site's cookie names.
-  storeSiteCookies(cookieInterceptor, raw.storage?.cookies ?? [], "page load");
-  const pageCookies = passCandidates(raw.storage?.cookies ?? []);
+  // Keep whatever the page's own requests set, so the next page starts from it.
+  const pageCookies = (raw.storage?.cookies ?? []).filter(
+    (cookie) => cookie.domain && isSiteCookie(cookie.domain),
+  );
+  storeSiteCookies(cookieInterceptor, pageCookies, "page");
 
   const result = raw.result;
   const page = pageUrl.replace(DOMAIN, "").split("?")[0] || "/";
   if (result === undefined || result === null) {
     throw new Error("Comix WebView returned no result");
-  }
-  if (!isWebViewError(result) && pageCookies.length > 0) {
-    // The site answered, so the cookies this page ended with got past its
-    // human check: keep them as the pass (refreshes and other instances use it).
-    const kept = loadWafPass();
-    const same =
-      kept.length === pageCookies.length &&
-      pageCookies.every((c) => kept.some((k) => k.name === c.name && k.value === c.value));
-    if (!same) saveWafPass(pageCookies, "page that loaded");
   }
   if (isWebViewError(result)) {
     if (result.__comixError === CLOUDFLARE) {
@@ -177,19 +175,12 @@ async function runWebViewNow<T>(
     if (result.__comixError === CAPTCHA) {
       logEvent(
         "captcha",
-        `on ${page}: ${result.detail || "?"}; gave ${describeCookies(cookies)}; page had ${describeCookies(pageCookies)}`,
+        `on ${page}: ${result.detail || "?"}; page fetch set ${describeCookies(
+          fetched.cookies,
+        )}; gave ${describeCookies(cookies)}; page ended with ${describeCookies(pageCookies)}`,
       );
-      const hid = hidOfPage(pageUrl);
-      if (hid) setLastCaptchaTitle(hid);
-      if (cookies.some((c) => c.name !== "cf_clearance")) {
-        clearWafPass("the site asked for the check again");
-      }
-      // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
-      // The app's check screen closes as soon as Cloudflare's part passes, before
-      // comix shows its puzzle, so point the reader at the puzzle browser in the
-      // extension's settings, which stays open until they tap Done.
       throw new Error(
-        "Comix wants its own puzzle solved. Open Settings → Comix → Solve Comix's Puzzle, solve it, tap Done, then try again.",
+        "Comix refused this request (captcha_required). Try again; if it keeps happening, send a screenshot of Settings → Comix → Diagnostics.",
       );
     }
     throw new Error(`Comix: ${result.__comixError}`);
