@@ -1,5 +1,5 @@
 {
-  "buildTime": "2026-10-14T03:33:56.869Z",
+  "buildTime": "2026-10-14T03:45:19.286Z",
   "builtWith": {
     "toolchain": "1.0.0-alpha.92",
     "types": "1.0.0-alpha.92"
@@ -57,7 +57,7 @@
     {
       "name": "Comix",
       "description": "Extension that pulls content from Comix.to.",
-      "version": "1.0.0-alpha.49",
+      "version": "1.0.0-alpha.50",
       "icon": "icon.png",
       "language": "en",
       "contentRating": "SAFE",

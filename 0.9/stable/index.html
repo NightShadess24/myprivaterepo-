@@ -98,12 +98,6 @@ ul { margin-top: 0; }
 [data-theme="classic"] .baseUrl p { margin-left: 16px; }
 [data-theme="classic"] #listDiv { line-height: 1.5; }
 [data-theme="classic"] .sources { padding-left: 40px; }
-[data-theme="classic"] .source { list-style: disc; }
-[data-theme="classic"] .source__icon,
-[data-theme="classic"] .source__tags,
-[data-theme="classic"] .source__version,
-[data-theme="classic"] .source__dev,
-[data-theme="classic"] .source__install { display: none; }
 [data-theme="classic"] .theme-toggle { background: #fff; color: #2c3e50; border: 1px solid #dfe2e5; }
 
 /* ---------- Noir (dark shop style) ---------- */
@@ -115,7 +109,6 @@ ul { margin-top: 0; }
   --muted: #a3a3aa;
   --gold: #c9a45c;
   --blue: #5d9dfe;
-  --maroon: #8e2433;
   color-scheme: dark;
 }
 [data-theme="noir"] body {
@@ -249,39 +242,14 @@ ul { margin-top: 0; }
   line-height: 1.1;
   color: #e6e6e6;
 }
-[data-theme="noir"] .sources {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 30px 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-[data-theme="noir"] .source { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
-[data-theme="noir"] .source[hidden] { display: none; }
-[data-theme="noir"] .source__icon {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
-  margin-bottom: 6px;
-  background: #fff;
-}
-[data-theme="noir"] .source__icon img { width: 62%; height: 62%; object-fit: contain; border-radius: 18%; }
-[data-theme="noir"] .source__tags { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
-[data-theme="noir"] .source__tags .el-tag { margin: 0; border-radius: 0; background-color: var(--maroon); border-color: var(--maroon); color: #fff; }
-[data-theme="noir"] .source .el-tag.inline { display: none; }
-[data-theme="noir"] .source__name { font-weight: 600; line-height: 1.35; }
-[data-theme="noir"] .source__version { font-size: 14px; }
-[data-theme="noir"] .source__dev { font-size: 13px; color: var(--muted); }
-[data-theme="noir"] .source__install { font-size: 14px; }
-[data-theme="noir"] .source__install:hover { text-decoration: underline; }
-[data-theme="noir"] .empty { text-align: center; color: var(--muted); }
+[data-theme="noir"] #listDiv { max-width: 920px; margin: 0 auto; }
+[data-theme="noir"] .sources { margin: 0; padding-left: 40px; line-height: 1.5; font-size: 16px; }
+[data-theme="noir"] .empty { color: var(--muted); }
 [data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
 
 @media (max-width: 560px) {
   [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
   [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
-  [data-theme="noir"] .sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
 }
 </style>
@@ -337,190 +305,29 @@ ul { margin-top: 0; }
 <!-- Both: the sources -->
 <div id="listDiv">
 <ul class="sources">
-<li class="source" data-tags="Mature" title="Extension that pulls content from allmanga.to.">
-<span class="source__icon"><img src="AllManga/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></span>
-<span class="source__name">AllManga</span><span class="inline el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span>
-<span class="source__version">v1.0.0-alpha.4</span>
-<span class="source__dev">by Popmango</span>
-<a class="source__install js-install" data-id="AllManga" href="paperback://installExtensions?data=W1siQWxsTWFuZ2EiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from atsu.moe.">
-<span class="source__icon"><img src="Atsumaru/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">Atsumaru</span>
-<span class="source__version">v1.0.0-alpha.25</span>
-<span class="source__dev">by Lucifers Circle</span>
-<a class="source__install js-install" data-id="Atsumaru" href="paperback://installExtensions?data=W1siQXRzdW1hcnUiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from Comix.to.">
-<span class="source__icon"><img src="Comix/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">Comix</span>
-<span class="source__version">v1.0.0-alpha.49</span>
-<span class="source__dev">by Catta1997</span>
-<a class="source__install js-install" data-id="Comix" href="paperback://installExtensions?data=W1siQ29taXgiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from FlameComics.xyz.">
-<span class="source__icon"><img src="FlameComics/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">FlameComics</span>
-<span class="source__version">v1.0.0-alpha.2</span>
-<span class="source__dev">by Guillaume Favier</span>
-<a class="source__install js-install" data-id="FlameComics" href="paperback://installExtensions?data=W1siRmxhbWVDb21pY3MiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="Mature" title="Extension that pulls content from hivetoons.org.">
-<span class="source__icon"><img src="HiveToons/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></span>
-<span class="source__name">HiveToons</span><span class="inline el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span>
-<span class="source__version">v1.0.0-alpha.3</span>
-<span class="source__dev">by Popmango</span>
-<a class="source__install js-install" data-id="HiveToons" href="paperback://installExtensions?data=W1siSGl2ZVRvb25zIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="Novel" title="Extension that pulls content from LNori.">
-<span class="source__icon"><img src="LNori/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini" style="background-color:#3baf4b;border-color:#3baf4b;color:#ffffff">Novel</span></span>
-<span class="source__name">LNori</span><span class="inline el-tag el-tag--dark el-tag--mini" style="background-color:#3baf4b;border-color:#3baf4b;color:#ffffff">Novel</span>
-<span class="source__version">v1.0.0-alpha.2</span>
-<span class="source__dev">by Catta1997</span>
-<a class="source__install js-install" data-id="LNori" href="paperback://installExtensions?data=W1siTE5vcmkiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from demonicscans.org.">
-<span class="source__icon"><img src="MangaDemon/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">MangaDemon</span>
-<span class="source__version">v1.0.0-alpha.15</span>
-<span class="source__dev">by samipmainali</span>
-<a class="source__install js-install" data-id="MangaDemon" href="paperback://installExtensions?data=W1siTWFuZ2FEZW1vbiIsImh0dHBzOi8vbmlnaHRzaGFkZXNzMjQuZ2l0aHViLmlvL215cHJpdmF0ZXJlcG8tLzAuOS9zdGFibGUiXV0=">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from mangadex.org.">
-<span class="source__icon"><img src="MangaDex/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">MangaDex</span>
-<span class="source__version">v1.0.0-alpha.27</span>
-<span class="source__dev">by Inkdex</span>
-<a class="source__install js-install" data-id="MangaDex" href="paperback://installExtensions?data=W1siTWFuZ2FEZXgiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from MangaDot.net">
-<span class="source__icon"><img src="MangaDot/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">MangaDot</span>
-<span class="source__version">v1.0.0-alpha.6</span>
-<span class="source__dev">by Catta1997</span>
-<a class="source__install js-install" data-id="MangaDot" href="paperback://installExtensions?data=W1siTWFuZ2FEb3QiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from mangafire.to.">
-<span class="source__icon"><img src="MangaFire/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">MangaFire</span>
-<span class="source__version">v1.0.0-alpha.22</span>
-<span class="source__dev">by Inkdex</span>
-<a class="source__install js-install" data-id="MangaFire" href="paperback://installExtensions?data=W1siTWFuZ2FGaXJlIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="Mature" title="Extension that pulls content from fanfox.net.">
-<span class="source__icon"><img src="MangaFox/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></span>
-<span class="source__name">MangaFox</span><span class="inline el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span>
-<span class="source__version">v1.0.0-alpha.13</span>
-<span class="source__dev">by Egwau</span>
-<a class="source__install js-install" data-id="MangaFox" href="paperback://installExtensions?data=W1siTWFuZ2FGb3giLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="18+" title="Extension that pulls content from mangago.me.">
-<span class="source__icon"><img src="Mangago/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini el-tag--danger">18+</span></span>
-<span class="source__name">Mangago</span><span class="inline el-tag el-tag--dark el-tag--mini el-tag--danger">18+</span>
-<span class="source__version">v1.0.0-alpha.1</span>
-<span class="source__dev">by Popmango</span>
-<a class="source__install js-install" data-id="Mangago" href="paperback://installExtensions?data=W1siTWFuZ2FnbyIsImh0dHBzOi8vbmlnaHRzaGFkZXNzMjQuZ2l0aHViLmlvL215cHJpdmF0ZXJlcG8tLzAuOS9zdGFibGUiXV0=">Install in Paperback</a>
-</li>
-<li class="source" data-tags="Mature" title="Extension that pulls content from mangakatana.com.">
-<span class="source__icon"><img src="MangaKatana/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></span>
-<span class="source__name">MangaKatana</span><span class="inline el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span>
-<span class="source__version">v1.0.0-alpha.15</span>
-<span class="source__dev">by Egwau</span>
-<a class="source__install js-install" data-id="MangaKatana" href="paperback://installExtensions?data=W1siTWFuZ2FLYXRhbmEiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from mangapill.com.">
-<span class="source__icon"><img src="Mangapill/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">Mangapill</span>
-<span class="source__version">v1.0.0-alpha.12</span>
-<span class="source__dev">by GabrielCWT</span>
-<a class="source__install js-install" data-id="Mangapill" href="paperback://installExtensions?data=W1siTWFuZ2FwaWxsIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from mangaplus.shueisha.co.jp.">
-<span class="source__icon"><img src="MangaPlus/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">MangaPlus</span>
-<span class="source__version">v1.0.0-alpha.11</span>
-<span class="source__dev">by Yves Pa</span>
-<a class="source__install js-install" data-id="MangaPlus" href="paperback://installExtensions?data=W1siTWFuZ2FQbHVzIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from mangataro.org.">
-<span class="source__icon"><img src="MangaTaro/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">MangaTaro</span>
-<span class="source__version">v1.0.0-alpha.3</span>
-<span class="source__dev">by Lucifers Circle</span>
-<a class="source__install js-install" data-id="MangaTaro" href="paperback://installExtensions?data=W1siTWFuZ2FUYXJvIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from mgeko.cc.">
-<span class="source__icon"><img src="Mgeko/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">Mgeko</span>
-<span class="source__version">v1.0.0-alpha.29</span>
-<span class="source__dev">by Inkdex</span>
-<a class="source__install js-install" data-id="Mgeko" href="paperback://installExtensions?data=W1siTWdla28iLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension pour récupérer le contenu de punkrecordz.com.">
-<span class="source__icon"><img src="PunkRecords/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">PunkRecords</span>
-<span class="source__version">v1.0.0-alpha.2</span>
-<span class="source__dev">by Finebouche</span>
-<a class="source__install js-install" data-id="PunkRecords" href="paperback://installExtensions?data=W1siUHVua1JlY29yZHMiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from qimanhwa.com.">
-<span class="source__icon"><img src="QiScans/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">QiScans</span>
-<span class="source__version">v1.0.0-alpha.15</span>
-<span class="source__dev">by Lucifers Circle</span>
-<a class="source__install js-install" data-id="QiScans" href="paperback://installExtensions?data=W1siUWlTY2FucyIsImh0dHBzOi8vbmlnaHRzaGFkZXNzMjQuZ2l0aHViLmlvL215cHJpdmF0ZXJlcG8tLzAuOS9zdGFibGUiXV0=">Install in Paperback</a>
-</li>
-<li class="source" data-tags="Mature" title="Extension that pulls content from roliascan.com.">
-<span class="source__icon"><img src="Roliascan/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></span>
-<span class="source__name">Roliascan</span><span class="inline el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span>
-<span class="source__version">v1.0.0-alpha.1</span>
-<span class="source__dev">by Saw_6</span>
-<a class="source__install js-install" data-id="Roliascan" href="paperback://installExtensions?data=W1siUm9saWFzY2FuIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.">
-<span class="source__icon"><img src="RoyalRoad/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">RoyalRoad</span>
-<span class="source__version">v1.0.0-alpha.1</span>
-<span class="source__dev">by Inkdex</span>
-<a class="source__install js-install" data-id="RoyalRoad" href="paperback://installExtensions?data=W1siUm95YWxSb2FkIiwiaHR0cHM6Ly9uaWdodHNoYWRlc3MyNC5naXRodWIuaW8vbXlwcml2YXRlcmVwby0vMC45L3N0YWJsZSJdXQ==">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from webtoons.com.">
-<span class="source__icon"><img src="Webtoon/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">Webtoon</span>
-<span class="source__version">v1.0.0-alpha.18</span>
-<span class="source__dev">by Yves Pa</span>
-<a class="source__install js-install" data-id="Webtoon" href="paperback://installExtensions?data=W1siV2VidG9vbiIsImh0dHBzOi8vbmlnaHRzaGFkZXNzMjQuZ2l0aHViLmlvL215cHJpdmF0ZXJlcG8tLzAuOS9zdGFibGUiXV0=">Install in Paperback</a>
-</li>
-<li class="source" data-tags="" title="Extension that pulls content from weebcentral.com.">
-<span class="source__icon"><img src="WeebCentral/static/icon.png" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags"></span>
-<span class="source__name">WeebCentral</span>
-<span class="source__version">v1.0.0-alpha.25</span>
-<span class="source__dev">by GabrielCWT</span>
-<a class="source__install js-install" data-id="WeebCentral" href="paperback://installExtensions?data=W1siV2VlYkNlbnRyYWwiLCJodHRwczovL25pZ2h0c2hhZGVzczI0LmdpdGh1Yi5pby9teXByaXZhdGVyZXBvLS8wLjkvc3RhYmxlIl1d">Install in Paperback</a>
-</li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from allmanga.to.">AllManga<span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from atsu.moe.">Atsumaru</li>
+<li class="source" data-tags="" title="Extension that pulls content from Comix.to.">Comix</li>
+<li class="source" data-tags="" title="Extension that pulls content from FlameComics.xyz.">FlameComics</li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from hivetoons.org.">HiveToons<span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="Novel" title="Extension that pulls content from LNori.">LNori<span class="el-tag el-tag--dark el-tag--mini" style="background-color:#3baf4b;border-color:#3baf4b;color:#ffffff">Novel</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from demonicscans.org.">MangaDemon</li>
+<li class="source" data-tags="" title="Extension that pulls content from mangadex.org.">MangaDex</li>
+<li class="source" data-tags="" title="Extension that pulls content from MangaDot.net">MangaDot</li>
+<li class="source" data-tags="" title="Extension that pulls content from mangafire.to.">MangaFire</li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from fanfox.net.">MangaFox<span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="18+" title="Extension that pulls content from mangago.me.">Mangago<span class="el-tag el-tag--dark el-tag--mini el-tag--danger">18+</span></li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from mangakatana.com.">MangaKatana<span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mangapill.com.">Mangapill</li>
+<li class="source" data-tags="" title="Extension that pulls content from mangaplus.shueisha.co.jp.">MangaPlus</li>
+<li class="source" data-tags="" title="Extension that pulls content from mangataro.org.">MangaTaro</li>
+<li class="source" data-tags="" title="Extension that pulls content from mgeko.cc.">Mgeko</li>
+<li class="source" data-tags="" title="Extension pour récupérer le contenu de punkrecordz.com.">PunkRecords</li>
+<li class="source" data-tags="" title="Extension that pulls content from qimanhwa.com.">QiScans</li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from roliascan.com.">Roliascan<span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="" title="Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.">RoyalRoad</li>
+<li class="source" data-tags="" title="Extension that pulls content from webtoons.com.">Webtoon</li>
+<li class="source" data-tags="" title="Extension that pulls content from weebcentral.com.">WeebCentral</li>
 </ul>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
@@ -570,9 +377,6 @@ ul { margin-top: 0; }
       "&url=" + encodeURIComponent(baseUrl);
     document.querySelectorAll(".js-base-url").forEach(function (el) { el.textContent = baseUrl; });
     document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = link; });
-    document.querySelectorAll(".js-install").forEach(function (a) {
-      a.href = "paperback://installExtensions?data=" + btoa(JSON.stringify([[a.dataset.id, baseUrl]]));
-    });
   }
 
   var copy = document.querySelector(".copyButton");
