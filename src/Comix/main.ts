@@ -102,7 +102,10 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
 
   async getSettingsForm(): Promise<Form> {
     await ensureFilters();
-    return new ComixSettingsForm();
+    return new ComixSettingsForm(
+      this.cookieStorageInterceptor,
+      await Application.getDefaultUserAgent(),
+    );
   }
 
   async getDiscoverSections(): Promise<DiscoverSection[]> {

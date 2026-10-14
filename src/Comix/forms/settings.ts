@@ -13,9 +13,12 @@ import {
   SelectRow,
   StepperRow,
   ToggleRow,
+  WebViewRow,
+  type Cookie,
+  type CookieStorageInterceptor,
 } from "@paperback/types";
 
-import { DISCOVERY_SECTIONS, type SectionEntry } from "../models";
+import { DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
 import {
   contentRatings,
   contentTypes,
@@ -48,8 +51,49 @@ function saveSetting(form: Form, key: string, value: unknown): void {
 }
 
 export class ComixSettingsForm extends Form {
+  // The cookie store holds the Cloudflare pass (cf_clearance); the user agent
+  // is the app's, which the pass is tied to.
+  constructor(
+    private readonly cookieStore: CookieStorageInterceptor,
+    private readonly userAgent: string,
+  ) {
+    super();
+  }
+
   override getSections() {
+    const pass = this.cookieStore
+      .cookiesForUrl(`${DOMAIN}/`)
+      .find((cookie) => cookie.name === "cf_clearance");
     return [
+      Section(
+        {
+          id: "cloudflare",
+          header: "Cloudflare",
+          footer:
+            "Redo the check to get a fresh Cloudflare pass: complete the check if it appears, wait for comix's home page, then tap Done. If the check doesn't appear, tap Forget first.",
+        },
+        [
+          LabelRow("cloudflare_pass", {
+            title: "Cloudflare Pass",
+            value: pass ? "Saved" : "None",
+            subtitle: pass?.expires ? `Expires ${pass.expires.toLocaleDateString()}` : undefined,
+          }),
+          WebViewRow("cloudflare_check", {
+            title: "Redo Cloudflare Check",
+            request: {
+              url: `${DOMAIN}/`,
+              method: "GET",
+              headers: { "user-agent": this.userAgent },
+            },
+            onComplete: Application.Selector(this as ComixSettingsForm, "handleCheckDone"),
+            onCancel: Application.Selector(this as ComixSettingsForm, "handleCheckCancelled"),
+          }),
+          ButtonRow("cloudflare_forget", {
+            title: "Forget Cloudflare Pass",
+            onSelect: Application.Selector(this as ComixSettingsForm, "forgetPass"),
+          }),
+        ],
+      ),
       Section("settings", [
         NavigationRow("Contents", {
           title: "Contents",
@@ -95,6 +139,25 @@ export class ComixSettingsForm extends Form {
 
   async refreshFilters() {
     await ensureFilters(true);
+    this.reloadForm();
+  }
+
+  // Same as the app's own bypass banner: keep the fresh cf_clearance.
+  async handleCheckDone(cookies: Cookie[]) {
+    for (const cookie of cookies) {
+      if (cookie.name == "cf_clearance") this.cookieStore.setCookie(cookie);
+    }
+    this.reloadForm();
+  }
+
+  async handleCheckCancelled() {
+    this.reloadForm();
+  }
+
+  async forgetPass() {
+    this.cookieStore.cookies = this.cookieStore.cookies.filter(
+      (cookie) => cookie.name !== "cf_clearance",
+    );
     this.reloadForm();
   }
 
