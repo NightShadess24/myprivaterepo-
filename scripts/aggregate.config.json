@@ -1,0 +1,59 @@
+{
+  "$comment": "Other public Paperback 0.9 repositories whose sources are copied into this one at build time (scripts/aggregate.mjs). Only repositories under an open-source license that allows redistribution are listed; earlier entries win when two offer the same source id. Not included (no license, or 'all rights reserved'): nyzzik/extensions, TheVodraz/paperback-extensions, michaelasper/paperback-corruptbytes. PoppingMangoSources/general-extensions-mangago adds nothing the Inkdex registry doesn't already have.",
+  "upstreams": [
+    {
+      "repo": "inkdex/extensions",
+      "branch": "master",
+      "path": "0.9/stable",
+      "label": "Inkdex",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/inkdex"
+    },
+    {
+      "repo": "karrot0/KakarotExtension",
+      "branch": "gh-pages",
+      "path": "0.9/stable",
+      "label": "Kakarot",
+      "license": "MIT",
+      "licenseFile": "MIT-KakarotExtension.txt",
+      "sourceCode": "https://github.com/karrot0/KakarotExtension"
+    },
+    {
+      "repo": "Catta1997/Sinon-Paperback-Extensions",
+      "branch": "gh-pages",
+      "path": "0.9/stable",
+      "label": "Sinon",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Catta1997/Sinon-Paperback-Extensions"
+    },
+    {
+      "repo": "kittycatgit/kitty-extensions-0.9",
+      "branch": "gh-pages",
+      "path": "",
+      "label": "Kittykat",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/kittycatgit/kitty-extensions-0.9"
+    },
+    {
+      "repo": "itskodama/paperback-extensions",
+      "branch": "gh-pages",
+      "path": "0.9/stable",
+      "label": "Kodama",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/itskodama/paperback-extensions"
+    },
+    {
+      "repo": "LucifersCircle/pirate.vodka-extensions",
+      "branch": "gh-pages",
+      "path": "",
+      "label": "Pirate Vodka",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/LucifersCircle/pirate.vodka-extensions"
+    }
+  ]
+}

@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - "[0-9]+.[0-9]+/*"
+  # Daily rebuild of the default branch (0.9/stable), so sources copied in from
+  # other repositories (scripts/aggregate.mjs) pick up their updates.
+  schedule:
+    - cron: "23 5 * * *"
   workflow_dispatch:
 
 permissions:
