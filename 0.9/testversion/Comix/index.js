@@ -27,6 +27,20 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   var check = window.__comixCheck || { seen: false, since: 0 };
   var stuck = function () { return check.seen && Date.now() - check.since > ${Wf}; };
+  // The site put up its check frame instead of loading (its own requests
+  // wait for it): ask the API ourselves rather than wait for the site.
+  var frame = window.__comixFrame || { seen: false, at: 0 };
+  var gated = function () { return !check.seen && frame.seen && Date.now() - frame.at > 1500; };
+  // Our own request answered 403 captcha_required: comix really wants its check.
+  var refused = function (e) {
+    var r = e && e.response;
+    if (!r || r.status !== 403) return false;
+    var text = "";
+    try { text = typeof r.data === "string" ? r.data : JSON.stringify(r.data); } catch (x) {}
+    if (!/captcha/i.test(text)) return false;
+    if (window.__comixSawCheck) window.__comixSawCheck("HTTP 403 on our request: " + text.slice(0, 100));
+    return true;
+  };
   // Cloudflare refused a request outright, or comix's own scripts failed to
   // load and its code still hasn't started 3 s later.
   var blocked = function () {
@@ -53,7 +67,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
   };
   var cloudflareResult = function () { return JSON.stringify({ ok: false, cloudflare: true, error: "Cloudflare refused the page's requests" }); };
   var stopper = function (resp) { return resp === CLOUDFLARE ? cloudflareResult() : resp === CHECK ? checkResult() : null; };
-`;async function qf(e,t){return y(`cloudflare`,`${t}: Cloudflare refused the page's requests, opening it to pass the check`),new Ce({url:e,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}},`Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.`)}async function Jf(e,t){let n=await Application.getDefaultUserAgent(),r=t?.ua?t.ua===n?`same as the app's`:`"${t.ua}", the app's is "${n}"`:`unknown`;return y(`comix check`,`${e}: comix wanted its check, opening its check page. Asked because: ${t?.why??`unknown`}. Last answers: ${t?.net||`none`}. Page could see: ${t?.cookies||`no cookies`}. Page was given: ${Xf.sent}. Page ended with: ${Xf.ended}. Page's browser: ${r}${t?.visible?` (${t.visible})`:``}.`),new Ce({url:Ae,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}},`comix.to wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.`)}let Yf=0,Xf={sent:`none`,ended:`none`};async function Zf(e,t,n,{browse:r=!1,urgent:i=!1,paced:a=!1,inject:o=`return window.__comixResult__`,timeoutSeconds:s,what:c}){let l=async()=>{if(a){let e=Yf+Gf-1e3-Date.now();e>0&&await Application.sleep(e/1e3)}try{return await u()}finally{a&&(Yf=Date.now())}},u=async()=>{let r=await Application.getDefaultUserAgent(),i=Nf(await At(e)),a=nn(n);i(`head`).prepend(`<script>${on(a)}
+`;async function qf(e,t){return y(`cloudflare`,`${t}: Cloudflare refused the page's requests, opening it to pass the check`),new Ce({url:e,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}},`Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.`)}async function Jf(e,t){let n=await Application.getDefaultUserAgent(),r=t?.ua?t.ua===n?`same as the app's`:`"${t.ua}", the app's is "${n}"`:`unknown`;return y(`comix check`,`${e}: comix wanted its check, opening its check page. Asked because: ${t?.why??`unknown`}. Last answers: ${t?.net||`none`}. Page could see: ${t?.cookies||`no cookies`}. Page was given: ${Xf.sent}. Page ended with: ${Xf.ended}. Page's browser: ${r}${t?.visible?` (${t.visible})`:``}.`+(t?.frame?` Before that: ${t.frame}.`:``)),new Ce({url:Ae,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}},`comix.to wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.`)}let Yf=0,Xf={sent:`none`,ended:`none`};async function Zf(e,t,n,{browse:r=!1,urgent:i=!1,paced:a=!1,inject:o=`return window.__comixResult__`,timeoutSeconds:s,what:c}){let l=async()=>{if(a){let e=Yf+Gf-1e3-Date.now();e>0&&await Application.sleep(e/1e3)}try{return await u()}finally{a&&(Yf=Date.now())}},u=async()=>{let r=await Application.getDefaultUserAgent(),i=Nf(await At(e)),a=nn(n);i(`head`).prepend(`<script>${on(a)}
 (function () {
   var check = (window.__comixCheck = { seen: false, since: 0 });
   // Cloudflare (not comix) refusing the page's own requests or scripts: the
@@ -93,6 +107,13 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
     } catch (e) {}
     return "";
   }
+  // comix's check frame (or a request to /@waf/) on its own is not a refusal:
+  // the site can put it up while its API keeps answering normally. Only an
+  // API answer of 403 captcha_required counts as comix wanting its check.
+  var frame = (window.__comixFrame = { seen: false, at: 0, how: "" });
+  function sawFrame(how) {
+    if (!frame.seen) { frame.seen = true; frame.at = Date.now(); frame.how = how; }
+  }
   function sawCheck(why) {
     if (!check.seen) {
       check.seen = true;
@@ -103,9 +124,11 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
         net: netLog.slice(-6).join(", "),
         ua: String(navigator.userAgent || ""),
         visible: String(document.visibilityState || ""),
+        frame: frame.seen ? frame.how : "",
       };
     }
   }
+  window.__comixSawCheck = sawCheck;
   var SKIP = /\\/api\\/v1\\/(threads|client-errors)|\\/assets\\/uploads\\/|amung\\.us/;
   function skip(url) { return SKIP.test(String(url || "")); }
 
@@ -135,7 +158,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
     proto.open = function (method, url) {
       this.__comixUrl = String(url);
       this.__comixMethod = String(method || "GET");
-      if (this.__comixUrl.indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(this.__comixUrl));
+      if (this.__comixUrl.indexOf("/@waf/") !== -1) sawFrame("the page asked for " + shortPath(this.__comixUrl));
       return open.apply(this, arguments);
     };
     proto.send = function () {
@@ -162,7 +185,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
       window.fetch = function (input, init) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
         var method = (init && init.method) || (input && input.method) || "GET";
-        if (String(url).indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(url));
+        if (String(url).indexOf("/@waf/") !== -1) sawFrame("the page asked for " + shortPath(url));
         if (skip(url)) {
           return Promise.resolve(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
         }
@@ -186,7 +209,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
     var doc = document;
     var observer = new MutationObserver(function () {
       try {
-        if (doc.querySelector('iframe[src*="/@waf/"]')) { sawCheck("check frame shown"); observer.disconnect(); }
+        if (doc.querySelector('iframe[src*="/@waf/"]')) { sawFrame("check frame shown"); observer.disconnect(); }
       } catch (e) {}
     });
     observer.observe(doc.documentElement, { childList: true, subtree: true });
@@ -251,7 +274,7 @@ return (async function () {
   var started = Date.now();
   var net = window.__comixNet__ || {};
   var found = function (via) {
-    return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__ });
+    return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__, frame: frame.seen });
   };
 
   while (check.seen || Date.now() - started < 8000) {
@@ -259,6 +282,7 @@ return (async function () {
     if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
     if (!check.seen && net.chapterStatus >= 400) break;
+    if (gated()) break;
     await sleep(100);
   }
 
@@ -292,11 +316,12 @@ return (async function () {
       if (stopper(resp)) return stopper(resp);
       var holder = findHolder(resp && resp.data, 0);
       if (holder) {
-        return JSON.stringify({ ok: true, via: "api", holder: JSON.stringify(holder) });
+        return JSON.stringify({ ok: true, via: "api", holder: JSON.stringify(holder), frame: frame.seen });
       }
       apiError = "no pages in the API answer (" +
         Object.keys((resp && resp.data) || {}).slice(0, 8).join(",") + ")";
     } catch (e) {
+      if (refused(e)) return checkResult();
       apiStatus = (e && e.response && e.response.status) || null;
       apiError = String((e && e.message) || e);
     }
@@ -319,7 +344,7 @@ return (async function () {
     error: apiError || "the reader never got its pages",
   });
 })();
-`}function tp(e){if(typeof e!=`string`)throw Error(`Comix WebView returned unexpected result: ${JSON.stringify(e)}`);return JSON.parse(e)}async function np(e,t,n){let r=`${v}${e}`,i=tp(await Zf(r,rp+$f,n,{urgent:!0,inject:ep(t),timeoutSeconds:60,what:`opening the chapter`}));if(!i.ok)throw i.cloudflare?await qf(r,`chapter ${e}`):i.check?await Jf(`chapter ${e}`,i.why):(y(`page list failed`,`${e}: ${i.error}`+(i.status?` (HTTP ${i.status})`:``)),i.status===403||i.status===429||i.status===503?new Ce({url:r,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}}):Error(`Comix: couldn't get this chapter's pages (${i.error})`));let a=JSON.parse(i.holder),o=a.items.filter(e=>e.s===1).length;return y(`page list`,`${a.items.length} pages via ${i.via}`+(o?`, ${o} v3`:``)+(a.alt?.length?`, ${a.alt.length} backup hosts`:``)+`, first: ${(a.items[0]?.url??``).replace(/^https?:\/\//,``).slice(0,70)}`),a}let rp=`
+`}function tp(e){if(typeof e!=`string`)throw Error(`Comix WebView returned unexpected result: ${JSON.stringify(e)}`);return JSON.parse(e)}async function np(e,t,n){let r=`${v}${e}`,i=tp(await Zf(r,rp+$f,n,{urgent:!0,inject:ep(t),timeoutSeconds:60,what:`opening the chapter`}));if(!i.ok)throw i.cloudflare?await qf(r,`chapter ${e}`):i.check?await Jf(`chapter ${e}`,i.why):(y(`page list failed`,`${e}: ${i.error}`+(i.status?` (HTTP ${i.status})`:``)),i.status===403||i.status===429||i.status===503?new Ce({url:r,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}}):Error(`Comix: couldn't get this chapter's pages (${i.error})`));let a=JSON.parse(i.holder),o=a.items.filter(e=>e.s===1).length;return y(`page list`,`${a.items.length} pages via ${i.via}`+(o?`, ${o} v3`:``)+(a.alt?.length?`, ${a.alt.length} backup hosts`:``)+(i.frame?`, comix showed its check frame (carried on)`:``)+`, first: ${(a.items[0]?.url??``).replace(/^https?:\/\//,``).slice(0,70)}`),a}let rp=`
 (function () {
   var resolveAxios;
   window.__comixAxios = null;
@@ -373,13 +398,14 @@ return (async function () {
   var started = Date.now();
   var GAP = ${Gf};
   var done = function (items, via, pages, lastPage) {
-    return JSON.stringify({ ok: true, items: items, via: via, pages: pages, lastPage: lastPage });
+    return JSON.stringify({ ok: true, items: items, via: via, pages: pages, lastPage: lastPage, frame: frame.seen });
   };
 
   // The title page's own newest chapters.
   while (!window.__comixSiteChapters && Date.now() - started < 8000) {
     if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
+    if (gated() && window.__comixAxios) break;
     await sleep(100);
   }
   var site = window.__comixSiteChapters;
@@ -427,6 +453,7 @@ return (async function () {
     }
     return done(chapters, "api", page - 1, lastPage);
   } catch (e) {
+    if (refused(e)) return checkResult();
     var resp2 = e && e.response;
     return JSON.stringify({
       ok: false,
@@ -438,7 +465,7 @@ return (async function () {
     });
   }
 })();
-`}async function op(e,t,{refresh:n=!1}={}){let r=`${v}/title/${e}`,i=Date.now(),a=tp(await Zf(r,rp+ip,t,{paced:!0,inject:ap(e,n),timeoutSeconds:150,what:`loading the chapter list`}));if(!a.ok){if(a.cloudflare)throw await qf(r,`chapter list of ${e}`);if(a.check)throw await Jf(`chapter list of ${e}`,a.why);let t=a.status;throw y(`chapter list failed`,`${e}: ${a.error}`+(t?` (HTTP ${t})`:``)),t===403||t===404||t===429||t===503?new Ce({url:r,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}}):Error(`Comix chapter list failed for ${e}: ${a.error}`)}if(!n){let t=a.via===`page`?`from the title page`:`${a.pages} of ${a.lastPage} pages, 3 s apart`;y(`chapter list`,`${e}: ${a.items.length} chapters (${t}) in ${Math.round((Date.now()-i)/1e3)}s`)}return a.items}async function sp(e,t){let n=await Zf(e,`
+`}async function op(e,t,{refresh:n=!1}={}){let r=`${v}/title/${e}`,i=Date.now(),a=tp(await Zf(r,rp+ip,t,{paced:!0,inject:ap(e,n),timeoutSeconds:150,what:`loading the chapter list`}));if(!a.ok){if(a.cloudflare)throw await qf(r,`chapter list of ${e}`);if(a.check)throw await Jf(`chapter list of ${e}`,a.why);let t=a.status;throw y(`chapter list failed`,`${e}: ${a.error}`+(t?` (HTTP ${t})`:``)),t===403||t===404||t===429||t===503?new Ce({url:r,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}}):Error(`Comix chapter list failed for ${e}: ${a.error}`)}if(!n){let t=a.via===`page`?`from the title page`:`${a.pages} of ${a.lastPage} pages, 3 s apart`;y(`chapter list`,`${e}: ${a.items.length} chapters (${t}) in ${Math.round((Date.now()-i)/1e3)}s`+(a.frame?`, comix showed its check frame (carried on)`:``))}return a.items}async function sp(e,t){let n=await Zf(e,`
     (function () {
       var doneResolve;
       window.__comixResult__ = new Promise(function (r) {
