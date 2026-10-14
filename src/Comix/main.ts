@@ -2,7 +2,7 @@
 /* Copyright © 2026 Inkdex */
 
 import {
-  BasicRateLimiter,
+  CloudflareError,
   ContentRating,
   CookieStorageInterceptor,
   DiscoverSectionType,
@@ -25,15 +25,10 @@ import {
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import { browseUrl, ComixInterceptor, fetchText } from "./network";
-import {
-  chapterPath,
-  parseChapterDetails,
-  parseChapters,
-  parseMangaDetails,
-  parseMangaList,
-} from "./parsers";
+import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
+import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
+import { keepSiteCookies } from "./utils/cookies";
 import {
   defaultSearchMetadata,
   ensureFilters,
@@ -49,13 +44,12 @@ import {
   pickTags,
   useYearFilter,
 } from "./utils/filters";
+import { errorText, logEvent } from "./utils/log";
 import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
-  // The site's firewall has blocked IPs for request bursts since 11 Oct 2026,
-  // so stay well under its limit (images are served from other hosts).
-  private globalRateLimiter = new BasicRateLimiter("rateLimiter", {
-    numberOfRequests: 2,
+  private globalRateLimiter = new SiteRateLimiter("rateLimiter", {
+    numberOfRequests: 5,
     bufferInterval: 1,
     ignoreImages: true,
   });
@@ -68,26 +62,55 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     this.globalRateLimiter.registerInterceptor();
     this.cookieStorageInterceptor.registerInterceptor();
     this.mainInterceptor.registerInterceptor();
+    this.clearOldCookies();
   }
 
+  // Once, on updating from alpha.49–61 of this repo: those versions saved extra
+  // comix.to cookies (the site's session, waf_pass, …) and their own state.
+  // Start clean like a fresh install of comix-capture, keeping only the
+  // Cloudflare pass; the site sets its own cookies again on the next request.
+  private clearOldCookies(): void {
+    if (Application.getState("comix_capture_migrated")) return;
+    const isSite = (domain: string) => /(^|\.)comix\.to$/i.test(domain.replace(/^\./, ""));
+    const stored = this.cookieStorageInterceptor.cookies;
+    const kept = stored.filter(
+      (cookie) => !isSite(cookie.domain) || cookie.name === "cf_clearance",
+    );
+    if (kept.length !== stored.length) this.cookieStorageInterceptor.cookies = kept;
+    for (const key of [
+      "comix_cf_clearance",
+      "comix_site_cookies",
+      "comix_site_storage",
+      "comix_waf_pass",
+      "comix_last_captcha_title",
+      "comix_user_agent",
+    ]) {
+      Application.setState(undefined, key);
+    }
+    Application.setState(true, "comix_capture_migrated");
+  }
+
+  // Keep everything comix.to left in the check browser (Cloudflare's pass, the
+  // site's session and, if its own check showed, its pass), like a browser
+  // would, so the hidden pages carry on as the same visitor.
   async cloudflareBypassCompleted(
-    _request: Request,
+    request: Request,
     cookies: Cookie[],
     _localStorage: Record<string, string>,
   ): Promise<void> {
-    // Besides cf_clearance, keep the site's own cookies: solving its captcha
-    // (`/@waf/challenge`) in the bypass browser is what lets the API answer again.
-    for (const cookie of cookies) {
-      const domain = cookie.domain.replace(/^\./, "");
-      if (cookie.name == "cf_clearance" || domain === "comix.to" || domain.endsWith(".comix.to")) {
-        this.cookieStorageInterceptor.setCookie(cookie);
-      }
-    }
+    const kept = keepSiteCookies(this.cookieStorageInterceptor, cookies);
+    logEvent(
+      "check browser",
+      `${request.url.replace(/^https?:\/\//, "")}: kept ${kept.length ? kept.join(", ") : "nothing"}`,
+    );
   }
 
   async getSettingsForm(): Promise<Form> {
     await ensureFilters();
-    return new ComixSettingsForm();
+    return new ComixSettingsForm(
+      this.cookieStorageInterceptor,
+      await Application.getDefaultUserAgent(),
+    );
   }
 
   async getDiscoverSections(): Promise<DiscoverSection[]> {
@@ -295,17 +318,33 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
   }
 
-  async getChapters(sourceManga: SourceManga): Promise<Chapter[]> {
-    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor);
+  // `sinceDate` is set for library updates: then only the newest 100 chapters
+  // are read (the app merges them into what it has), one request per title.
+  async getChapters(sourceManga: SourceManga, sinceDate?: Date): Promise<Chapter[]> {
+    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor, {
+      refresh: sinceDate !== undefined,
+    });
     return parseChapters(sourceManga, items);
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
-    const url = chapter.additionalInfo?.url;
-    if (typeof url !== "string" || !url) {
-      throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
+    const raw = chapter.additionalInfo?.url;
+    // Like the Mihon extension: keep the `/title/...` part of the chapter's url
+    // (it may come as a full link), or build it when the site gave none.
+    const titleIndex = typeof raw === "string" ? raw.indexOf("/title/") : -1;
+    const url =
+      titleIndex !== -1
+        ? (raw as string).slice(titleIndex)
+        : `/title/${chapter.sourceManga.mangaId}/${chapter.chapterId}-chapter-${chapter.chapNum}`;
+    let pages;
+    try {
+      pages = await pageListViaWebView(url, chapter.chapterId, this.cookieStorageInterceptor);
+    } catch (error) {
+      if (!(error instanceof CloudflareError))
+        logEvent("chapter failed", `${url}: ${errorText(error)}`);
+      throw error;
     }
-    const pages = await pageListViaWebView(chapterPath(url), this.cookieStorageInterceptor);
+    startImageLog();
     return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
   }
 }

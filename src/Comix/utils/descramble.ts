@@ -106,7 +106,7 @@ export function readScrambleHeaders(headers: Record<string, string>): ScramblePa
   let gridStr: string | undefined;
   let algoStr: string | undefined;
   let hashStr: string | undefined;
-  for (const [key, value] of Object.entries(headers)) {
+  for (const [key, value] of Object.entries(headers ?? {})) {
     const lk = key.toLowerCase();
     if (lk === "x-scramble-seed") seedStr = value;
     else if (lk === "x-scramble-grid") gridStr = value;
@@ -115,15 +115,19 @@ export function readScrambleHeaders(headers: Record<string, string>): ScramblePa
   }
   if (!seedStr || !gridStr) return null;
   const seed = parseInt(seedStr, 10);
-  if (!Number.isFinite(seed) || seed < 0) return null;
+  // seed 0 means the tiles are in place (same as the Mihon extension).
+  if (!Number.isFinite(seed) || seed <= 0) return null;
   const grid = parseScrambleGrid(gridStr);
   if (!grid) return null;
-  const algo = parseInt(algoStr ?? "", 10);
+  const parsedAlgo = parseInt(algoStr ?? "", 10);
+  const algo = Number.isFinite(parsedAlgo) ? parsedAlgo : 2;
+  // Unknown variants are left alone rather than shuffled the wrong way.
+  if (algo < 1 || algo > 3) return null;
   return {
     seed,
     cols: grid.cols,
     rows: grid.rows,
-    algo: Number.isFinite(algo) ? algo : 2,
+    algo,
     seedHashXor: decodeScrambleHash(hashStr),
   };
 }
