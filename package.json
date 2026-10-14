@@ -1,7 +1,7 @@
 {
   "name": "NightShadess24 Extensions (0.9 Test Version)",
   "private": true,
-  "description": "Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.",
+  "description": "Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.",
   "type": "module",
   "scripts": {
     "tsc": "tsc",
@@ -10,7 +10,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "conformance": "npm run tsc && npm run lint:check && npm run format:check",
-    "bundle": "paperback-cli bundle && node scripts/homepage.mjs",
+    "bundle": "paperback-cli bundle && node scripts/only-sources.mjs && node scripts/homepage.mjs",
     "serve": "paperback-cli serve",
     "dev": "paperback-cli serve --watch",
     "logcat": "paperback-cli logcat",

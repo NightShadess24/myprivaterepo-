@@ -1,0 +1,4 @@
+{
+  "$comment": "Sources the test repository publishes: the ones being fixed. The rest stay in the code but are left out of the bundle.",
+  "onlySources": ["Comix"]
+}
