@@ -20,21 +20,13 @@ import {
   type SearchResultItem,
   type SortingOption,
   type SourceManga,
-  type UpdateManager,
 } from "@paperback/types";
 
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import { browseUrl, clearCloudflareChallenge, ComixInterceptor, fetchText } from "./network";
-import {
-  chapterPath,
-  chapterUpdatedAtMs,
-  parseChapterDetails,
-  parseChapters,
-  parseMangaDetails,
-  parseMangaList,
-} from "./parsers";
+import { browseUrl, ComixInterceptor, fetchText } from "./network";
+import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
 import {
   defaultSearchMetadata,
@@ -51,34 +43,9 @@ import {
   pickTags,
   useYearFilter,
 } from "./utils/filters";
-import {
-  describeCookies,
-  loadClearance,
-  logEvent,
-  saveClearance,
-  saveSiteCookies,
-  timeAgo,
-  useQuickRefresh,
-  withDiagnostics,
-} from "./utils/session";
-import {
-  browseViaWebView,
-  chapterListViaWebView,
-  isKeptCookie,
-  isSiteCookie,
-  pageListViaWebView,
-  storeSiteCookies,
-} from "./utils/webView";
-
-const ALL_CONTENT_RATINGS = "safe,suggestive,erotica,pornographic";
-// Upload times are often only relative text ("3 days ago"), so scan a bit past
-// the last update.
-const UPDATE_SCAN_MARGIN_MS = 24 * 60 * 60 * 1000;
-const UPDATE_SCAN_MAX_PAGES = 20;
+import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
-  // Page fetches (images are served from other hosts and not limited). The
-  // WebView pace for library refreshes is set under Settings → Refresh Speed.
   private globalRateLimiter = new BasicRateLimiter("rateLimiter", {
     numberOfRequests: 5,
     bufferInterval: 1,
@@ -93,48 +60,44 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     this.globalRateLimiter.registerInterceptor();
     this.cookieStorageInterceptor.registerInterceptor();
     this.mainInterceptor.registerInterceptor();
-
-    // Drop Cloudflare's leftover in-progress challenge cookies (cf_chl_*). Move
-    // the Cloudflare pass into state, where every instance reads it.
-    const stored = this.cookieStorageInterceptor.cookies;
-    const kept = stored.filter((cookie) => !isSiteCookie(cookie.domain) || isKeptCookie(cookie));
-    if (kept.length !== stored.length) this.cookieStorageInterceptor.cookies = kept;
-    const clearance = kept.find((cookie) => cookie.name === "cf_clearance");
-    if (clearance && !loadClearance()) saveClearance(clearance, "cookie store");
-    saveSiteCookies(
-      kept.filter((cookie) => isSiteCookie(cookie.domain)),
-      "cookie store",
-    );
+    this.clearOldCookies();
   }
 
-  // Called after the reader completes a check (Cloudflare's, or the site's own
-  // human check). Keep the Cloudflare pass, the site's own cookies and its
-  // localStorage — whatever the check left behind — so every later request,
-  // including a library refresh, carries them.
+  // Once, on updating from alpha.49–61 of this repo: those versions saved extra
+  // comix.to cookies (the site's session, waf_pass, …) and their own state.
+  // Start clean like a fresh install of comix-capture, keeping only the
+  // Cloudflare pass; the site sets its own cookies again on the next request.
+  private clearOldCookies(): void {
+    if (Application.getState("comix_capture_migrated")) return;
+    const isSite = (domain: string) => /(^|\.)comix\.to$/i.test(domain.replace(/^\./, ""));
+    const stored = this.cookieStorageInterceptor.cookies;
+    const kept = stored.filter(
+      (cookie) => !isSite(cookie.domain) || cookie.name === "cf_clearance",
+    );
+    if (kept.length !== stored.length) this.cookieStorageInterceptor.cookies = kept;
+    for (const key of [
+      "comix_cf_clearance",
+      "comix_site_cookies",
+      "comix_site_storage",
+      "comix_waf_pass",
+      "comix_last_captcha_title",
+      "comix_user_agent",
+    ]) {
+      Application.setState(undefined, key);
+    }
+    Application.setState(true, "comix_capture_migrated");
+  }
+
   async cloudflareBypassCompleted(
-    request: Request,
+    _request: Request,
     cookies: Cookie[],
-    siteStorage: Record<string, string>,
+    _localStorage: Record<string, string>,
   ): Promise<void> {
-    const site = cookies.filter((cookie) => isSiteCookie(cookie.domain));
-    const page = request?.url?.replace(DOMAIN, "") || "?";
-    const storageKeys = Object.keys(siteStorage ?? {});
-    logEvent(
-      "check done",
-      `on ${page}: got ${describeCookies(site)}; storage keys: ${storageKeys.join(", ") || "none"}`,
-    );
-    // Keep only Cloudflare's pass from the check screen, as comix-capture does;
-    // the site's own cookies (its `session`) come from the app's own requests.
-    storeSiteCookies(
-      this.cookieStorageInterceptor,
-      site.filter((cookie) => cookie.name === "cf_clearance"),
-      "check",
-    );
-    const strayPass = cookies.find(
-      (cookie) => cookie.name === "cf_clearance" && !isSiteCookie(cookie.domain),
-    );
-    if (strayPass) this.cookieStorageInterceptor.setCookie(strayPass);
-    clearCloudflareChallenge();
+    for (const cookie of cookies) {
+      if (cookie.name == "cf_clearance") {
+        this.cookieStorageInterceptor.setCookie(cookie);
+      }
+    }
   }
 
   async getSettingsForm(): Promise<Form> {
@@ -344,116 +307,21 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   // Details still server-render their data into `<script id="initial-data">`, so
   // fetch the HTML and let the parser extract it (the JSON API is now 403).
   async getMangaDetails(mangaId: string): Promise<SourceManga> {
-    return withDiagnostics(`details ${mangaId}`, async () =>
-      parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`)),
-    );
+    return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
   }
 
-  // With `sinceDate` (a library refresh) only the newest chapter-list pages are
-  // read; the app merges them into the chapters it already has.
-  async getChapters(sourceManga: SourceManga, sinceDate?: Date): Promise<Chapter[]> {
-    const label = `${sinceDate ? "refresh" : "chapters"} ${sourceManga.mangaId}`;
-    return withDiagnostics(label, async () => {
-      const items = await chapterListViaWebView(
-        sourceManga.mangaId,
-        this.cookieStorageInterceptor,
-        sinceDate,
-      );
-      return parseChapters(sourceManga, items);
-    });
-  }
-
-  // Runs once before a library refresh asks for each title.
-  //
-  // Instead of loading every title's page (a WebView each, which is what trips
-  // Cloudflare), read the site's "latest updates" list back to the last refresh
-  // and only refresh the titles that appear in it; the rest are skipped. That is
-  // usually a handful of page loads instead of one per title.
-  //
-  // It falls back to refreshing everything (no skips) when there is no previous
-  // refresh to compare with, or the list couldn't be read back far enough.
-  // Adult titles are never skipped, in case the list leaves them out. The first
-  // request also surfaces a Cloudflare check once, up front.
-  async processTitlesForUpdates(
-    updateManager: UpdateManager,
-    lastUpdateDate?: Date,
-  ): Promise<void> {
-    return withDiagnostics("refresh scan", () =>
-      this.scanForUpdates(updateManager, lastUpdateDate),
-    );
-  }
-
-  private async scanForUpdates(updateManager: UpdateManager, lastUpdateDate?: Date): Promise<void> {
-    const queued = updateManager.getQueuedItems();
-    if (queued.length === 0) return;
-    const pass = loadClearance();
-    logEvent(
-      "refresh",
-      `${queued.length} titles, last refresh ${lastUpdateDate ? timeAgo(lastUpdateDate.getTime()) : "never"}, pass ${
-        pass ? `from ${pass.source} ${timeAgo(pass.savedAt)}` : "missing"
-      }`,
-    );
-    if (!lastUpdateDate || !useQuickRefresh()) {
-      await fetchText(`${DOMAIN}/`);
-      return;
-    }
-
-    const hidOf = (mangaId: string) => mangaId.split("-")[0];
-    const wanted = new Set(queued.map((manga) => hidOf(manga.mangaId)));
-    const updated = new Set<string>();
-    const scanUntil = lastUpdateDate.getTime() - UPDATE_SCAN_MARGIN_MS;
-    const maxPages = Math.min(UPDATE_SCAN_MAX_PAGES, Math.ceil(queued.length / 2));
-    let complete = false;
-
-    for (let page = 1; page <= maxPages && !complete; page++) {
-      const result = await browseViaWebView(
-        browseUrl({
-          page: page.toString(),
-          "order[chapter_updated_at]": "desc",
-          content_rating: ALL_CONTENT_RATINGS,
-        }),
-        this.cookieStorageInterceptor,
-      );
-      for (const item of result.items) {
-        const updatedAt = chapterUpdatedAtMs(item);
-        if (updatedAt !== null && updatedAt < scanUntil) {
-          complete = true;
-          break;
-        }
-        if (wanted.has(item.hid)) updated.add(item.hid);
-      }
-      const hasNext = result.meta?.hasNext ?? result.items.length > 0;
-      if (!hasNext) complete = true;
-    }
-
-    let skipped = 0;
-    await Promise.all(
-      queued.map((manga) => {
-        if (updated.has(hidOf(manga.mangaId))) {
-          return updateManager.setUpdatePriority(manga.mangaId, "high");
-        }
-        if (complete && manga.mangaInfo.contentRating !== ContentRating.ADULT) {
-          skipped++;
-          return updateManager.setUpdatePriority(manga.mangaId, "skip");
-        }
-        return Promise.resolve();
-      }),
-    );
-    logEvent(
-      "refresh scan",
-      `${updated.size} with new chapters, ${skipped} skipped${complete ? "" : " (list not read back far enough, nothing skipped)"}`,
-    );
+  async getChapters(sourceManga: SourceManga): Promise<Chapter[]> {
+    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor);
+    return parseChapters(sourceManga, items);
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
-    return withDiagnostics(`read ${chapter.sourceManga.mangaId}`, async () => {
-      const url = chapter.additionalInfo?.url;
-      if (typeof url !== "string" || !url) {
-        throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
-      }
-      const pages = await pageListViaWebView(chapterPath(url), this.cookieStorageInterceptor);
-      return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
-    });
+    const url = chapter.additionalInfo?.url;
+    if (typeof url !== "string" || !url) {
+      throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
+    }
+    const pages = await pageListViaWebView(url, this.cookieStorageInterceptor);
+    return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
   }
 }
 

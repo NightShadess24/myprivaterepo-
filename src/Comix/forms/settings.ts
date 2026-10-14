@@ -31,16 +31,6 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
-import {
-  clearLog,
-  getLog,
-  getRefreshPace,
-  loadClearance,
-  REFRESH_PACES,
-  siteCookieNames,
-  timeAgo,
-  useQuickRefresh,
-} from "../utils/session";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
   return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
@@ -77,41 +67,6 @@ export class ComixSettingsForm extends Form {
           form: new SectionSettings(),
         }),
       ]),
-      Section(
-        {
-          id: "library_refresh",
-          footer:
-            "Quick refresh reads the site's latest-updates list and skips titles with no new chapters; turn it off to check every title. If Cloudflare keeps asking for a check during refreshes, pick a slower speed.",
-        },
-        [
-          ToggleRow("quick_refresh", {
-            title: "Quick Library Refresh",
-            value: useQuickRefresh(),
-            onValueChange: Application.Selector(
-              this as ComixSettingsForm,
-              "handleQuickRefreshChange",
-            ),
-          }),
-          SelectRow("refresh_speed", {
-            title: "Refresh Speed",
-            subtitle: getRefreshPace().title,
-            layout: "list",
-            value: [getRefreshPace().id],
-            items: REFRESH_PACES.map((pace) => ({ id: pace.id, title: pace.title })),
-            minItemCount: 1,
-            maxItemCount: 1,
-            onValueChange: Application.Selector(
-              this as ComixSettingsForm,
-              "handleRefreshSpeedChange",
-            ),
-          }),
-          NavigationRow("diagnostics", {
-            title: "Diagnostics",
-            subtitle: "Cloudflare pass and recent errors",
-            form: new DiagnosticsForm(),
-          }),
-        ],
-      ),
     ];
   }
 
@@ -119,67 +74,6 @@ export class ComixSettingsForm extends Form {
     await ensureFilters(true);
     this.reloadForm();
   }
-
-  async handleQuickRefreshChange(value: boolean) {
-    Application.setState(value, "quick_refresh");
-    this.reloadForm();
-  }
-
-  async handleRefreshSpeedChange(value: string[]) {
-    if (value[0]) Application.setState(value[0], "refresh_speed");
-    this.reloadForm();
-  }
-}
-
-// Read-only view of what the extension last saw, for describing a failing
-// refresh exactly. Shows no cookie values.
-class DiagnosticsForm extends Form {
-  override getSections() {
-    const pass = loadClearance();
-    const log = getLog();
-    return [
-      Section({ id: "pass", header: "Cloudflare pass" }, [
-        LabelRow("pass_status", {
-          title: pass ? "Saved" : "Missing",
-          subtitle: pass
-            ? `From ${pass.source}, ${timeAgo(pass.savedAt)}${
-                pass.expires ? `, expires in ${expiresIn(pass.expires)}` : ""
-              }`
-            : "Open a Comix title and complete the Cloudflare check",
-        }),
-        LabelRow("site_cookies", {
-          title: "Site cookies last seen",
-          subtitle: siteCookieNames().join(", ") || "None yet",
-        }),
-      ]),
-      Section({ id: "log", header: "Recent events", footer: "Newest first." }, [
-        ...(log.length === 0
-          ? [LabelRow("log_empty", { title: "Nothing logged yet" })]
-          : log.map((entry, index) =>
-              LabelRow(`log_${index}`, {
-                title: `${entry.what} · ${timeAgo(entry.at)}`,
-                subtitle: entry.message,
-              }),
-            )),
-        ButtonRow("clear_log", {
-          title: "Clear",
-          onSelect: Application.Selector(this as DiagnosticsForm, "clear"),
-        }),
-      ]),
-    ];
-  }
-
-  async clear() {
-    clearLog();
-    this.reloadForm();
-  }
-}
-
-function expiresIn(at: number): string {
-  const minutes = Math.max(0, Math.round((at - Date.now()) / 60000));
-  if (minutes < 60) return `${minutes}m`;
-  if (minutes < 2880) return `${Math.round(minutes / 60)}h`;
-  return `${Math.round(minutes / 1440)}d`;
 }
 
 class FilterSettings extends Form {
