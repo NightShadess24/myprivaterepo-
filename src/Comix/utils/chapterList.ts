@@ -28,6 +28,27 @@ const MAX_CHUNKS = 60;
 
 const continuing = new Set<string>();
 
+// Settings → Chapter Lists: wait for the whole list before showing it (the
+// default), or show the newest chapters first and read the rest in the
+// background.
+export interface ChapterListMode {
+  id: string;
+  title: string;
+}
+
+export const CHAPTER_LIST_MODES: ChapterListMode[] = [
+  { id: "all", title: "Wait for the whole list" },
+  { id: "fast", title: "Newest first, rest in the background" },
+];
+
+export function getChapterListMode(): ChapterListMode {
+  const id = Application.getState("chapter_list_mode") as string | undefined;
+  return CHAPTER_LIST_MODES.find((mode) => mode.id === id) ?? CHAPTER_LIST_MODES[0]!;
+}
+
+// Waiting for a whole list: up to this long of paging (about 1,500 entries).
+const ALL_BUDGET_MS = 240_000;
+
 const seconds = (since: number) => Math.round((Date.now() - since) / 1000);
 
 export async function getChapterItems(
@@ -38,20 +59,27 @@ export async function getChapterItems(
   const started = Date.now();
   const cached = loadChapters(mangaId);
   const complete = cached !== null && cached.nextPage === null;
-  // A list still being read: just the newest page now, the rest goes on in
-  // the background.
-  const quick = refresh || (cached !== null && !complete);
+  const waitForAll = !refresh && getChapterListMode().id === "all";
+  // A list only partly read so far: read on from where it stopped (a page
+  // early, in case new chapters moved the pages along), or, when not waiting,
+  // just the newest page now and the rest in the background.
+  const resumeFrom = !complete && cached?.nextPage ? Math.max(2, cached.nextPage - 1) : null;
+  const resume = waitForAll && resumeFrom !== null;
+  const quick = refresh || (cached !== null && !complete && !resume);
   const result = await chapterListViaWebView(mangaId, store, {
     refresh: quick,
     known: complete ? cached.items.map((item) => item.id) : [],
-    startPage: null,
-    budgetMs: complete ? KNOWN_BUDGET_MS : FIRST_BUDGET_MS,
+    startPage: resume ? resumeFrom : null,
+    budgetMs: waitForAll ? ALL_BUDGET_MS : complete ? KNOWN_BUDGET_MS : FIRST_BUDGET_MS,
   });
   const fresh = toStored(result.items);
 
   let items: StoredChapter[];
   let nextPage: number | null;
-  if (quick) {
+  if (resume) {
+    items = mergeChapters(fresh, cached?.items ?? []);
+    nextPage = result.stopped ? result.stopped.page : result.nextPage;
+  } else if (quick) {
     items = mergeChapters(fresh, cached?.items ?? []);
     nextPage = cached ? cached.nextPage : result.nextPage;
   } else if (complete && result.reachedKnown) {
@@ -66,10 +94,13 @@ export async function getChapterItems(
     nextPage = result.nextPage ?? result.stopped?.page ?? null;
   }
   const total = result.total ?? cached?.total ?? items.length;
-  // comix counts more entries than are remembered (older uploads added since,
-  // or a list that only ever had its newest page read): read it all again in
-  // the background, merging as it goes.
-  if (nextPage === null && result.total !== null && items.length < result.total) nextPage = 2;
+  // comix counts more entries than before plus the new ones read (older
+  // uploads added in between): read it all again in the background, merging.
+  if (nextPage === null && complete && result.total !== null) {
+    const knownIds = new Set(cached.items.map((item) => item.id));
+    const added = fresh.filter((item) => !knownIds.has(item.id)).length;
+    if (result.total > cached.total + added) nextPage = 2;
+  }
   saveChapters(mangaId, items, { total, nextPage });
 
   if (refresh) return items;
@@ -83,19 +114,21 @@ export async function getChapterItems(
   } else if (nextPage !== null) {
     logEvent(
       "chapter list",
-      `${mangaId}: showing the newest ${items.length} of ${total} chapters after ${seconds(started)}s; the rest loads in the background (about ${Math.ceil((total - items.length) / 20) * 3 + 10}s), then open the manga again${frame}`,
+      `${mangaId}: showing the newest ${items.length} of ${total} chapters after ${seconds(started)}s; the rest loads in the background (about ${Math.ceil((total - items.length) / 20) * 3 + 10}s), then pull down on the manga's chapter list to see them${frame}`,
     );
     // Pick up a page early: new chapters since may have moved the pages along.
     const from = quick ? Math.max(2, nextPage - 1) : nextPage;
     continueInBackground(mangaId, store, from);
   } else {
-    const how = quick
-      ? "newest page, the rest remembered"
-      : result.reachedKnown
-        ? `${fresh.length} read, the rest remembered`
-        : result.via === "page" && result.pages <= 1
-          ? "from the title page"
-          : `${result.pages} of ${result.lastPage} pages of 20, 3 s apart`;
+    const how = resume
+      ? `read on from page ${resumeFrom}, ${result.pages - (resumeFrom ?? 1) + 1} pages`
+      : quick
+        ? "newest page, the rest remembered"
+        : result.reachedKnown
+          ? `${fresh.length} read, the rest remembered`
+          : result.via === "page" && result.pages <= 1
+            ? "from the title page"
+            : `${result.pages} of ${result.lastPage} pages of 20, 3 s apart`;
     logEvent(
       "chapter list",
       `${mangaId}: ${items.length} chapters (${how}) in ${seconds(started)}s${frame}`,
@@ -140,7 +173,7 @@ function continueInBackground(
         if (next === null) {
           logEvent(
             "chapter list",
-            `${mangaId}: all ${items.length} chapters loaded in the background in ${seconds(started)}s. Open the manga again to see them.`,
+            `${mangaId}: all ${items.length} chapters loaded in the background in ${seconds(started)}s. Pull down on the manga's chapter list to see them.`,
           );
         }
       }

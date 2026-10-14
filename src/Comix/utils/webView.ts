@@ -709,6 +709,12 @@ return (async function () {
       return result({ nextPage: page > lastPage ? null : page, reachedKnown: hasKnown(chapters) });
     }
   } else if (START !== null) {
+    // Reading on from a page: the page's own newest chapters come along too,
+    // so chapters added since the list was last read aren't missed.
+    if (site) {
+      chapters = site.items.slice();
+      if (site.meta && typeof site.meta.total === "number") total = site.meta.total;
+    }
     page = START;
     lastPage = START;
   }

@@ -19,6 +19,7 @@ import {
 } from "@paperback/types";
 
 import { CHECK_PAGE, DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
+import { CHAPTER_LIST_MODES, getChapterListMode } from "../utils/chapterList";
 import { COMIX_PASS, describeCookies, keepSiteCookies } from "../utils/cookies";
 import {
   contentRatings,
@@ -155,6 +156,28 @@ export class ComixSettingsForm extends Form {
       ),
       Section(
         {
+          id: "chapter_lists",
+          footer:
+            "comix hands out chapter lists 20 at a time, 3 seconds apart, so a long list (500+ entries) takes a minute or two the first time. Lists are remembered: opening a manga again only asks for what's new.",
+        },
+        [
+          SelectRow("chapter_list_mode", {
+            title: "Chapter Lists",
+            subtitle: getChapterListMode().title,
+            layout: "list",
+            value: [getChapterListMode().id],
+            items: CHAPTER_LIST_MODES.map((mode) => ({ id: mode.id, title: mode.title })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleChapterListModeChange",
+            ),
+          }),
+        ],
+      ),
+      Section(
+        {
           id: "reading_log",
           footer: "If a chapter won't load, open this right after and send a screenshot.",
         },
@@ -200,6 +223,11 @@ export class ComixSettingsForm extends Form {
       (cookie) => !/(^|\.)comix\.to$/i.test(cookie.domain.replace(/^\./, "")),
     );
     logEvent("check browser", "forgot all comix.to cookies");
+    this.reloadForm();
+  }
+
+  async handleChapterListModeChange(value: string[]) {
+    if (value[0]) Application.setState(value[0], "chapter_list_mode");
     this.reloadForm();
   }
 
