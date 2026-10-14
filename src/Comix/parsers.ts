@@ -158,12 +158,28 @@ function toContentRating(content: string): ContentRating {
 }
 
 function parseRelativeDate(value: string): Date {
+  return relativeDate(value) ?? new Date();
+}
+
+// When a title last got a chapter, in ms: an epoch/ISO field when the API sends
+// one, else the relative "3 days ago" text. null when unknown.
+export function chapterUpdatedAtMs(item: MangaItem): number | null {
+  const raw = (item as MangaItem & { chapterUpdatedAt?: unknown }).chapterUpdatedAt;
+  if (typeof raw === "number" && raw > 0) return raw < 1e12 ? raw * 1000 : raw;
+  if (typeof raw === "string") {
+    const parsed = Date.parse(raw);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return relativeDate(item.chapterUpdatedAtFormatted ?? "")?.getTime() ?? null;
+}
+
+function relativeDate(value: string): Date | null {
   const now = new Date();
   const match = value
     .trim()
     .match(/^(\d+)\s*(mo|mon|month|yr|year|min|sec|hr|hour|day|week|[smhdwy])s?(\s+ago)?$/i);
   if (!match) {
-    return now;
+    return null;
   }
   const amount = Number(match[1]);
   switch (match[2].toLowerCase()) {

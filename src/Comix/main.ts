@@ -26,9 +26,10 @@ import {
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import { browseUrl, ComixInterceptor, fetchText } from "./network";
+import { browseUrl, clearCloudflareChallenge, ComixInterceptor, fetchText } from "./network";
 import {
   chapterPath,
+  chapterUpdatedAtMs,
   parseChapterDetails,
   parseChapters,
   parseMangaDetails,
@@ -50,7 +51,18 @@ import {
   pickTags,
   useYearFilter,
 } from "./utils/filters";
-import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
+import {
+  browseViaWebView,
+  chapterListViaWebView,
+  pageListViaWebView,
+  storeSiteCookie,
+} from "./utils/webView";
+
+const ALL_CONTENT_RATINGS = "safe,suggestive,erotica,pornographic";
+// Upload times are often only relative text ("3 days ago"), so scan a bit past
+// the last update.
+const UPDATE_SCAN_MARGIN_MS = 24 * 60 * 60 * 1000;
+const UPDATE_SCAN_MAX_PAGES = 20;
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   // The site's firewall has blocked IPs for request bursts since 11 Oct 2026,
@@ -78,12 +90,16 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   ): Promise<void> {
     // Besides cf_clearance, keep the site's own cookies: solving its captcha
     // (`/@waf/challenge`) in the bypass browser is what lets the API answer again.
+    // storeSiteCookie replaces older copies, so only the fresh clearance is sent.
     for (const cookie of cookies) {
       const domain = cookie.domain.replace(/^\./, "");
-      if (cookie.name == "cf_clearance" || domain === "comix.to" || domain.endsWith(".comix.to")) {
+      if (domain === "comix.to" || domain.endsWith(".comix.to")) {
+        storeSiteCookie(this.cookieStorageInterceptor, cookie);
+      } else if (cookie.name == "cf_clearance") {
         this.cookieStorageInterceptor.setCookie(cookie);
       }
     }
+    clearCloudflareChallenge();
   }
 
   async getSettingsForm(): Promise<Form> {
@@ -307,13 +323,68 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     return parseChapters(sourceManga, items);
   }
 
-  // Runs once before a library refresh asks for each title. One request here
-  // means that if Cloudflare wants a check, the banner shows once up front
-  // instead of every title failing with its own challenge.
-  async processTitlesForUpdates(updateManager: UpdateManager): Promise<void> {
-    if (updateManager.getQueuedItems().length > 0) {
+  // Runs once before a library refresh asks for each title.
+  //
+  // Instead of loading every title's page (a WebView each, which is what trips
+  // Cloudflare), read the site's "latest updates" list back to the last refresh
+  // and only refresh the titles that appear in it; the rest are skipped. That is
+  // usually a handful of page loads instead of one per title.
+  //
+  // It falls back to refreshing everything (no skips) when there is no previous
+  // refresh to compare with, or the list couldn't be read back far enough.
+  // Adult titles are never skipped, in case the list leaves them out. The first
+  // request also surfaces a Cloudflare check once, up front.
+  async processTitlesForUpdates(
+    updateManager: UpdateManager,
+    lastUpdateDate?: Date,
+  ): Promise<void> {
+    const queued = updateManager.getQueuedItems();
+    if (queued.length === 0) return;
+    if (!lastUpdateDate) {
       await fetchText(`${DOMAIN}/`);
+      return;
     }
+
+    const hidOf = (mangaId: string) => mangaId.split("-")[0];
+    const wanted = new Set(queued.map((manga) => hidOf(manga.mangaId)));
+    const updated = new Set<string>();
+    const scanUntil = lastUpdateDate.getTime() - UPDATE_SCAN_MARGIN_MS;
+    const maxPages = Math.min(UPDATE_SCAN_MAX_PAGES, Math.ceil(queued.length / 2));
+    let complete = false;
+
+    for (let page = 1; page <= maxPages && !complete; page++) {
+      const result = await browseViaWebView(
+        browseUrl({
+          page: page.toString(),
+          "order[chapter_updated_at]": "desc",
+          content_rating: ALL_CONTENT_RATINGS,
+        }),
+        this.cookieStorageInterceptor,
+        { queued: true },
+      );
+      for (const item of result.items) {
+        const updatedAt = chapterUpdatedAtMs(item);
+        if (updatedAt !== null && updatedAt < scanUntil) {
+          complete = true;
+          break;
+        }
+        if (wanted.has(item.hid)) updated.add(item.hid);
+      }
+      const hasNext = result.meta?.hasNext ?? result.items.length > 0;
+      if (!hasNext) complete = true;
+    }
+
+    await Promise.all(
+      queued.map((manga) => {
+        if (updated.has(hidOf(manga.mangaId))) {
+          return updateManager.setUpdatePriority(manga.mangaId, "high");
+        }
+        if (complete && manga.mangaInfo.contentRating !== ContentRating.ADULT) {
+          return updateManager.setUpdatePriority(manga.mangaId, "skip");
+        }
+        return Promise.resolve();
+      }),
+    );
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {

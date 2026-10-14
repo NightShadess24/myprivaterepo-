@@ -13,6 +13,39 @@ import { DOMAIN } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
 
+// Once Cloudflare challenges, every further request only digs the hole deeper
+// (a library refresh would keep firing title after title). So after a
+// challenge, requests fail fast with the same bypass banner until the reader
+// completes it (or a few minutes pass).
+const CHALLENGE_HOLD_MS = 5 * 60 * 1000;
+let challengedUntil = 0;
+
+export function markCloudflareChallenged(): void {
+  challengedUntil = Date.now() + CHALLENGE_HOLD_MS;
+}
+
+export function clearCloudflareChallenge(): void {
+  challengedUntil = 0;
+}
+
+export async function cloudflareChallenge(url: string = DOMAIN): Promise<CloudflareError> {
+  return new CloudflareError(
+    { url, method: "GET", headers: { "user-agent": await Application.getDefaultUserAgent() } },
+    "Comix needs a Cloudflare check. Tap the banner, complete it, then try again.",
+  );
+}
+
+export async function throwIfChallenged(): Promise<void> {
+  if (Date.now() < challengedUntil) throw await cloudflareChallenge();
+}
+
+const header = (headers: Record<string, string> | undefined, name: string) => {
+  for (const [key, value] of Object.entries(headers ?? {})) {
+    if (key.toLowerCase() === name) return value;
+  }
+  return undefined;
+};
+
 export class ComixInterceptor extends PaperbackInterceptor {
   override async interceptRequest(request: Request): Promise<Request> {
     return {
@@ -29,14 +62,9 @@ export class ComixInterceptor extends PaperbackInterceptor {
     response: Response,
     data: ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    if (response.headers?.["cf-mitigated"] === "challenge") {
-      throw new CloudflareError({
-        url: DOMAIN,
-        method: "GET",
-        headers: {
-          "user-agent": await Application.getDefaultUserAgent(),
-        },
-      });
+    if (header(response.headers, "cf-mitigated") === "challenge") {
+      markCloudflareChallenged();
+      throw await cloudflareChallenge();
     }
 
     // Page images may be byte-XOR'd (X-Enc-*), tile-shuffled (X-Scramble-*), or
@@ -80,8 +108,17 @@ export class ComixInterceptor extends PaperbackInterceptor {
 }
 
 export async function fetchText(url: string): Promise<string> {
+  await throwIfChallenged();
   const [response, buffer] = await Application.scheduleRequest({ url, method: "GET" });
   const text = Application.arrayBufferToUTF8String(buffer);
+  // A challenge page whose cf-mitigated header didn't come through.
+  if (
+    (response.status === 403 || response.status === 503) &&
+    /challenge-platform|<title>Just a moment/i.test(text)
+  ) {
+    markCloudflareChallenged();
+    throw await cloudflareChallenge();
+  }
   // Cloudflare's firewall block page (the site blocks IPs that send bursts).
   if (response.status === 403 && /you have been blocked/i.test(text)) {
     throw new Error(

@@ -1,36 +1,43 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright © 2026 Inkdex */
 
-import { CloudflareError, type CookieStorageInterceptor } from "@paperback/types";
+import { CloudflareError, type Cookie, type CookieStorageInterceptor } from "@paperback/types";
 import * as cheerio from "cheerio";
 
 import { type ChapterItem, type ChapterPages, type ResultManga, DOMAIN } from "../models";
-import { fetchText } from "../network";
+import {
+  cloudflareChallenge,
+  fetchText,
+  markCloudflareChallenged,
+  throwIfChallenged,
+} from "../network";
 
 // A bootstrap resolves `window.__comixResult__` with this instead of data when it
 // gives up, so the extension can tell a captcha apart from a timeout.
 type WebViewError = { __comixError: string };
 
 const CAPTCHA = "captcha";
+const CLOUDFLARE = "cloudflare";
 
 const isWebViewError = (value: unknown): value is WebViewError =>
   typeof value === "object" &&
   value !== null &&
   typeof (value as Partial<WebViewError>).__comixError === "string";
 
-// Each WebView run loads a whole site page (scripts plus its API calls). A
-// library refresh asks for many titles at once, and that burst is what makes
+// Each WebView run loads a whole site page: the HTML, the site's scripts and its
+// API calls. A library refresh asks for many titles at once, and that burst makes
 // Cloudflare challenge again and drop the clearance the reader just earned. So
-// WebView runs go one at a time with a short gap between them.
-const WEBVIEW_GAP_SECONDS = 1;
+// background work (chapter lists, the update scan) goes one run at a time, about
+// 2.5 s apart with some jitter — the pace comix's own reader keeps when it opens
+// chapter after chapter. Reading and browsing don't wait in this queue.
+const WEBVIEW_GAP_MS = 2500;
 let webViewQueue: Promise<unknown> = Promise.resolve();
+
+const gap = () => Application.sleep((WEBVIEW_GAP_MS * (0.8 + Math.random() * 0.4)) / 1000);
 
 function inWebViewQueue<T>(task: () => Promise<T>): Promise<T> {
   const run = webViewQueue.then(task, task);
-  webViewQueue = run.then(
-    () => Application.sleep(WEBVIEW_GAP_SECONDS),
-    () => Application.sleep(WEBVIEW_GAP_SECONDS),
-  );
+  webViewQueue = run.then(gap, gap);
   return run;
 }
 
@@ -38,6 +45,25 @@ const isSiteCookie = (domain: string) => {
   const host = domain.replace(/^\./, "");
   return host === "comix.to" || host.endsWith(".comix.to");
 };
+
+// Stores a site cookie, first dropping any stored cookie of the same name for the
+// site. The same cookie can come back as `comix.to` or `.comix.to`; keeping both
+// sends Cloudflare two cf_clearance values, and a stale one fails the check.
+export function storeSiteCookie(cookieInterceptor: CookieStorageInterceptor, cookie: Cookie): void {
+  if (!cookie.domain || !isSiteCookie(cookie.domain) || !cookie.value) return;
+  const sameName = cookieInterceptor.cookies.filter(
+    (stored) => stored.name === cookie.name && isSiteCookie(stored.domain),
+  );
+  if (
+    sameName.length === 1 &&
+    sameName[0].value === cookie.value &&
+    sameName[0].domain === cookie.domain
+  ) {
+    return;
+  }
+  for (const stored of sameName) cookieInterceptor.deleteCookie(stored);
+  cookieInterceptor.setCookie(cookie);
+}
 
 // Loads a Comix page in a WebView and lets the site's own JS run end-to-end:
 // the bundle signs API requests and decodes the answers internally, and the
@@ -58,6 +84,7 @@ async function runWebViewNow<T>(
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<T> {
+  await throwIfChallenged();
   const userAgent = await Application.getDefaultUserAgent();
   const $ = cheerio.load(await fetchText(pageUrl));
   // Read after the page fetch, which may have refreshed them.
@@ -75,9 +102,7 @@ async function runWebViewNow<T>(
   // __cf_bm, the site's own session), so the next request carries the fresh ones
   // instead of the ones the reader's bypass handed over earlier.
   for (const cookie of raw.storage?.cookies ?? []) {
-    if (cookie.domain && isSiteCookie(cookie.domain) && cookie.value) {
-      cookieInterceptor.setCookie(cookie);
-    }
+    storeSiteCookie(cookieInterceptor, cookie);
   }
 
   const result = raw.result;
@@ -85,6 +110,12 @@ async function runWebViewNow<T>(
     throw new Error("Comix WebView returned no result");
   }
   if (isWebViewError(result)) {
+    if (result.__comixError === CLOUDFLARE) {
+      // The page's own API calls were challenged: stop here (and hold back the
+      // rest of a refresh) rather than keep sending requests into the challenge.
+      markCloudflareChallenged();
+      throw await cloudflareChallenge();
+    }
     if (result.__comixError === CAPTCHA) {
       // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
       // The bypass banner opens the page in a browser so the reader can solve it.
@@ -185,7 +216,12 @@ function captureBootstrap(handlerFactory: string): string {
       // The site's own captcha: the API answers 403 captcha_required and the
       // reader opens /@waf/challenge in an iframe. Nobody can solve it in this
       // hidden WebView, so report it instead of waiting for the timeout.
-      function checkCaptcha(status, url, body) {
+      // A Cloudflare challenge on the page's own requests is reported the same way.
+      function checkCaptcha(status, url, body, mitigated) {
+        if (String(mitigated).toLowerCase() === "challenge") {
+          fail("${CLOUDFLARE}");
+          return;
+        }
         if (status === 403 && String(url).indexOf("/api/") !== -1 && /captcha/i.test(String(body))) {
           fail("${CAPTCHA}");
         }
@@ -208,7 +244,7 @@ function captureBootstrap(handlerFactory: string): string {
                   xhr.responseType === "" || xhr.responseType === "text"
                     ? xhr.responseText
                     : JSON.stringify(xhr.response);
-                checkCaptcha(xhr.status, xhr.__comixUrl, body);
+                checkCaptcha(xhr.status, xhr.__comixUrl, body, xhr.getResponseHeader("cf-mitigated"));
               } catch (e) {}
             });
           } catch (e) {}
@@ -220,12 +256,13 @@ function captureBootstrap(handlerFactory: string): string {
           apply: function (target, thisArg, args) {
             return Reflect.apply(target, thisArg, args).then(function (response) {
               try {
-                if (response && response.status === 403) {
+                if (response && (response.status === 403 || response.status === 503)) {
+                  var mitigated = response.headers.get("cf-mitigated");
                   response
                     .clone()
                     .text()
                     .then(function (text) {
-                      checkCaptcha(response.status, response.url, text);
+                      checkCaptcha(response.status, response.url, text, mitigated);
                     })
                     .catch(function () {});
                 }
@@ -452,9 +489,12 @@ export async function pageListViaWebView(
 // `/browse` serves an empty shell and loads its list via an encrypted XHR, so
 // run the bundle and capture the decrypted `{result:{items,meta}}` off
 // JSON.parse. `&page=N` in the URL selects the page; one capture per call.
+// `queued` puts the run in the background queue (the library update scan);
+// Discover and search run right away.
 export async function browseViaWebView(
   browseUrl: string,
   cookieInterceptor: CookieStorageInterceptor,
+  { queued = false }: { queued?: boolean } = {},
 ): Promise<ResultManga> {
   const bootstrap = `
     (function () {
@@ -492,11 +532,8 @@ export async function browseViaWebView(
       }, 20000);
     })();
   `;
-  const result = await runProxiedWebView<ResultManga | null>(
-    browseUrl,
-    bootstrap,
-    cookieInterceptor,
-  );
+  const run = queued ? runProxiedWebView : runWebViewNow;
+  const result = await run<ResultManga | null>(browseUrl, bootstrap, cookieInterceptor);
   if (!result) throw new Error("Comix browseViaWebView: timed out waiting for browse JSON");
   return result;
 }
