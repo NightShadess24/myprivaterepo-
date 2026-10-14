@@ -1,7 +1,7 @@
 {
-  "name": "NightShadess24 Extensions (0.9)",
+  "name": "NightShadess24 Extensions (0.9 Test Version)",
   "private": true,
-  "description": "Paperback 0.9 extensions, based on Inkdex's General Extensions, with a fixed Comix source.",
+  "description": "Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.",
   "type": "module",
   "scripts": {
     "tsc": "tsc",
