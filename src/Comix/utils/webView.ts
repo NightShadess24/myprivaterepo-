@@ -185,10 +185,16 @@ async function runWebViewNow<T>(
         clearWafPass("the site asked for the check again");
       }
       // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
-      // The bypass banner opens the page in a browser so the reader can solve it.
+      // The banner opens the puzzle page itself, the one the API names, rather
+      // than the title page: on the title page the check screen can be closed
+      // (Cloudflare's part already passes) before the site ever shows its puzzle.
+      const challenge =
+        /"challenge":"(\/@waf\/[^"]*)"/.exec(result.detail ?? "")?.[1] ??
+        /opened (\/@waf\/\S*)/.exec(result.detail ?? "")?.[1] ??
+        "/@waf/challenge";
       throw new CloudflareError(
-        { url: pageUrl, method: "GET", headers: { "user-agent": userAgent } },
-        "Comix wants a human check. Open the page from the banner, solve it, then try again.",
+        { url: `${DOMAIN}${challenge}`, method: "GET", headers: { "user-agent": userAgent } },
+        "Comix wants its own puzzle solved. Tap the banner, solve the puzzle, then close the page and try again.",
       );
     }
     throw new Error(`Comix: ${result.__comixError}`);
