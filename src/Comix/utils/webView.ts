@@ -6,7 +6,8 @@ import * as cheerio from "cheerio";
 
 import { DOMAIN, type ChapterItem, type ChapterPageItems, type ResultManga } from "../models";
 import { fetchText } from "../network";
-import { scheduleBrowse, scheduleComix } from "./queue";
+import { logEvent } from "./log";
+import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
 
 // comix signs its API requests and encrypts `{e:"..."}` responses inside its own
 // secure bundle, so we never reimplement the rotating cipher: we capture the
@@ -18,15 +19,31 @@ import { scheduleBrowse, scheduleComix } from "./queue";
 
 // `browse: true` uses the home page/search limit (Settings → Loading Speed)
 // instead of the one-at-a-time queue, so Discover's sections can load side by
-// side. Chapter lists and chapter pages stay in comix-capture's queue.
+// side. Chapter lists and chapter pages stay in comix-capture's queue, where
+// `urgent` (opening a chapter) goes ahead of chapter lists still waiting.
+// Every run has a time limit: a WebView that never answers gives an error
+// instead of loading forever, and the queue moves on.
+interface RunOptions {
+  browse?: boolean;
+  urgent?: boolean;
+  inject?: string;
+  timeoutSeconds: number;
+  what: string;
+}
+
 async function runProxiedWebView<T>(
   pageUrl: string,
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
-  { browse = false }: { browse?: boolean } = {},
+  {
+    browse = false,
+    urgent = false,
+    inject = `return window.__comixResult__`,
+    timeoutSeconds,
+    what,
+  }: RunOptions,
 ): Promise<T> {
-  const schedule = browse ? scheduleBrowse : scheduleComix;
-  return schedule(async () => {
+  const run = async (): Promise<T> => {
     const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
     const userAgent = await Application.getDefaultUserAgent();
     const $ = cheerio.load(await fetchText(pageUrl));
@@ -35,7 +52,7 @@ async function runProxiedWebView<T>(
 
     const raw = await Application.executeInWebView({
       source: { html: $.html(), baseUrl: pageUrl, loadCSS: false, loadImages: false, userAgent },
-      inject: `return window.__comixResult__`,
+      inject,
       storage: { cookies },
     });
 
@@ -43,7 +60,9 @@ async function runProxiedWebView<T>(
       throw new Error("Comix WebView returned no result");
     }
     return raw.result as T;
-  });
+  };
+  const task = () => withTimeout(run(), timeoutSeconds, what);
+  return browse ? scheduleBrowse(task) : scheduleComix(task, { urgent });
 }
 
 // Hook `items` assignments, then run `handle(holder)` on the decoded object.
@@ -72,41 +91,188 @@ const CAPTURE_ITEMS = `
   };
 `;
 
-// Capture a chapter's decoded pages object and return it as JSON.
+// Reader page bootstrap: capture the decoded pages object the reader receives,
+// and note whether the site asked for its own check (/@waf/) along the way.
+const PAGES_BOOTSTRAP = `
+(function () {
+  window.__comixPages__ = null;
+  window.__comixNet__ = { waf: false, chapterStatus: null };
+
+  var __comixHandle = function (holder) {
+    try {
+      if (window.__comixPages__) return;
+      var items = holder.items;
+      if (holder.meta || !Array.isArray(items) || items.length === 0) return;
+      if (!items.every(function (item) { return item && typeof item.url === "string"; })) return;
+      window.__comixPages__ = JSON.stringify(holder);
+    } catch (e) {}
+  };
+
+  ${CAPTURE_ITEMS}
+
+  try {
+    var open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      try {
+        var u = String(url);
+        if (u.indexOf("/@waf/") !== -1) window.__comixNet__.waf = true;
+        if (/\\/chapters\\/[^/?#]+/.test(u)) {
+          this.addEventListener("loadend", function () {
+            window.__comixNet__.chapterStatus = this.status;
+          });
+        }
+      } catch (e) {}
+      return open.apply(this, arguments);
+    };
+  } catch (e) {}
+  try {
+    var originalFetch = window.fetch;
+    if (originalFetch) {
+      window.fetch = function (input) {
+        try {
+          var u = typeof input === "string" ? input : (input && input.url) || "";
+          if (String(u).indexOf("/@waf/") !== -1) window.__comixNet__.waf = true;
+        } catch (e) {}
+        return originalFetch.apply(this, arguments);
+      };
+    }
+  } catch (e) {}
+})();
+`;
+
+// Wait for the reader's own pages; if it hasn't got them after a few seconds,
+// ask the API for them through the site's own client (it signs + decrypts),
+// the same way chapter lists are read.
+function buildPagesInject(chapterId: string): string {
+  const id = JSON.stringify(chapterId);
+  return `
+return (async function () {
+  var started = Date.now();
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var net = window.__comixNet__ || {};
+  var wafSeen = function () {
+    return !!net.waf || !!document.querySelector('iframe[src*="/@waf/"]');
+  };
+  var found = function (via) {
+    return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__ });
+  };
+
+  while (Date.now() - started < 8000) {
+    if (window.__comixPages__) return found("reader");
+    if (wafSeen() || net.chapterStatus >= 400) break;
+    await sleep(100);
+  }
+
+  var findHolder = function (value, depth) {
+    if (!value || typeof value !== "object" || depth > 4) return null;
+    var items = value.items;
+    if (
+      Array.isArray(items) && items.length > 0 && !value.meta &&
+      items.every(function (item) { return item && typeof item.url === "string"; })
+    ) return value;
+    for (var key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        var inner = findHolder(value[key], depth + 1);
+        if (inner) return inner;
+      }
+    }
+    return null;
+  };
+
+  var apiStatus = null;
+  var apiError = null;
+  while (!window.__comixAxios && Date.now() - started < 13000) await sleep(100);
+  var axios = window.__comixAxios;
+  if (window.__comixPages__) return found("reader");
+  if (axios) {
+    try {
+      var resp = await axios.get("/chapters/" + ${id});
+      var holder = findHolder(resp && resp.data, 0);
+      if (holder) {
+        return JSON.stringify({ ok: true, via: "api", holder: JSON.stringify(holder) });
+      }
+      apiError = "no pages in the API answer (" +
+        Object.keys((resp && resp.data) || {}).slice(0, 8).join(",") + ")";
+    } catch (e) {
+      apiStatus = (e && e.response && e.response.status) || null;
+      apiError = String((e && e.message) || e);
+    }
+  } else {
+    apiError = "the site's API client never loaded";
+  }
+
+  // The API already said no: give the reader a few more seconds, not the full
+  // wait (none at all once the site has put up its own check).
+  var until = wafSeen() ? 0 : axios ? 15000 : 30000;
+  while (Date.now() - started < until) {
+    if (window.__comixPages__) return found("reader");
+    await sleep(150);
+  }
+  return JSON.stringify({
+    ok: false,
+    status: apiStatus || net.chapterStatus || null,
+    waf: wafSeen(),
+    error: apiError || "the reader never got its pages",
+  });
+})();
+`;
+}
+
+// Capture a chapter's decoded pages object (from the reader, or the API).
 export async function pageListViaWebView(
   chapterPagePath: string,
+  chapterId: string,
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<ChapterPageItems> {
-  const bootstrap = `
-  (function () {
-    var doneResolve;
-    window.__comixResult__ = new Promise(function (resolve) { doneResolve = resolve; });
-
-    var __comixHandle = function (holder) {
-      try {
-        var items = holder.items;
-        if (holder.meta || !Array.isArray(items) || items.length === 0) return;
-        if (!items.every(function (item) { return item && typeof item.url === "string"; })) return;
-        doneResolve(JSON.stringify(holder));
-      } catch (e) {}
-    };
-
-    ${CAPTURE_ITEMS}
-
-    setTimeout(function () { doneResolve(""); }, 30000);
-  })();
-  `;
-  const payload = await runProxiedWebView<string>(
+  const raw = await runProxiedWebView<unknown>(
     `${DOMAIN}${chapterPagePath}`,
-    bootstrap,
+    BOOTSTRAP_AXIOS + PAGES_BOOTSTRAP,
     cookieInterceptor,
+    {
+      urgent: true,
+      inject: buildPagesInject(chapterId),
+      timeoutSeconds: 60,
+      what: "opening the chapter",
+    },
   );
-  if (!payload) {
-    console.log(`[Comix] chapter pages timed out for ${chapterPagePath}`);
-    throw new Error("Comix: timed out waiting for chapter pages");
+  if (typeof raw !== "string") {
+    throw new Error(`Comix WebView returned unexpected result: ${JSON.stringify(raw)}`);
   }
-  const pages = JSON.parse(payload) as ChapterPageItems;
-  console.log(`[Comix] chapter pages for ${chapterPagePath}: ${pages.items.length} pages`);
+  const result = JSON.parse(raw) as
+    | { ok: true; via: string; holder: string }
+    | { ok: false; status: number | null; waf: boolean; error: string };
+
+  if (!result.ok) {
+    logEvent(
+      "page list failed",
+      `${chapterPagePath}: ${result.error}` +
+        (result.status ? ` (HTTP ${result.status})` : "") +
+        (result.waf ? " — comix asked for its own check" : ""),
+    );
+    if (result.waf) {
+      throw new Error(
+        "Comix: comix.to is asking for its own check on this chapter, try again soon",
+      );
+    }
+    if (result.status === 403 || result.status === 429 || result.status === 503) {
+      throw new CloudflareError({
+        url: DOMAIN,
+        method: "GET",
+        headers: { "user-agent": await Application.getDefaultUserAgent() },
+      });
+    }
+    throw new Error(`Comix: couldn't get this chapter's pages (${result.error})`);
+  }
+
+  const pages = JSON.parse(result.holder) as ChapterPageItems;
+  const v3 = pages.items.filter((item) => item.s === 1).length;
+  logEvent(
+    "page list",
+    `${pages.items.length} pages via ${result.via}` +
+      (v3 ? `, ${v3} v3` : "") +
+      (pages.alt?.length ? `, ${pages.alt.length} backup hosts` : "") +
+      `, first: ${(pages.items[0]?.url ?? "").replace(/^https?:\/\//, "").slice(0, 70)}`,
+  );
   return pages;
 }
 
@@ -186,46 +352,53 @@ export async function chapterListViaWebView(
   mangaId: string,
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<ChapterItem[]> {
-  return scheduleComix(async () => {
-    const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
-    const userAgent = await Application.getDefaultUserAgent();
-    const pageUrl = `${DOMAIN}/title/${mangaId}`;
+  return scheduleComix(() =>
+    withTimeout(loadChapterList(mangaId, cookieInterceptor), 120, "loading the chapter list"),
+  );
+}
 
-    const $ = cheerio.load(await fetchText(pageUrl));
-    $("head").prepend(`<script>${BOOTSTRAP_AXIOS}</script>`);
+async function loadChapterList(
+  mangaId: string,
+  cookieInterceptor: CookieStorageInterceptor,
+): Promise<ChapterItem[]> {
+  const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
+  const userAgent = await Application.getDefaultUserAgent();
+  const pageUrl = `${DOMAIN}/title/${mangaId}`;
 
-    const raw = await Application.executeInWebView({
-      source: { html: $.html(), baseUrl: pageUrl, loadCSS: false, loadImages: false, userAgent },
-      inject: buildChapterListInject(mangaId),
-      storage: { cookies },
-    });
+  const $ = cheerio.load(await fetchText(pageUrl));
+  $("head").prepend(`<script>${BOOTSTRAP_AXIOS}</script>`);
 
-    const text = raw.result;
-    if (typeof text !== "string") {
-      throw new Error(`Comix WebView returned unexpected result: ${JSON.stringify(text)}`);
-    }
-    const result = JSON.parse(text) as
-      | { ok: true; items: ChapterItem[] }
-      | { ok: false; status?: number; error: string };
-
-    if (!result.ok) {
-      const status = result.status;
-      console.log(
-        `[Comix] chapter list failed for ${mangaId} (HTTP ${status ?? "?"}): ${result.error}`,
-      );
-      if (status === 403 || status === 404 || status === 429 || status === 503) {
-        throw new CloudflareError({
-          url: DOMAIN,
-          method: "GET",
-          headers: { "user-agent": await Application.getDefaultUserAgent() },
-        });
-      }
-      throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);
-    }
-
-    console.log(`[Comix] chapter list for ${mangaId}: ${result.items.length} chapters`);
-    return result.items;
+  const raw = await Application.executeInWebView({
+    source: { html: $.html(), baseUrl: pageUrl, loadCSS: false, loadImages: false, userAgent },
+    inject: buildChapterListInject(mangaId),
+    storage: { cookies },
   });
+
+  const text = raw.result;
+  if (typeof text !== "string") {
+    throw new Error(`Comix WebView returned unexpected result: ${JSON.stringify(text)}`);
+  }
+  const result = JSON.parse(text) as
+    | { ok: true; items: ChapterItem[] }
+    | { ok: false; status?: number; error: string };
+
+  if (!result.ok) {
+    const status = result.status;
+    console.log(
+      `[Comix] chapter list failed for ${mangaId} (HTTP ${status ?? "?"}): ${result.error}`,
+    );
+    if (status === 403 || status === 404 || status === 429 || status === 503) {
+      throw new CloudflareError({
+        url: DOMAIN,
+        method: "GET",
+        headers: { "user-agent": await Application.getDefaultUserAgent() },
+      });
+    }
+    throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);
+  }
+
+  console.log(`[Comix] chapter list for ${mangaId}: ${result.items.length} chapters`);
+  return result.items;
 }
 
 // `/browse` serves an empty shell and loads its list via an encrypted XHR, so
@@ -275,7 +448,7 @@ export async function browseViaWebView(
     browseUrl,
     bootstrap,
     cookieInterceptor,
-    { browse: true },
+    { browse: true, timeoutSeconds: 45, what: "loading the list" },
   );
   if (!result) {
     console.log(`[Comix] browse timed out for ${browseUrl}`);

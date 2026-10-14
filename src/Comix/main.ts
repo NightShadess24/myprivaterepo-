@@ -3,6 +3,7 @@
 
 import {
   BasicRateLimiter,
+  CloudflareError,
   ContentRating,
   CookieStorageInterceptor,
   DiscoverSectionType,
@@ -25,7 +26,7 @@ import {
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import { browseUrl, ComixInterceptor, fetchText } from "./network";
+import { browseUrl, ComixInterceptor, fetchText, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
 import {
@@ -43,6 +44,7 @@ import {
   pickTags,
   useYearFilter,
 } from "./utils/filters";
+import { errorText, logEvent } from "./utils/log";
 import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
@@ -319,11 +321,23 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
-    const url = chapter.additionalInfo?.url;
-    if (typeof url !== "string" || !url) {
-      throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
+    const raw = chapter.additionalInfo?.url;
+    // Like the Mihon extension: keep the `/title/...` part of the chapter's url
+    // (it may come as a full link), or build it when the site gave none.
+    const titleIndex = typeof raw === "string" ? raw.indexOf("/title/") : -1;
+    const url =
+      titleIndex !== -1
+        ? (raw as string).slice(titleIndex)
+        : `/title/${chapter.sourceManga.mangaId}/${chapter.chapterId}-chapter-${chapter.chapNum}`;
+    let pages;
+    try {
+      pages = await pageListViaWebView(url, chapter.chapterId, this.cookieStorageInterceptor);
+    } catch (error) {
+      if (!(error instanceof CloudflareError))
+        logEvent("chapter failed", `${url}: ${errorText(error)}`);
+      throw error;
     }
-    const pages = await pageListViaWebView(url, this.cookieStorageInterceptor);
+    startImageLog();
     return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
   }
 }

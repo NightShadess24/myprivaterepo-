@@ -34,6 +34,7 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
+import { clearLog, getLog } from "../utils/log";
 import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
@@ -134,6 +135,19 @@ export class ComixSettingsForm extends Form {
           }),
         ],
       ),
+      Section(
+        {
+          id: "reading_log",
+          footer: "If a chapter won't load, open this right after and send a screenshot.",
+        },
+        [
+          NavigationRow("reading_log", {
+            title: "Reading Log",
+            subtitle: "What happened when chapters were opened",
+            form: new ReadingLogForm(),
+          }),
+        ],
+      ),
     ];
   }
 
@@ -165,6 +179,47 @@ export class ComixSettingsForm extends Form {
     if (value[0]) Application.setState(value[0], "loading_speed");
     this.reloadForm();
   }
+}
+
+class ReadingLogForm extends Form {
+  override getSections() {
+    const log = getLog();
+    return [
+      Section(
+        { id: "log", header: "Recent events", footer: "Newest first." },
+        log.length === 0
+          ? [
+              LabelRow("log_empty", {
+                title: "Nothing logged yet",
+                subtitle: "Open a chapter first",
+              }),
+            ]
+          : log.map((entry, index) =>
+              LabelRow(`log_${index}`, {
+                title: `${timeOfDay(entry.at)} · ${entry.what}`,
+                subtitle: entry.detail,
+              }),
+            ),
+      ),
+      Section("log_actions", [
+        ButtonRow("log_clear", {
+          title: "Clear Log",
+          onSelect: Application.Selector(this as ReadingLogForm, "clear"),
+        }),
+      ]),
+    ];
+  }
+
+  async clear() {
+    clearLog();
+    this.reloadForm();
+  }
+}
+
+function timeOfDay(at: number): string {
+  const date = new Date(at);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 class FilterSettings extends Form {

@@ -19,6 +19,7 @@ import {
   type MangaListItem,
   type ResultManga,
 } from "./models";
+import { rememberAltHosts } from "./network";
 
 // Comix server-renders page state into
 // `<script type="application/json" id="initial-data">` as a React-Query cache:
@@ -120,10 +121,40 @@ export function parseChapterDetails(
   return {
     id: chapterId,
     mangaId,
-    pages: pages.items.map((img) =>
-      img.url.startsWith("http") ? img.url : `${base}/${img.url.replace(/^\//, "")}`,
-    ),
+    pages: pages.items.map((img, index) => {
+      let url = img.url.startsWith("http") ? img.url : `${base}/${img.url.replace(/^\//, "")}`;
+      // Same as the site's reader (and the Mihon extension): v3 pages need the
+      // flag, or the server doesn't say how the image is scrambled.
+      if (img.s === 1 && !/[?&]v3(=|&|$)/.test(url)) {
+        url += url.includes("?") ? "&v3" : "?v3";
+      }
+      rememberAltHosts(url, altHostsFor(url, index, pages.alt, pages.node));
+      return url;
+    }),
   };
+}
+
+// Backup hosts in the site reader's retry order: same subdomain label on each
+// alt domain (rotated by page), then the chapter's node on each alt domain.
+function altHostsFor(
+  url: string,
+  index: number,
+  alt: string[] | null | undefined,
+  node: string | null | undefined,
+): string[] {
+  if (!Array.isArray(alt) || alt.length === 0) return [];
+  const host = /^https?:\/\/([^/?#]+)/i.exec(url)?.[1];
+  if (!host) return [];
+  const label = host.split(".")[0]!;
+  const start = index % alt.length;
+  const domains = [...alt.slice(start), ...alt.slice(0, start)].filter(
+    (domain) => typeof domain === "string" && domain.length > 0,
+  );
+  const hosts = [
+    ...domains.map((domain) => `${label}.${domain}`),
+    ...domains.map((domain) => `${node || label}.${domain}`),
+  ];
+  return [...new Set(hosts)].filter((candidate) => candidate !== host);
 }
 
 function toContentRating(content: string): ContentRating {

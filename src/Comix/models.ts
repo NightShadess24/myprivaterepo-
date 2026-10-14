@@ -77,8 +77,12 @@ export interface ChapterItem {
 }
 
 export interface ChapterPageItems {
-  baseUrl: string;
-  items: { url: string; width?: number; height?: number }[];
+  baseUrl?: string;
+  // `s: 1` marks a "v3" page: it needs `?v3` so the server sends its scramble headers.
+  items: { url: string; width?: number; height?: number; s?: number }[];
+  // Backup image domains the site's reader retries on, and this chapter's node.
+  alt?: string[] | null;
+  node?: string | null;
 }
 
 export interface OptionItem {
