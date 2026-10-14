@@ -17,9 +17,13 @@ return (async function () {
     return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__ });
   };
 
-  while (Date.now() - started < 8000) {
+  // comix's own check (a Turnstile box in /@waf/challenge) normally clears by
+  // itself in a few seconds and the site then retries, so it means "wait".
+  var checkSeen = false;
+  while (Date.now() - started < (checkSeen ? 20000 : 8000)) {
     if (window.__comixPages__) return found("reader");
-    if (wafSeen() || net.chapterStatus >= 400) break;
+    if (wafSeen()) checkSeen = true;
+    else if (!checkSeen && net.chapterStatus >= 400) break;
     await sleep(100);
   }
 
@@ -61,9 +65,8 @@ return (async function () {
     apiError = "the site's API client never loaded";
   }
 
-  // The API already said no: give the reader a few more seconds, not the full
-  // wait (none at all once the site has put up its own check).
-  var until = wafSeen() ? 0 : axios ? 15000 : 30000;
+  // The API said no: give the reader (and any check in progress) a bit longer.
+  var until = axios ? 25000 : 30000;
   while (Date.now() - started < until) {
     if (window.__comixPages__) return found("reader");
     await sleep(150);
@@ -71,7 +74,7 @@ return (async function () {
   return JSON.stringify({
     ok: false,
     status: apiStatus || net.chapterStatus || null,
-    waf: wafSeen(),
+    waf: checkSeen || wafSeen(),
     error: apiError || "the reader never got its pages",
   });
 })();
@@ -142,7 +145,7 @@ return (async function () {
     }
   } catch (e) {}
 })();
-`,n,{urgent:!0,inject:Af(t),timeoutSeconds:60,what:`opening the chapter`});if(typeof r!=`string`)throw Error(`Comix WebView returned unexpected result: ${JSON.stringify(r)}`);let i=JSON.parse(r);if(!i.ok)throw qe(`page list failed`,`${e}: ${i.error}`+(i.status?` (HTTP ${i.status})`:``)+(i.waf?` — comix asked for its own check`:``)),i.waf?Error(`Comix: comix.to is asking for its own check on this chapter, try again soon`):i.status===403||i.status===429||i.status===503?new Ce({url:v,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}}):Error(`Comix: couldn't get this chapter's pages (${i.error})`);let a=JSON.parse(i.holder),o=a.items.filter(e=>e.s===1).length;return qe(`page list`,`${a.items.length} pages via ${i.via}`+(o?`, ${o} v3`:``)+(a.alt?.length?`, ${a.alt.length} backup hosts`:``)+`, first: ${(a.items[0]?.url??``).replace(/^https?:\/\//,``).slice(0,70)}`),a}let Mf=`
+`,n,{urgent:!0,inject:Af(t),timeoutSeconds:60,what:`opening the chapter`});if(typeof r!=`string`)throw Error(`Comix WebView returned unexpected result: ${JSON.stringify(r)}`);let i=JSON.parse(r);if(!i.ok)throw qe(`page list failed`,`${e}: ${i.error}`+(i.status?` (HTTP ${i.status})`:``)+(i.waf?` — comix asked for its own check`:``)),i.waf?Error(`Comix: comix.to's own human check didn't clear this time, try again in a moment`):i.status===403||i.status===429||i.status===503?new Ce({url:v,method:`GET`,headers:{"user-agent":await Application.getDefaultUserAgent()}}):Error(`Comix: couldn't get this chapter's pages (${i.error})`);let a=JSON.parse(i.holder),o=a.items.filter(e=>e.s===1).length;return qe(`page list`,`${a.items.length} pages via ${i.via}`+(o?`, ${o} v3`:``)+(a.alt?.length?`, ${a.alt.length} backup hosts`:``)+`, first: ${(a.items[0]?.url??``).replace(/^https?:\/\//,``).slice(0,70)}`),a}let Mf=`
 (function () {
   var resolveAxios;
   window.__comixAxios = null;

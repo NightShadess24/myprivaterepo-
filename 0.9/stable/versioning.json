@@ -1,5 +1,5 @@
 {
-  "buildTime": "2026-10-14T08:33:23.397Z",
+  "buildTime": "2026-10-14T08:56:48.617Z",
   "builtWith": {
     "toolchain": "1.0.0-alpha.92",
     "types": "1.0.0-alpha.92"
@@ -57,7 +57,7 @@
     {
       "name": "Comix Test",
       "description": "Comix.to, the version that gets new fixes first.",
-      "version": "1.0.0-alpha.68",
+      "version": "1.0.0-alpha.69",
       "icon": "icon.png",
       "language": "en",
       "contentRating": "SAFE",
@@ -84,7 +84,7 @@
     {
       "name": "Comix Stable",
       "description": "Comix.to, the first fixed version, kept as it was.",
-      "version": "1.0.0-alpha.49",
+      "version": "1.0.0-alpha.50",
       "icon": "icon.png",
       "language": "en",
       "contentRating": "SAFE",
