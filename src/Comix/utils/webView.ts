@@ -564,6 +564,19 @@ function parseInjectResult<T>(raw: unknown): InjectResult<T> {
   return JSON.parse(raw) as InjectResult<T>;
 }
 
+// The Reading Log line for a chapter's page list.
+export function logPageList(pages: ChapterPageItems, via: string, frame?: boolean): void {
+  const v3 = pages.items.filter((item) => item.s === 1).length;
+  logEvent(
+    "page list",
+    `${pages.items.length} pages via ${via}` +
+      (v3 ? `, ${v3} v3` : "") +
+      (pages.alt?.length ? `, ${pages.alt.length} backup hosts` : "") +
+      (frame ? ", comix showed its check frame (carried on)" : "") +
+      `, first: ${(pages.items[0]?.url ?? "").replace(/^https?:\/\//, "").slice(0, 70)}`,
+  );
+}
+
 // Capture a chapter's decoded pages object (from the reader, or the API).
 export async function pageListViaWebView(
   chapterPagePath: string,
@@ -603,15 +616,7 @@ export async function pageListViaWebView(
   }
 
   const pages = JSON.parse(result.holder) as ChapterPageItems;
-  const v3 = pages.items.filter((item) => item.s === 1).length;
-  logEvent(
-    "page list",
-    `${pages.items.length} pages via ${result.via}` +
-      (v3 ? `, ${v3} v3` : "") +
-      (pages.alt?.length ? `, ${pages.alt.length} backup hosts` : "") +
-      (result.frame ? ", comix showed its check frame (carried on)" : "") +
-      `, first: ${(pages.items[0]?.url ?? "").replace(/^https?:\/\//, "").slice(0, 70)}`,
-  );
+  logPageList(pages, result.via, result.frame);
   return pages;
 }
 
@@ -829,6 +834,7 @@ export interface ChapterListResult {
   reachedKnown?: boolean;
   stopped?: { page: number; reason: string };
   frame?: boolean;
+  requests?: number;
 }
 
 // One run of the title page (see buildChapterListInject). Errors (Cloudflare,

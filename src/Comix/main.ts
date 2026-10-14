@@ -24,7 +24,7 @@ import {
 
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
-import { siteUrl, type Metadata, type SearchMetadata } from "./models";
+import { siteUrl, type ChapterPageItems, type Metadata, type SearchMetadata } from "./models";
 import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
@@ -45,8 +45,17 @@ import {
   pickTags,
   useYearFilter,
 } from "./utils/filters";
+import { filterChapters } from "./utils/groupFilter";
 import { errorText, logEvent } from "./utils/log";
-import { browseViaWebView, pageListViaWebView } from "./utils/webView";
+import {
+  CaptchaRequired,
+  fetchChapterPages,
+  markSigningOutdated,
+  signedApiEnabled,
+  signedCheckError,
+  SigningOutdated,
+} from "./utils/signedApi";
+import { browseViaWebView, logPageList, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   private globalRateLimiter = new SiteRateLimiter("rateLimiter", {
@@ -333,7 +342,7 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       this.cookieStorageInterceptor,
       sinceDate !== undefined,
     );
-    return parseChapters(sourceManga, items);
+    return parseChapters(sourceManga, filterChapters(items));
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
@@ -345,9 +354,22 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       titleIndex !== -1
         ? (raw as string).slice(titleIndex)
         : `/title/${chapter.sourceManga.mangaId}/${chapter.chapterId}-chapter-${chapter.chapNum}`;
-    let pages;
+    let pages: ChapterPageItems | undefined;
+    if (signedApiEnabled()) {
+      try {
+        pages = await fetchChapterPages(chapter.chapterId);
+        logPageList(pages, "fast loading");
+      } catch (error) {
+        if (error instanceof CaptchaRequired) {
+          throw await signedCheckError(`chapter ${url}`, error.message);
+        }
+        if (error instanceof SigningOutdated) markSigningOutdated(error.message);
+        else
+          logEvent("fast loading failed", `${url}: ${errorText(error)}; trying the slower method`);
+      }
+    }
     try {
-      pages = await pageListViaWebView(url, chapter.chapterId, this.cookieStorageInterceptor);
+      pages ??= await pageListViaWebView(url, chapter.chapterId, this.cookieStorageInterceptor);
     } catch (error) {
       if (!(error instanceof CloudflareError))
         logEvent("chapter failed", `${url}: ${errorText(error)}`);

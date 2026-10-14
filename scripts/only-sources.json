@@ -1,4 +1,4 @@
 {
-  "$comment": "Sources the test repository publishes: the ones being fixed. The rest stay in the code but are left out of the bundle.",
+  "$comment": "Sources this repository publishes (test and v8 to v9): the ones being worked on. The rest stay in the code but are left out of the bundle.",
   "onlySources": ["Comix"]
 }

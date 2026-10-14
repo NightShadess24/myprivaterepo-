@@ -2,6 +2,7 @@
 /* Copyright © 2026 Inkdex */
 
 import {
+  InputRow,
   ButtonRow,
   closureSelector,
   EditSection,
@@ -44,6 +45,12 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
+import {
+  getGroupFilter,
+  GROUP_FILTER_MODES,
+  groupNames,
+  setGroupFilter,
+} from "../utils/groupFilter";
 import { clearLog, getLog, logEvent } from "../utils/log";
 import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
 import { CHAPTER_LIST_SPEEDS, getChapterListSpeed } from "../utils/webView";
@@ -178,6 +185,37 @@ export class ComixSettingsForm extends Form {
       ),
       Section(
         {
+          id: "fast_loading",
+          footer:
+            "Asks comix's API directly, signed the way comix's own page does it, with the 0.8 ComixTo extension's keys (acepilot147, v1.9.29 of 14 Oct 2026). No hidden page has to load, so chapter lists and chapters come in seconds. When comix changes its keys, the extension goes back to the slower method by itself and the Reading Log says so.",
+        },
+        [
+          ToggleRow("signed_api", {
+            title: "Fast Loading",
+            value: Application.getState("signed_api") !== false,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleFastLoadingChange",
+            ),
+          }),
+        ],
+      ),
+      Section(
+        {
+          id: "scanlation_groups",
+          footer:
+            "Hide some groups' uploads, show only certain groups, or keep one upload per chapter. Applies the next time a chapter list loads (pull down on it).",
+        },
+        [
+          NavigationRow("scanlation_groups", {
+            title: "Scanlation Groups",
+            subtitle: groupFilterSummary(),
+            form: new GroupFilterForm(),
+          }),
+        ],
+      ),
+      Section(
+        {
           id: "chapter_lists",
           footer:
             "comix hands out chapter lists 20 at a time, so a long list (500+ entries) takes a while the first time: about 30 s at Fast, 1 min at Balanced, 1½ min at Safe. Faster speeds may make comix ask for its check; if that happens, pick a safer one. Lists are remembered: opening a manga again only asks for what's new.",
@@ -258,6 +296,11 @@ export class ComixSettingsForm extends Form {
       (cookie) => !isComixDomain(cookie.domain),
     );
     logEvent("check browser", "forgot all comix cookies");
+    this.reloadForm();
+  }
+
+  async handleFastLoadingChange(value: boolean) {
+    Application.setState(value, "signed_api");
     this.reloadForm();
   }
 
@@ -592,5 +635,100 @@ class SectionOrderForm extends Form {
       deleted.filter((item) => item.id !== id),
       "deleted_sections",
     );
+  }
+}
+
+function groupFilterSummary(): string {
+  const filter = getGroupFilter();
+  const parts: string[] = [];
+  const names = groupNames(filter.groups);
+  if (filter.on && names.length > 0) {
+    parts.push(
+      `${filter.mode === "only" ? "Only" : "Hiding"} ${names.length} group${names.length === 1 ? "" : "s"}`,
+    );
+  }
+  if (filter.onePerChapter) parts.push("one per chapter");
+  return parts.length > 0 ? parts.join(", ") : "Off";
+}
+
+// From the Paperback 0.8 ComixTo extension (acepilot147, GPL-3.0): see
+// utils/groupFilter.ts.
+class GroupFilterForm extends Form {
+  override getSections() {
+    const filter = getGroupFilter();
+    return [
+      Section(
+        {
+          id: "group_filter",
+          footer:
+            "Group names separated by commas, e.g. Asura Scans, Flame Comics. Case, accents and punctuation don't matter. With Exact names off, part of a name is enough.",
+        },
+        [
+          ToggleRow("group_filter_on", {
+            title: "Filter by group",
+            value: filter.on,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleOn"),
+          }),
+          SelectRow("group_filter_mode", {
+            title: "Mode",
+            subtitle: GROUP_FILTER_MODES.find((mode) => mode.id === filter.mode)?.title,
+            layout: "list",
+            value: [filter.mode],
+            items: GROUP_FILTER_MODES,
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleMode"),
+          }),
+          ToggleRow("group_filter_exact", {
+            title: "Exact names",
+            value: filter.exact,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleExact"),
+          }),
+          InputRow("group_filter_groups", {
+            title: "Groups",
+            value: filter.groups,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleGroups"),
+          }),
+        ],
+      ),
+      Section(
+        {
+          id: "one_per_chapter",
+          footer:
+            "comix lists every upload of a chapter (each group and language). This keeps one per chapter and language: the official one if there is one, else the most voted, else the newest.",
+        },
+        [
+          ToggleRow("group_filter_one_per_chapter", {
+            title: "One entry per chapter",
+            value: filter.onePerChapter,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleOnePerChapter"),
+          }),
+        ],
+      ),
+    ];
+  }
+
+  async handleOn(value: boolean) {
+    setGroupFilter("on", value);
+    this.reloadForm();
+  }
+
+  async handleMode(value: string[]) {
+    if (value[0]) setGroupFilter("mode", value[0]);
+    this.reloadForm();
+  }
+
+  async handleExact(value: boolean) {
+    setGroupFilter("exact", value);
+    this.reloadForm();
+  }
+
+  async handleGroups(value: string) {
+    setGroupFilter("groups", value);
+  }
+
+  async handleOnePerChapter(value: boolean) {
+    setGroupFilter("onePerChapter", value);
+    this.reloadForm();
   }
 }
