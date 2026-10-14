@@ -10,14 +10,16 @@ import {
   type Response,
 } from "@paperback/types";
 
-import { DOMAIN } from "./models";
+import { checkPage, siteUrl } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
 import { errorText, logEvent } from "./utils/log";
 import { withTimeout } from "./utils/queue";
+import { appUserAgent } from "./utils/userAgent";
 
 // comix.to itself (pages, API), as opposed to its image hosts.
-const isSiteUrl = (url: string): boolean => /^https?:\/\/(www\.)?comix\.to([/:?#]|$)/i.test(url);
+const isSiteUrl = (url: string): boolean =>
+  /^https?:\/\/(www\.)?comix\.(to|ws)([/:?#]|$)/i.test(url);
 
 // The basic limiter only lets images through unthrottled when their url ends in
 // .webp/.jpg/…; comix's page images (and covers) have no extension, so every
@@ -72,6 +74,33 @@ function logImage(detail: string, failed: boolean): void {
 
 const shortUrl = (url: string): string => url.replace(/^https?:\/\//, "").slice(0, 90);
 
+// Cloudflare's "Just a moment…" / block page, for when its cf-mitigated
+// header doesn't come through.
+const CLOUDFLARE_PAGE =
+  /<title>\s*(Just a moment|Attention Required)|cf_chl_opt|\/cdn-cgi\/challenge-platform\/|cf-error-details/i;
+
+function isCloudflareBlock(status: number, data: ArrayBuffer): boolean {
+  if (status !== 403 && status !== 429 && status !== 503) return false;
+  try {
+    const text = Application.arrayBufferToUTF8String(data.slice(0, 64 * 1024));
+    return CLOUDFLARE_PAGE.test(text);
+  } catch {
+    return false;
+  }
+}
+
+// comix's own check served as a whole page ("Security check") in place of the
+// page that was asked for.
+const COMIX_CHECK_PAGE = /<title>\s*Security check\s*<\/title>/i;
+
+function isComixCheckPage(data: ArrayBuffer): boolean {
+  try {
+    return COMIX_CHECK_PAGE.test(Application.arrayBufferToUTF8String(data.slice(0, 16 * 1024)));
+  } catch {
+    return false;
+  }
+}
+
 function withParam(url: string, key: string, value: string): string {
   const [beforeHash] = url.split("#");
   const re = new RegExp(`([?&])${key}=[^&]*`);
@@ -93,7 +122,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
         if (lk === "referer" || lk === "origin") delete headers[key];
       }
     }
-    headers["user-agent"] = await Application.getDefaultUserAgent();
+    headers["user-agent"] = await appUserAgent();
     return { ...request, headers };
   }
 
@@ -102,25 +131,51 @@ export class ComixInterceptor extends PaperbackInterceptor {
     response: Response,
     data: ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    if (header(response.headers, "cf-mitigated") === "challenge") {
-      throw new CloudflareError({
-        url: DOMAIN,
-        method: "GET",
-        headers: {
-          "user-agent": await Application.getDefaultUserAgent(),
+    const fromSite = isSiteUrl(request.url);
+    // Cloudflare's check page, recognised by its header or (when that's
+    // missing) by its content: say so right away, opening the page that was
+    // asked for, instead of loading the check page as if it were comix.
+    if (
+      header(response.headers, "cf-mitigated") === "challenge" ||
+      (fromSite && isCloudflareBlock(response.status, data))
+    ) {
+      const isPage = fromSite && !/\/api\//.test(request.url);
+      logEvent(
+        "cloudflare",
+        `${shortUrl(request.url)} answered with Cloudflare's check (HTTP ${response.status})`,
+      );
+      throw new CloudflareError(
+        {
+          url: isPage ? request.url : `${siteUrl()}/`,
+          method: "GET",
+          headers: {
+            "user-agent": await appUserAgent(),
+          },
         },
-      });
+        "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
+      );
     }
 
-    const siteUrl = isSiteUrl(request.url);
-    if (!siteUrl && response.status >= 400) {
+    if (fromSite && !/\/(api|@waf)\//.test(request.url) && isComixCheckPage(data)) {
+      logEvent("comix check", `${shortUrl(request.url)} answered with comix's check page`);
+      throw new CloudflareError(
+        {
+          url: checkPage(),
+          method: "GET",
+          headers: { "user-agent": await appUserAgent() },
+        },
+        "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
+      );
+    }
+
+    if (!fromSite && response.status >= 400) {
       const recovered = await retryImage(request.url, response.status);
       if (recovered) return recovered;
       logImage(`HTTP ${response.status} from ${shortUrl(request.url)}`, true);
       return data;
     }
 
-    return await decodeImage(request.url, response, data, siteUrl);
+    return await decodeImage(request.url, response, data, fromSite);
   }
 }
 
@@ -166,12 +221,12 @@ async function decodeImage(
   url: string,
   response: Response,
   data: ArrayBuffer,
-  siteUrl: boolean,
+  fromSite: boolean,
 ): Promise<ArrayBuffer> {
   const enc = readEncHeaders(response.headers);
   const scramble = readScrambleHeaders(response.headers);
   if (!enc && !scramble) {
-    if (!siteUrl) {
+    if (!fromSite) {
       const mime = sniffImageMime(new Uint8Array(data));
       if (mime) logImage(`${mime.replace("image/", "")} from ${shortUrl(url)} (plain)`, false);
     }
@@ -229,7 +284,7 @@ export async function fetchText(url: string): Promise<string> {
 }
 
 export function browseUrl(query: Record<string, string | string[]>): string {
-  const url = new URL(DOMAIN).addPathComponent("browse");
+  const url = new URL(siteUrl()).addPathComponent("browse");
   for (const [key, value] of Object.entries(query)) {
     url.setQueryItem(key, value);
   }

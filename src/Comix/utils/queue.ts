@@ -73,6 +73,11 @@ export function getLoadingSpeed(): LoadingSpeed {
 let browseRunning = 0;
 const browseWaiting: (() => void)[] = [];
 
+// Even at "Fast", browse pages start a little apart instead of all in the same
+// instant: a burst of identical page loads is what bot checks look for.
+const BROWSE_START_GAP_MS = 400;
+let nextBrowseStart = 0;
+
 // Runs `task` once fewer than the chosen number of browse loads are running.
 // "Safe" behaves like comix-capture: one page at a time.
 export async function scheduleBrowse<T>(task: () => Promise<T>): Promise<T> {
@@ -80,7 +85,10 @@ export async function scheduleBrowse<T>(task: () => Promise<T>): Promise<T> {
     await new Promise<void>((resolve) => browseWaiting.push(resolve));
   }
   browseRunning++;
+  const startAt = Math.max(Date.now(), nextBrowseStart);
+  nextBrowseStart = startAt + BROWSE_START_GAP_MS;
   try {
+    if (startAt > Date.now()) await Application.sleep((startAt - Date.now()) / 1000);
     return await task();
   } finally {
     browseRunning--;

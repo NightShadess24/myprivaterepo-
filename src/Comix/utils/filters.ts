@@ -2,7 +2,7 @@
 /* Copyright © 2026 Inkdex */
 
 import {
-  DOMAIN,
+  siteUrl,
   type ApiResponse,
   type OptionItem,
   type SearchMetadata,
@@ -57,7 +57,7 @@ export const horizontalRecentSection = () => state("recentSection", true);
 
 async function fetchTags(type: string): Promise<OptionItem[]> {
   const json = JSON.parse(
-    await fetchText(`${DOMAIN}/api/v1/tags/search?limit=50&type=${type}`),
+    await fetchText(`${siteUrl()}/api/v1/tags/search?limit=50&type=${type}`),
   ) as ApiResponse<{ id: number; label: string }[]>;
   return json.result
     .map((tag) => ({ id: tag.id.toString(), title: tag.label }))
