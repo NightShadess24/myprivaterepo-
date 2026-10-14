@@ -28,6 +28,7 @@ import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
 import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
+import { keepSiteCookies } from "./utils/cookies";
 import {
   defaultSearchMetadata,
   ensureFilters,
@@ -89,16 +90,19 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     Application.setState(true, "comix_capture_migrated");
   }
 
+  // Keep everything comix.to left in the check browser (Cloudflare's pass, the
+  // site's session and, if its own check showed, its pass), like a browser
+  // would, so the hidden pages carry on as the same visitor.
   async cloudflareBypassCompleted(
-    _request: Request,
+    request: Request,
     cookies: Cookie[],
     _localStorage: Record<string, string>,
   ): Promise<void> {
-    for (const cookie of cookies) {
-      if (cookie.name == "cf_clearance") {
-        this.cookieStorageInterceptor.setCookie(cookie);
-      }
-    }
+    const kept = keepSiteCookies(this.cookieStorageInterceptor, cookies);
+    logEvent(
+      "check browser",
+      `${request.url.replace(/^https?:\/\//, "")}: kept ${kept.length ? kept.join(", ") : "nothing"}`,
+    );
   }
 
   async getSettingsForm(): Promise<Form> {
@@ -314,8 +318,12 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
   }
 
-  async getChapters(sourceManga: SourceManga): Promise<Chapter[]> {
-    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor);
+  // `sinceDate` is set for library updates: then only the newest 100 chapters
+  // are read (the app merges them into what it has), one request per title.
+  async getChapters(sourceManga: SourceManga, sinceDate?: Date): Promise<Chapter[]> {
+    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor, {
+      refresh: sinceDate !== undefined,
+    });
     return parseChapters(sourceManga, items);
   }
 

@@ -19,6 +19,7 @@ import {
 } from "@paperback/types";
 
 import { DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
+import { keepSiteCookies } from "../utils/cookies";
 import {
   contentRatings,
   contentTypes,
@@ -34,7 +35,7 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
-import { clearLog, getLog } from "../utils/log";
+import { clearLog, getLog, logEvent } from "../utils/log";
 import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
@@ -71,7 +72,7 @@ export class ComixSettingsForm extends Form {
           id: "cloudflare",
           header: "Cloudflare",
           footer:
-            "Redo the check to get a fresh Cloudflare pass: complete the check if it appears, wait for comix's home page, then tap Done. If the check doesn't appear, tap Forget first.",
+            "Redo the check to get a fresh pass: complete any check that appears, wait for comix's page, then tap Done. What comix.to leaves there is kept for loading in the background. If things keep failing, tap Forget for a clean start.",
         },
         [
           LabelRow("cloudflare_pass", {
@@ -90,7 +91,7 @@ export class ComixSettingsForm extends Form {
             onCancel: Application.Selector(this as ComixSettingsForm, "handleCheckCancelled"),
           }),
           ButtonRow("cloudflare_forget", {
-            title: "Forget Cloudflare Pass",
+            title: "Forget Saved Pass & Cookies",
             onSelect: Application.Selector(this as ComixSettingsForm, "forgetPass"),
           }),
         ],
@@ -157,10 +158,10 @@ export class ComixSettingsForm extends Form {
   }
 
   // Same as the app's own bypass banner: keep the fresh cf_clearance.
+  // Same as the app's own check browser: keep what comix.to left.
   async handleCheckDone(cookies: Cookie[]) {
-    for (const cookie of cookies) {
-      if (cookie.name == "cf_clearance") this.cookieStore.setCookie(cookie);
-    }
+    const kept = keepSiteCookies(this.cookieStore, cookies);
+    logEvent("check browser", `settings: kept ${kept.length ? kept.join(", ") : "nothing"}`);
     this.reloadForm();
   }
 
@@ -168,10 +169,13 @@ export class ComixSettingsForm extends Form {
     this.reloadForm();
   }
 
+  // A clean start: forget every comix.to cookie (Cloudflare's pass and the
+  // site's own session and pass).
   async forgetPass() {
     this.cookieStore.cookies = this.cookieStore.cookies.filter(
-      (cookie) => cookie.name !== "cf_clearance",
+      (cookie) => !/(^|\.)comix\.to$/i.test(cookie.domain.replace(/^\./, "")),
     );
+    logEvent("check browser", "forgot all comix.to cookies");
     this.reloadForm();
   }
 
