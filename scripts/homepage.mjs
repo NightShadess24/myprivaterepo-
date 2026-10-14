@@ -85,14 +85,59 @@ const tagHtml = (tag) =>
     tag.style ? ` style="${escapeHtml(tag.style)}"` : ""
   }>${escapeHtml(tag.label)}</span>`;
 
+// Sources copied in from other repositories (scripts/aggregate.mjs) and where
+// they came from, shown next to each source and in the credits.
+let thirdParty = null;
+try {
+  thirdParty = JSON.parse(fs.readFileSync(path.join(folder, "third-party.json"), "utf8"));
+} catch {
+  thirdParty = null;
+}
+const credits = (thirdParty?.upstreams ?? [])
+  .filter((upstream) => upstream.added?.length)
+  .map(({ label, url, sourceCode, license, licenseFile, commit, added }) => ({
+    label,
+    url,
+    sourceCode,
+    license,
+    licenseFile,
+    commit: String(commit ?? "").slice(0, 7),
+    count: added.length,
+  }));
+const originOf = new Map(
+  (thirdParty?.upstreams ?? []).flatMap((upstream) =>
+    (upstream.added ?? []).map((id) => [id, upstream.label]),
+  ),
+);
+
+function creditsHtml(list) {
+  if (!list.length) return "";
+  return `<h3>Included from other repositories</h3>
+<ul>
+${list
+  .map(
+    (c) =>
+      `<li><a href="${escapeHtml(c.url)}">${escapeHtml(c.label)}</a> · ${c.count} sources · ${escapeHtml(
+        c.license,
+      )} (<a href="licenses/${escapeHtml(c.licenseFile)}">license</a>, <a href="${escapeHtml(
+        c.sourceCode,
+      )}">source code</a>)${c.commit ? ` · ${escapeHtml(c.commit)}` : ""}</li>`,
+  )
+  .join("\n")}
+</ul>
+<p>Copied unchanged from those public repositories when this one is built; their authors keep the credit.</p>`;
+}
+
 function sourceItem(source) {
   const tags = sourceTags(source);
   const filters = tags.map((tag) => tag.label).join("|");
   return `<li class="source" data-tags="${escapeHtml(filters)}" title="${escapeHtml(
     source.description ?? "",
-  )}">${escapeHtml(source.name)}<span class="version">${escapeHtml(source.version ?? "")}</span>${tags
-    .map(tagHtml)
-    .join("")}</li>`;
+  )}">${escapeHtml(source.name)}<span class="version">${escapeHtml(source.version ?? "")}</span>${
+    originOf.has(source.id)
+      ? `<span class="origin">${escapeHtml(originOf.get(source.id))}</span>`
+      : ""
+  }${tags.map(tagHtml).join("")}</li>`;
 }
 
 const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -108,13 +153,15 @@ const embedded = {
   name,
   description,
   buildTime: versioning.buildTime,
-  sources: sources.map(({ name, description, version, contentRating, badges }) => ({
+  sources: sources.map(({ id, name, description, version, contentRating, badges }) => ({
     name,
     description,
     version,
     contentRating,
     badges,
+    origin: originOf.get(id),
   })),
+  credits,
 };
 
 const baseUrl = baseUrlOf(current.ref);
@@ -153,6 +200,12 @@ try {
 ul { margin-top: 0; }
 .version { margin-left: 8px; font-size: 12px; opacity: .55; font-variant-numeric: tabular-nums; }
 .status { margin: 0; padding-left: 40px; }
+.origin { margin-left: 8px; font-size: 12px; opacity: .55; }
+.origin::before { content: "· "; }
+.credits { font-size: 13px; line-height: 1.6; margin-top: 2rem; }
+.credits h3 { font-size: 14px; margin: 0 0 .4rem; }
+.credits ul { padding-left: 20px; margin: 0 0 .4rem; }
+.credits p { margin: 0; opacity: .7; }
 
 .theme-toggle {
   position: fixed;
@@ -413,6 +466,8 @@ ul { margin-top: 0; }
 [data-theme="noir"] .sources { margin: 0; padding-left: 40px; line-height: 1.5; font-size: 16px; }
 [data-theme="noir"] .empty,
 [data-theme="noir"] .status { color: var(--muted); }
+[data-theme="noir"] .credits { max-width: 920px; margin: 48px auto 0; color: var(--muted); }
+[data-theme="noir"] .credits h3 { color: var(--text); font-family: "Cormorant Garamond", "Times New Roman", serif; font-size: 20px; font-weight: 600; letter-spacing: .04em; }
 [data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
 
 @media (max-width: 560px) {
@@ -484,6 +539,7 @@ ${sources.map(sourceItem).join("\n")}
 <p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
+<section class="credits js-credits"${credits.length ? "" : " hidden"}>${creditsHtml(credits)}</section>
 </div>
 </main>
 <footer class="noir-only js-footer">${escapeHtml(footerText(name, sources.length, versioning.buildTime))}</footer>
@@ -547,17 +603,36 @@ ${sources.map(sourceItem).join("\n")}
   function load(ref) {
     if (data[ref] || loading[ref]) return;
     loading[ref] = true;
-    fetch(baseUrlOf(ref) + "/versioning.json", { cache: "no-cache" })
-      .then(function (response) {
-        if (!response.ok) throw new Error("HTTP " + response.status);
+    var getJson = function (file, optional) {
+      return fetch(baseUrlOf(ref) + "/" + file, { cache: "no-cache" }).then(function (response) {
+        if (!response.ok) {
+          if (optional) return null;
+          throw new Error("HTTP " + response.status);
+        }
         return response.json();
-      })
-      .then(function (versioning) {
+      }, function (error) {
+        if (optional) return null;
+        throw error;
+      });
+    };
+    Promise.all([getJson("versioning.json", false), getJson("third-party.json", true)])
+      .then(function (both) {
+        var versioning = both[0];
+        var upstreams = (both[1] && both[1].upstreams) || [];
+        var origins = {};
+        upstreams.forEach(function (u) { (u.added || []).forEach(function (id) { origins[id] = u.label; }); });
         data[ref] = {
           name: versioning.repository.name,
           description: versioning.repository.description,
           buildTime: versioning.buildTime,
-          sources: versioning.sources.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }),
+          sources: versioning.sources
+            .map(function (s) { return Object.assign({}, s, { origin: origins[s.id] }); })
+            .sort(function (a, b) { return a.name.localeCompare(b.name); }),
+          credits: upstreams
+            .filter(function (u) { return u.added && u.added.length; })
+            .map(function (u) {
+              return { label: u.label, url: u.url, sourceCode: u.sourceCode, license: u.license, licenseFile: u.licenseFile, commit: String(u.commit || "").slice(0, 7), count: u.added.length };
+            }),
         };
       })
       .catch(function () {
@@ -608,6 +683,33 @@ ${sources.map(sourceItem).join("\n")}
     });
   }
 
+  var creditsBox = document.querySelector(".js-credits");
+  function renderCredits(ref, list) {
+    creditsBox.textContent = "";
+    creditsBox.hidden = !list || !list.length;
+    if (creditsBox.hidden) return;
+    creditsBox.appendChild(el("h3", "", "Included from other repositories"));
+    var ul = el("ul");
+    list.forEach(function (c) {
+      var li = el("li");
+      var link = el("a", "", c.label);
+      link.href = c.url;
+      li.appendChild(link);
+      li.appendChild(document.createTextNode(" · " + c.count + " sources · " + c.license + " ("));
+      var lic = el("a", "", "license");
+      lic.href = baseUrlOf(ref) + "/licenses/" + c.licenseFile;
+      li.appendChild(lic);
+      li.appendChild(document.createTextNode(", "));
+      var code = el("a", "", "source code");
+      code.href = c.sourceCode;
+      li.appendChild(code);
+      li.appendChild(document.createTextNode(")" + (c.commit ? " · " + c.commit : "")));
+      ul.appendChild(li);
+    });
+    creditsBox.appendChild(ul);
+    creditsBox.appendChild(el("p", "", "Copied unchanged from those public repositories when this one is built; their authors keep the credit."));
+  }
+
   function renderSources(sources) {
     list.textContent = "";
     var labels = [];
@@ -617,6 +719,7 @@ ${sources.map(sourceItem).join("\n")}
       item.title = source.description || "";
       item.dataset.tags = tags.map(function (t) { return t.label; }).join("|");
       item.appendChild(el("span", "version", source.version || ""));
+      if (source.origin) item.appendChild(el("span", "origin", source.origin));
       tags.forEach(function (tag) {
         var span = el("span", "el-tag el-tag--dark el-tag--mini" + (tag.type ? " el-tag--" + tag.type : ""), tag.label);
         if (tag.style) span.setAttribute("style", tag.style);
@@ -644,6 +747,7 @@ ${sources.map(sourceItem).join("\n")}
       status.textContent = repo ? "This repository isn't published yet." : "Loading sources…";
       setText(".js-repo-name", labelOf(ref));
       setText(".js-repo-description", "");
+      renderCredits(ref, []);
       setText(".js-base-url", baseUrlOf(ref));
       if (!repo) load(ref);
       return;
@@ -656,6 +760,7 @@ ${sources.map(sourceItem).join("\n")}
     document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = addRepoLink(repo.name, ref); });
     if (ref === selected) document.title = repo.name;
     renderSources(repo.sources);
+    renderCredits(ref, repo.credits);
   }
 
   // With a mouse, hovering a link shows that repository and leaving goes back
