@@ -17,7 +17,7 @@ export function logEvent(what: string, detail: string): void {
   console.log(`[Comix] ${what}: ${detail}`);
   try {
     const entries = getLog();
-    entries.unshift({ at: Date.now(), what, detail: detail.slice(0, 300) });
+    entries.unshift({ at: Date.now(), what, detail: detail.slice(0, 900) });
     Application.setState(entries.slice(0, MAX_ENTRIES), KEY);
   } catch {
     // logging must never break reading

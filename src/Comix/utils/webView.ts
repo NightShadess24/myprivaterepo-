@@ -67,11 +67,31 @@ const SITE_BOOTSTRAP = `
   function shortPath(url) {
     return String(url || "").replace(/^https?:\\/\\/[^/]+/, "").split("?")[0].slice(0, 60);
   }
+  // The page's last API answers (method, path, status), for the Reading Log.
+  var netLog = (window.__comixNetLog = []);
+  function noteNet(method, url, status) {
+    if (!/\\/api\\/|\\/@waf\\//.test(String(url || ""))) return;
+    netLog.push(String(method || "GET").toUpperCase() + " " + shortPath(url) + " " + status);
+    if (netLog.length > 12) netLog.shift();
+  }
+  function bodyOf(xhr) {
+    try {
+      if (!xhr.responseType || xhr.responseType === "text") return String(xhr.responseText || "");
+      if (xhr.responseType === "json") return JSON.stringify(xhr.response);
+    } catch (e) {}
+    return "";
+  }
   function sawCheck(why) {
     if (!check.seen) {
       check.seen = true;
       check.since = Date.now();
-      window.__comixCheckWhy = { why: why, cookies: cookieNames() };
+      window.__comixCheckWhy = {
+        why: why,
+        cookies: cookieNames(),
+        net: netLog.slice(-6).join(", "),
+        ua: String(navigator.userAgent || ""),
+        visible: String(document.visibilityState || ""),
+      };
     }
   }
   var SKIP = /\\/api\\/v1\\/(threads|client-errors)|\\/assets\\/uploads\\/|amung\\.us/;
@@ -102,6 +122,7 @@ const SITE_BOOTSTRAP = `
     var send = proto.send;
     proto.open = function (method, url) {
       this.__comixUrl = String(url);
+      this.__comixMethod = String(method || "GET");
       if (this.__comixUrl.indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(this.__comixUrl));
       return open.apply(this, arguments);
     };
@@ -111,9 +132,10 @@ const SITE_BOOTSTRAP = `
       try {
         xhr.addEventListener("loadend", function () {
           try {
+            noteNet(xhr.__comixMethod, xhr.__comixUrl, xhr.status);
             if (xhr.getResponseHeader("cf-mitigated") === "challenge") sawCloudflare();
-            else if (xhr.status === 403 && /captcha/i.test(String(xhr.responseText || ""))) {
-              sawCheck("HTTP 403 on " + shortPath(xhr.__comixUrl) + ": " + String(xhr.responseText || "").slice(0, 100));
+            else if (xhr.status === 403 && /captcha/i.test(bodyOf(xhr))) {
+              sawCheck("HTTP 403 on " + shortPath(xhr.__comixUrl) + ": " + bodyOf(xhr).slice(0, 100));
             }
           } catch (e) {}
         });
@@ -125,14 +147,16 @@ const SITE_BOOTSTRAP = `
   try {
     var originalFetch = window.fetch;
     if (originalFetch) {
-      window.fetch = function (input) {
+      window.fetch = function (input, init) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
+        var method = (init && init.method) || (input && input.method) || "GET";
         if (String(url).indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(url));
         if (skip(url)) {
           return Promise.resolve(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
         }
         return originalFetch.apply(this, arguments).then(function (response) {
           try {
+            noteNet(method, url, response.status);
             if (response.headers.get("cf-mitigated") === "challenge") sawCloudflare();
             else if (response.status === 403) {
               response.clone().text().then(function (text) {
@@ -217,14 +241,25 @@ async function cloudflareError(pageUrl: string, what: string): Promise<Cloudflar
 export interface CheckWhy {
   why?: string;
   cookies?: string;
+  net?: string;
+  ua?: string;
+  visible?: string;
 }
 
 export async function checkError(what: string, why?: CheckWhy | null): Promise<CloudflareError> {
+  const appAgent = await Application.getDefaultUserAgent();
+  const agent = !why?.ua
+    ? "unknown"
+    : why.ua === appAgent
+      ? "same as the app's"
+      : `"${why.ua}", the app's is "${appAgent}"`;
   logEvent(
     "comix check",
     `${what}: comix wanted its check, opening its check page. ` +
-      `Asked because: ${why?.why ?? "unknown"}. Page could see: ${why?.cookies || "no cookies"}. ` +
-      `Page was given: ${lastRunCookies.sent}. Page ended with: ${lastRunCookies.ended}.`,
+      `Asked because: ${why?.why ?? "unknown"}. Last answers: ${why?.net || "none"}. ` +
+      `Page could see: ${why?.cookies || "no cookies"}. ` +
+      `Page was given: ${lastRunCookies.sent}. Page ended with: ${lastRunCookies.ended}. ` +
+      `Page's browser: ${agent}${why?.visible ? ` (${why.visible})` : ""}.`,
   );
   return new CloudflareError(
     {
