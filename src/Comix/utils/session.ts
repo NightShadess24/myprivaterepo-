@@ -62,6 +62,94 @@ export function clearanceCookie(): Cookie | undefined {
 }
 
 // ---------------------------------------------------------------------------
+// The site's own passes: cookies and localStorage the site sets once its human
+// check (`/@waf/challenge`) is solved, captured from the check screen and from
+// page loads. Kept in state and handed to every request and WebView run, since a
+// library refresh may not share the browser storage the reader solved it in.
+//
+// Cloudflare's own fingerprint cookies (__cf_bm, _cfuvid, cf_chl_*, …) are left
+// out: they belong to the browser that made them.
+// ---------------------------------------------------------------------------
+
+const SITE_COOKIES_KEY = "comix_site_cookies";
+const SITE_STORAGE_KEY = "comix_site_storage";
+
+interface StoredCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path?: string;
+  expires?: number;
+}
+
+export const isSiteDomain = (domain: string) => {
+  const host = domain.replace(/^\./, "").toLowerCase();
+  return host === "comix.to" || host.endsWith(".comix.to");
+};
+
+export const isBrowserBoundCookie = (name: string) =>
+  /^(__cf_bm|_cfuvid|__cflb|__cfruid|__cfseq.*|cf_chl_.*|cf_ob_info|cf_use_ob)$/i.test(name);
+
+function storedSiteCookies(): Record<string, StoredCookie> {
+  const stored = Application.getState(SITE_COOKIES_KEY) as Record<string, StoredCookie> | undefined;
+  return stored && typeof stored === "object" ? stored : {};
+}
+
+// Saves the site's own cookies (not cf_clearance, not Cloudflare's fingerprint
+// cookies). Returns the names that were new or changed.
+export function saveSiteCookies(cookies: readonly Cookie[], source: string): string[] {
+  const stored = storedSiteCookies();
+  const changed: string[] = [];
+  for (const cookie of cookies) {
+    if (!cookie.value || !cookie.domain || !isSiteDomain(cookie.domain)) continue;
+    if (cookie.name === "cf_clearance" || isBrowserBoundCookie(cookie.name)) continue;
+    if (stored[cookie.name]?.value === cookie.value) continue;
+    stored[cookie.name] = {
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path,
+      expires: cookie.expires instanceof Date ? cookie.expires.getTime() : undefined,
+    };
+    changed.push(cookie.name);
+  }
+  if (changed.length > 0) {
+    Application.setState(stored, SITE_COOKIES_KEY);
+    logEvent("site pass", `saved ${changed.join(", ")} (${source})`);
+  }
+  return changed;
+}
+
+export function loadSiteCookies(): Cookie[] {
+  const now = Date.now();
+  return Object.values(storedSiteCookies())
+    .filter((cookie) => cookie.expires === undefined || cookie.expires > now)
+    .map((cookie) => ({
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path ?? "/",
+      expires: cookie.expires !== undefined ? new Date(cookie.expires) : undefined,
+    }));
+}
+
+export function saveSiteStorage(storage: Record<string, string> | undefined, source: string): void {
+  const entries = Object.entries(storage ?? {}).filter(
+    ([key, value]) => typeof key === "string" && typeof value === "string",
+  );
+  if (entries.length === 0) return;
+  Application.setState(Object.fromEntries(entries), SITE_STORAGE_KEY);
+  logEvent("site pass", `saved ${entries.length} site storage keys (${source})`);
+}
+
+export const siteCookieNames = () => loadSiteCookies().map((cookie) => cookie.name);
+
+export function loadSiteStorage(): Record<string, string> {
+  const stored = Application.getState(SITE_STORAGE_KEY) as Record<string, string> | undefined;
+  return stored && typeof stored === "object" ? stored : {};
+}
+
+// ---------------------------------------------------------------------------
 // Diagnostics: the last few things that went wrong (or worth knowing), shown
 // under Settings → Diagnostics so a failing refresh can be described exactly.
 // ---------------------------------------------------------------------------

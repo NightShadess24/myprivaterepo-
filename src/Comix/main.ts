@@ -55,6 +55,8 @@ import {
   loadClearance,
   logEvent,
   saveClearance,
+  saveSiteCookies,
+  saveSiteStorage,
   timeAgo,
   useQuickRefresh,
   withDiagnostics,
@@ -65,7 +67,7 @@ import {
   isKeptCookie,
   isSiteCookie,
   pageListViaWebView,
-  storeSiteCookie,
+  storeSiteCookies,
 } from "./utils/webView";
 
 const ALL_CONTENT_RATINGS = "safe,suggestive,erotica,pornographic";
@@ -92,35 +94,42 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     this.cookieStorageInterceptor.registerInterceptor();
     this.mainInterceptor.registerInterceptor();
 
-    // Versions alpha.49–51 also stored the bypass browser's other cookies
-    // (__cf_bm, cf_chl_*, the site's session). Drop those; keep the pass.
+    // Drop Cloudflare's fingerprint cookies (__cf_bm, cf_chl_*) that alpha.49–51
+    // copied from the check screen; they belong to that browser. Move the pass
+    // and the site's own cookies into state, where every instance reads them.
     const stored = this.cookieStorageInterceptor.cookies;
     const kept = stored.filter((cookie) => !isSiteCookie(cookie.domain) || isKeptCookie(cookie));
     if (kept.length !== stored.length) this.cookieStorageInterceptor.cookies = kept;
     const clearance = kept.find((cookie) => cookie.name === "cf_clearance");
     if (clearance && !loadClearance()) saveClearance(clearance, "cookie store");
+    saveSiteCookies(
+      kept.filter((cookie) => isSiteCookie(cookie.domain)),
+      "cookie store",
+    );
   }
 
+  // Called after the reader completes a check (Cloudflare's, or the site's own
+  // human check). Keep the Cloudflare pass, the site's own cookies and its
+  // localStorage — whatever the check left behind — so every later request,
+  // including a library refresh, carries them.
   async cloudflareBypassCompleted(
     _request: Request,
     cookies: Cookie[],
-    _localStorage: Record<string, string>,
+    siteStorage: Record<string, string>,
   ): Promise<void> {
-    // Keep only the Cloudflare pass (and the site's captcha pass, if any). The
-    // bypass browser's other cookies are tied to that browser.
-    let gotPass = false;
-    for (const cookie of cookies) {
-      if (cookie.name === "cf_clearance") {
-        gotPass = true;
-        saveClearance(cookie, "Cloudflare check");
-        this.cookieStorageInterceptor.setCookie(cookie);
-      } else if (isSiteCookie(cookie.domain)) {
-        storeSiteCookie(this.cookieStorageInterceptor, cookie, "Cloudflare check");
-      }
-    }
-    if (!gotPass) {
-      logEvent("pass", `Cloudflare check finished without a pass (${cookies.length} cookies)`);
-    }
+    const site = cookies.filter((cookie) => isSiteCookie(cookie.domain));
+    logEvent(
+      "check done",
+      `got ${site.map((c) => c.name).join(", ") || "no site cookies"}; ${
+        Object.keys(siteStorage ?? {}).length
+      } storage keys`,
+    );
+    storeSiteCookies(this.cookieStorageInterceptor, site, "check");
+    const strayPass = cookies.find(
+      (cookie) => cookie.name === "cf_clearance" && !isSiteCookie(cookie.domain),
+    );
+    if (strayPass) this.cookieStorageInterceptor.setCookie(strayPass);
+    saveSiteStorage(siteStorage, "check");
     clearCloudflareChallenge();
   }
 

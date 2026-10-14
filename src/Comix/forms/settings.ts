@@ -36,7 +36,9 @@ import {
   getLog,
   getRefreshPace,
   loadClearance,
+  loadSiteStorage,
   REFRESH_PACES,
+  siteCookieNames,
   timeAgo,
   useQuickRefresh,
 } from "../utils/session";
@@ -145,6 +147,14 @@ class DiagnosticsForm extends Form {
                 pass.expires ? `, expires in ${expiresIn(pass.expires)}` : ""
               }`
             : "Open a Comix title and complete the Cloudflare check",
+        }),
+        LabelRow("site_pass", {
+          title: "Site cookies kept",
+          subtitle: siteCookieNames().join(", ") || "None yet",
+        }),
+        LabelRow("site_storage", {
+          title: "Site storage kept",
+          subtitle: `${Object.keys(loadSiteStorage()).length} keys`,
         }),
       ]),
       Section({ id: "log", header: "Recent events", footer: "Newest first." }, [
