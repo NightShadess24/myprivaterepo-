@@ -6,7 +6,7 @@ import { ContentRating, SourceIntents, type ExtensionInfo } from "@paperback/typ
 export default {
   name: "Comix Test",
   description: "Comix.to, the version that gets new fixes first.",
-  version: "1.0.0-alpha.68",
+  version: "1.0.0-alpha.69",
   icon: "icon.png",
   language: "en",
   contentRating: ContentRating.EVERYONE,

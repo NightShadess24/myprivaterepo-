@@ -143,12 +143,13 @@ function captureBootstrap(handlerFactory: string): string {
         },
       });
 
-      // The site's own captcha: the API answers 403 captcha_required and the
-      // reader opens /@waf/challenge in an iframe. Nobody can solve it in this
-      // hidden WebView, so report it instead of waiting for the timeout.
+      // The site's own check: the API answers 403 captcha_required and the
+      // site opens /@waf/challenge (a Turnstile box) in an iframe. It clears by
+      // itself in a few seconds and the site retries, so just note it and keep
+      // waiting (giving up here caused an endless human-check loop).
       function checkCaptcha(status, url, body) {
         if (status === 403 && String(url).indexOf("/api/") !== -1 && /captcha/i.test(String(body))) {
-          fail("${CAPTCHA}");
+          window.__comixCheckSeen = true;
         }
       }
       var xhrProto = XMLHttpRequest.prototype;
@@ -201,7 +202,7 @@ function captureBootstrap(handlerFactory: string): string {
           clearInterval(wafPoll);
           return;
         }
-        if (document.querySelector('iframe[src*="/@waf/"]')) fail("${CAPTCHA}");
+        if (document.querySelector('iframe[src*="/@waf/"]')) window.__comixCheckSeen = true;
       }, 500);
     })();
   `;

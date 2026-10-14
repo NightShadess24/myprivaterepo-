@@ -157,9 +157,13 @@ return (async function () {
     return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__ });
   };
 
-  while (Date.now() - started < 8000) {
+  // comix's own check (a Turnstile box in /@waf/challenge) normally clears by
+  // itself in a few seconds and the site then retries, so it means "wait".
+  var checkSeen = false;
+  while (Date.now() - started < (checkSeen ? 20000 : 8000)) {
     if (window.__comixPages__) return found("reader");
-    if (wafSeen() || net.chapterStatus >= 400) break;
+    if (wafSeen()) checkSeen = true;
+    else if (!checkSeen && net.chapterStatus >= 400) break;
     await sleep(100);
   }
 
@@ -201,9 +205,8 @@ return (async function () {
     apiError = "the site's API client never loaded";
   }
 
-  // The API already said no: give the reader a few more seconds, not the full
-  // wait (none at all once the site has put up its own check).
-  var until = wafSeen() ? 0 : axios ? 15000 : 30000;
+  // The API said no: give the reader (and any check in progress) a bit longer.
+  var until = axios ? 25000 : 30000;
   while (Date.now() - started < until) {
     if (window.__comixPages__) return found("reader");
     await sleep(150);
@@ -211,7 +214,7 @@ return (async function () {
   return JSON.stringify({
     ok: false,
     status: apiStatus || net.chapterStatus || null,
-    waf: wafSeen(),
+    waf: checkSeen || wafSeen(),
     error: apiError || "the reader never got its pages",
   });
 })();
@@ -251,7 +254,7 @@ export async function pageListViaWebView(
     );
     if (result.waf) {
       throw new Error(
-        "Comix: comix.to is asking for its own check on this chapter, try again soon",
+        "Comix: comix.to's own human check didn't clear this time, try again in a moment",
       );
     }
     if (result.status === 403 || result.status === 429 || result.status === 503) {
