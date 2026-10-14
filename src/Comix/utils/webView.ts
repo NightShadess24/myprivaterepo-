@@ -6,7 +6,7 @@ import * as cheerio from "cheerio";
 
 import { DOMAIN, type ChapterItem, type ChapterPageItems, type ResultManga } from "../models";
 import { fetchText } from "../network";
-import { scheduleComix } from "./queue";
+import { scheduleBrowse, scheduleComix } from "./queue";
 
 // comix signs its API requests and encrypts `{e:"..."}` responses inside its own
 // secure bundle, so we never reimplement the rotating cipher: we capture the
@@ -16,16 +16,16 @@ import { scheduleComix } from "./queue";
 // site's own code, so it looks like normal app traffic and survives its frequent
 // bundle rotations.
 
-// `queued: false` skips the one-at-a-time queue: Discover's sections (browse
-// pages) load side by side, as in this repo's earlier versions, so the home
-// page fills in quickly. Chapter lists and chapter pages stay queued.
+// `browse: true` uses the home page/search limit (Settings → Loading Speed)
+// instead of the one-at-a-time queue, so Discover's sections can load side by
+// side. Chapter lists and chapter pages stay in comix-capture's queue.
 async function runProxiedWebView<T>(
   pageUrl: string,
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
-  { queued = true }: { queued?: boolean } = {},
+  { browse = false }: { browse?: boolean } = {},
 ): Promise<T> {
-  const schedule = queued ? scheduleComix : <R>(task: () => Promise<R>) => task();
+  const schedule = browse ? scheduleBrowse : scheduleComix;
   return schedule(async () => {
     const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
     const userAgent = await Application.getDefaultUserAgent();
@@ -275,7 +275,7 @@ export async function browseViaWebView(
     browseUrl,
     bootstrap,
     cookieInterceptor,
-    { queued: false },
+    { browse: true },
   );
   if (!result) {
     console.log(`[Comix] browse timed out for ${browseUrl}`);

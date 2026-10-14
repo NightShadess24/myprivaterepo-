@@ -31,6 +31,7 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
+import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
   return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
@@ -67,11 +68,38 @@ export class ComixSettingsForm extends Form {
           form: new SectionSettings(),
         }),
       ]),
+      Section(
+        {
+          id: "loading_speed",
+          footer:
+            "How many home page sections (and search pages) load at once. If Cloudflare starts asking for checks on the home page, pick a safer speed. Chapter lists and chapters always load one at a time.",
+        },
+        [
+          SelectRow("loading_speed", {
+            title: "Loading Speed",
+            subtitle: getLoadingSpeed().title,
+            layout: "list",
+            value: [getLoadingSpeed().id],
+            items: LOADING_SPEEDS.map((speed) => ({ id: speed.id, title: speed.title })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleLoadingSpeedChange",
+            ),
+          }),
+        ],
+      ),
     ];
   }
 
   async refreshFilters() {
     await ensureFilters(true);
+    this.reloadForm();
+  }
+
+  async handleLoadingSpeedChange(value: string[]) {
+    if (value[0]) Application.setState(value[0], "loading_speed");
     this.reloadForm();
   }
 }
