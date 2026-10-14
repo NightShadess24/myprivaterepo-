@@ -62,3 +62,13 @@ export function keepSiteCookies(
   }
   return kept;
 }
+
+// Every unexpired comix.to cookie, whatever its path, for a hidden page. Like
+// a browser's cookie jar: the page sends each one only where it belongs, so a
+// pass the site keeps under, say, /api still goes along with its API calls.
+export function siteCookies(store: CookieStorageInterceptor): Cookie[] {
+  const now = Date.now();
+  return store.cookies.filter(
+    (cookie) => isSiteDomain(cookie.domain) && (!cookie.expires || cookie.expires.getTime() > now),
+  );
+}

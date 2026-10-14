@@ -6,7 +6,7 @@ import * as cheerio from "cheerio";
 
 import { DOMAIN, type ChapterItem, type ChapterPageItems, type ResultManga } from "../models";
 import { fetchText } from "../network";
-import { keepSiteCookies } from "./cookies";
+import { keepSiteCookies, siteCookies } from "./cookies";
 import { logEvent } from "./log";
 import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
 
@@ -222,7 +222,7 @@ async function runProxiedWebView<T>(
     const userAgent = await Application.getDefaultUserAgent();
     const $ = cheerio.load(await fetchText(pageUrl));
     // Read after the page fetch, so the session it was just given goes along.
-    const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
+    const cookies = siteCookies(cookieInterceptor);
 
     $("head").prepend(`<script>${SITE_BOOTSTRAP}${bootstrap}</script>`);
 
