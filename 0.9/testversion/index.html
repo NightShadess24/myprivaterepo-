@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="noir">
+<head>
+<meta name="robots" content="noindex">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="https://paperback.moe/pb-logo.svg">
+<title>NightShadess24 Extensions (0.9 Test Version)</title>
+<script>
+try {
+  var saved = localStorage.getItem("repo-theme");
+  if (saved === "classic" || saved === "noir") document.documentElement.dataset.theme = saved;
+} catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- Shared ---------- */
+* { box-sizing: border-box; }
+.title { font-weight: 700; margin-bottom: 8px; }
+.icon { max-height: 8rem; }
+.noir-only { display: none; }
+.classic-only { display: revert; }
+ul { margin-top: 0; }
+.version { margin-left: 8px; font-size: 12px; opacity: .55; font-variant-numeric: tabular-nums; }
+.status { margin: 0; padding-left: 40px; }
+
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 20;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+/* Repository links: hover shows that repository's sources, click keeps them */
+.repo-switch { display: flex; justify-content: center; flex-wrap: wrap; }
+.repo-link { cursor: pointer; white-space: nowrap; }
+
+/* Tags, after Element's tag component (https://element.eleme.io/#/en-US/component/tag) */
+.el-tag {
+  display: inline-block;
+  height: 32px;
+  margin-left: 4px;
+  padding: 0 10px;
+  line-height: 30px;
+  font-size: 12px;
+  color: #409eff;
+  background-color: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.el-tag--dark { background-color: #409eff; border-color: #409eff; color: #fff; }
+.el-tag--mini { height: 20px; padding: 0 5px; line-height: 19px; }
+.el-tag--dark.el-tag--success { background-color: #67c23a; border-color: #67c23a; color: #fff; }
+.el-tag--dark.el-tag--info { background-color: #909399; border-color: #909399; color: #fff; }
+.el-tag--dark.el-tag--danger { background-color: #f56c6c; border-color: #f56c6c; color: #fff; }
+.el-tag--dark.el-tag--warning { background-color: #e6a23c; border-color: #e6a23c; color: #fff; }
+
+/* ---------- Classic (Paperback 0.8 repository page) ---------- */
+[data-theme="classic"] body {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2c3e50;
+  background-color: #fff;
+  margin: 8px;
+  padding: 3.6rem 2rem 1.5rem;
+  text-align: center;
+}
+[data-theme="classic"] h1 { font-size: 1.7rem; margin: 1rem auto; }
+[data-theme="classic"] .pageDescription { max-width: 35rem; font-size: 1.3rem; line-height: 1.3; color: #6a8bad; margin: 1rem auto; }
+[data-theme="classic"] .addToPaperbackButton {
+  display: inline-block;
+  width: 10rem;
+  line-height: 1.7;
+  margin: .25rem;
+  padding: .4rem;
+  color: #fff;
+  background-color: #2e84bf;
+  border-bottom: 1px solid #2977ac;
+  border-radius: 4px;
+  transition: background-color .1s ease;
+}
+[data-theme="classic"] .addToPaperbackButton:hover { background-color: #3992cf; text-decoration: none; }
+[data-theme="classic"] .content { margin: auto; max-width: 920px; text-align: left; }
+[data-theme="classic"] blockquote {
+  font-size: .9rem;
+  color: #999;
+  border-left: .2rem solid #dfe2e5;
+  margin: 1rem 0;
+  padding: .25rem 0 .25rem 1rem;
+  line-height: 1.6;
+}
+[data-theme="classic"] blockquote p { margin-top: 2px; margin-bottom: 2px; }
+[data-theme="classic"] a { font-weight: 500; text-decoration: none; color: #2196f3; }
+[data-theme="classic"] a:hover { text-decoration: underline; }
+[data-theme="classic"] .baseUrl { background-color: #f0f4f8; border-radius: .4rem; padding: .1rem .1rem; overflow-wrap: anywhere; }
+[data-theme="classic"] .baseUrl p { margin-left: 16px; }
+[data-theme="classic"] #listDiv { line-height: 1.5; }
+[data-theme="classic"] .sources { padding-left: 40px; }
+[data-theme="classic"] .theme-toggle { background: #fff; color: #2c3e50; border: 1px solid #dfe2e5; }
+[data-theme="classic"] .repo-switch { gap: 0; margin: 0 auto 1rem; }
+[data-theme="classic"] .repo-link {
+  padding: .35rem 1rem;
+  border: 1px solid #2e84bf;
+  color: #2e84bf;
+  font-size: .95rem;
+}
+[data-theme="classic"] .repo-link:first-child { border-radius: 4px 0 0 4px; }
+[data-theme="classic"] .repo-link:last-child { border-radius: 0 4px 4px 0; }
+[data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
+[data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
+[data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
+
+/* ---------- Noir (dark shop style) ---------- */
+[data-theme="noir"] {
+  --bg: #1b1b1d;
+  --surface: #232326;
+  --line: #e9e9e9;
+  --text: #f2f2f2;
+  --muted: #a3a3aa;
+  --gold: #c9a45c;
+  --blue: #5d9dfe;
+  color-scheme: dark;
+}
+[data-theme="noir"] body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+[data-theme="noir"] .noir-only { display: revert; }
+[data-theme="noir"] .classic-only,
+[data-theme="noir"] [hidden] { display: none !important; }
+[data-theme="noir"] a { color: var(--blue); text-decoration: none; }
+[data-theme="noir"] .theme-toggle { background: transparent; color: var(--text); border: 1px solid #4a4a50; top: 9px; }
+[data-theme="noir"] .theme-toggle:hover { border-color: var(--text); }
+
+[data-theme="noir"] .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 52px;
+  line-height: 52px;
+  text-align: center;
+  background: var(--bg);
+  padding: 0 104px; /* room for the theme toggle */
+  border-bottom: 1px solid #2c2c30;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme="noir"] .repo-switch { gap: 0; margin: 22px 0 6px; }
+[data-theme="noir"] .repo-link {
+  padding: 4px 22px 8px;
+  color: var(--muted);
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background-image: linear-gradient(var(--gold), var(--gold));
+  background-size: 0 2px;
+  background-position: 50% 100%;
+  background-repeat: no-repeat;
+  transition: background-size .25s ease, color .2s ease;
+}
+[data-theme="noir"] .repo-link + .repo-link { border-left: 1px solid #55555a; }
+[data-theme="noir"] .repo-link:hover,
+[data-theme="noir"] .repo-link:focus-visible { color: var(--text); background-size: 60% 2px; outline: none; }
+[data-theme="noir"] .repo-link[aria-current="true"] { color: var(--gold); background-size: 60% 2px; }
+[data-theme="noir"] .tabs {
+  display: flex;
+  justify-content: center;
+  justify-content: safe center;
+  gap: 26px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 0 26px;
+}
+[data-theme="noir"] .tabs::-webkit-scrollbar { display: none; }
+[data-theme="noir"] .tab {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background-image: linear-gradient(var(--text), var(--text));
+  background-size: 0 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size .25s ease;
+}
+[data-theme="noir"] .tab:hover,
+[data-theme="noir"] .tab[aria-pressed="true"] { background-size: 100% 1px; }
+[data-theme="noir"] .tab--brand { font-family: "Cormorant Garamond", "Times New Roman", serif; font-size: 17px; font-weight: 600; }
+
+[data-theme="noir"] main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 48px; }
+[data-theme="noir"] .banner {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 14px 0;
+  padding: 22px 22px;
+  background: #0d0d0e;
+  border-top: 3px solid var(--line);
+  color: var(--gold);
+  text-decoration: none;
+}
+[data-theme="noir"] .banner__label {
+  flex: none;
+  width: 140px;
+  padding-right: 22px;
+  border-right: 1px solid #55555a;
+  color: var(--text);
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+[data-theme="noir"] .banner__text { flex: 1; font-size: clamp(17px, 3.4vw, 28px); font-weight: 700; letter-spacing: .08em; }
+[data-theme="noir"] .banner__chevron { flex: none; font-size: 28px; font-weight: 300; }
+[data-theme="noir"] .banner:hover .banner__chevron { transform: translateX(3px); transition: transform .15s ease; }
+
+[data-theme="noir"] .hero { text-align: center; padding: 56px 0 8px; }
+[data-theme="noir"] .hero h1 {
+  margin: 0;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: clamp(34px, 7vw, 56px);
+  font-weight: 600;
+  line-height: 1.05;
+}
+[data-theme="noir"] .hero p { margin: 14px auto 0; max-width: 34rem; color: var(--muted); line-height: 1.6; }
+[data-theme="noir"] .baseUrlBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 640px;
+  margin: 26px auto 0;
+  padding: 8px 8px 8px 14px;
+  background: #fefefe;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+[data-theme="noir"] .baseUrlBar code { flex: 1; color: #555; font-size: 13px; overflow-wrap: anywhere; text-align: left; }
+[data-theme="noir"] .copyButton {
+  flex: none;
+  border: 0;
+  border-radius: 3px;
+  padding: 6px 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+[data-theme="noir"] .section-title {
+  margin: 64px 0 26px;
+  text-align: center;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: clamp(30px, 6vw, 48px);
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.1;
+  color: #e6e6e6;
+}
+[data-theme="noir"] #listDiv { max-width: 920px; margin: 0 auto; }
+[data-theme="noir"] .sources { margin: 0; padding-left: 40px; line-height: 1.5; font-size: 16px; }
+[data-theme="noir"] .empty,
+[data-theme="noir"] .status { color: var(--muted); }
+[data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
+
+@media (max-width: 560px) {
+  [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
+  [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
+  [data-theme="noir"] .repo-link { padding: 4px 14px 8px; font-size: 18px; }
+  [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
+}
+</style>
+</head>
+<body>
+<button class="theme-toggle" type="button" aria-label="Switch theme"></button>
+
+<!-- Noir: top bar, banners, filter tabs above the sources -->
+<div class="topbar noir-only js-repo-name">NightShadess24 Extensions (0.9 Test Version)</div>
+
+<main>
+<!-- Classic: header -->
+<header class="classic-only">
+<img class="icon" src="https://paperback.moe/icons/logo-alt.svg" alt="Repository logo" onerror="this.onerror=null;this.src='https://paperback.moe/pb-logo.svg'">
+<h1 class="js-repo-name">NightShadess24 Extensions (0.9 Test Version)</h1>
+<p class="pageDescription">A Paperback extensions repository</p>
+</header>
+
+<!-- Both: one link per repository on this site -->
+<nav class="repo-switch" aria-label="Repositories"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" aria-current="true">Test Version</a></nav>
+
+<header class="classic-only">
+<a class="addToPaperbackButton js-add-repo" href="paperback://addRepo?displayName=NightShadess24%20Extensions%20(0.9%20Test%20Version)&amp;url=https%3A%2F%2Fnightshadess24.github.io%2Fmyprivaterepo-%2F0.9%2Ftestversion">Add to Paperback</a>
+</header>
+
+<div class="noir-only">
+<a class="banner js-add-repo" href="paperback://addRepo?displayName=NightShadess24%20Extensions%20(0.9%20Test%20Version)&amp;url=https%3A%2F%2Fnightshadess24.github.io%2Fmyprivaterepo-%2F0.9%2Ftestversion"><span class="banner__label">Paperback</span><span class="banner__text">Add this repository</span><span class="banner__chevron">›</span></a>
+<a class="banner" href="https://paperback.moe/help/guides/adding-repos/"><span class="banner__label">Guide</span><span class="banner__text">How to add a repository</span><span class="banner__chevron">›</span></a>
+<section class="hero">
+<h1 class="js-repo-name">NightShadess24 Extensions (0.9 Test Version)</h1>
+<p class="js-repo-description">Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.</p>
+<div class="baseUrlBar"><code class="js-base-url">https://nightshadess24.github.io/myprivaterepo-/0.9/testversion</code><button class="copyButton" type="button">Copy URL</button></div>
+</section>
+<h2 class="section-title">AVAILABLE<br>SOURCES</h2>
+<nav class="tabs" aria-label="Filter sources">
+<button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
+<button class="tab" type="button" data-filter="Mature" aria-pressed="false">Mature</button>
+<button class="tab" type="button" data-filter="Novel" aria-pressed="false">Novel</button>
+<button class="tab" type="button" data-filter="18+" aria-pressed="false">18+</button>
+</nav>
+</div>
+
+<div class="content">
+<div class="classic-only">
+<p id="repositoryDescription" class="js-repo-description">Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.</p>
+<blockquote>
+<p>A guide is available to learn everything about extensions repositories.</p>
+<p>Check it <a href="https://paperback.moe/help/guides/adding-repos/">here</a> to learn how to add and use this repository in Paperback.</p>
+</blockquote>
+<blockquote>
+<p><span>On a Paperback installed device, press </span><a class="js-add-repo" href="paperback://addRepo?displayName=NightShadess24%20Extensions%20(0.9%20Test%20Version)&amp;url=https%3A%2F%2Fnightshadess24.github.io%2Fmyprivaterepo-%2F0.9%2Ftestversion">Add to Paperback</a><span> or use the base URL to add this repository to the app.</span></p>
+</blockquote>
+<div class="baseUrl">
+<p class="title">Base URL:</p>
+<p class="js-base-url">https://nightshadess24.github.io/myprivaterepo-/0.9/testversion</p>
+</div>
+<p class="title">Available Sources:</p>
+</div>
+
+<!-- Both: the sources -->
+<div id="listDiv">
+<ul class="sources">
+<li class="source" data-tags="Mature" title="Extension that pulls content from allmanga.to.">AllManga<span class="version">1.0.0-alpha.4</span><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from atsu.moe.">Atsumaru<span class="version">1.0.0-alpha.25</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from Comix.to (test version).">Comix<span class="version">1.0.0-alpha.71</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from FlameComics.xyz.">FlameComics<span class="version">1.0.0-alpha.2</span></li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from hivetoons.org.">HiveToons<span class="version">1.0.0-alpha.3</span><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="Novel" title="Extension that pulls content from LNori.">LNori<span class="version">1.0.0-alpha.2</span><span class="el-tag el-tag--dark el-tag--mini" style="background-color:#3baf4b;border-color:#3baf4b;color:#ffffff">Novel</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from demonicscans.org.">MangaDemon<span class="version">1.0.0-alpha.15</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mangadex.org.">MangaDex<span class="version">1.0.0-alpha.27</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from MangaDot.net">MangaDot<span class="version">1.0.0-alpha.6</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mangafire.to.">MangaFire<span class="version">1.0.0-alpha.22</span></li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from fanfox.net.">MangaFox<span class="version">1.0.0-alpha.13</span><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="18+" title="Extension that pulls content from mangago.me.">Mangago<span class="version">1.0.0-alpha.1</span><span class="el-tag el-tag--dark el-tag--mini el-tag--danger">18+</span></li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from mangakatana.com.">MangaKatana<span class="version">1.0.0-alpha.15</span><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mangapill.com.">Mangapill<span class="version">1.0.0-alpha.12</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mangaplus.shueisha.co.jp.">MangaPlus<span class="version">1.0.0-alpha.11</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mangataro.org.">MangaTaro<span class="version">1.0.0-alpha.3</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from mgeko.cc.">Mgeko<span class="version">1.0.0-alpha.29</span></li>
+<li class="source" data-tags="" title="Extension pour récupérer le contenu de punkrecordz.com.">PunkRecords<span class="version">1.0.0-alpha.2</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from qimanhwa.com.">QiScans<span class="version">1.0.0-alpha.15</span></li>
+<li class="source" data-tags="Mature" title="Extension that pulls content from roliascan.com.">Roliascan<span class="version">1.0.0-alpha.1</span><span class="el-tag el-tag--dark el-tag--mini el-tag--warning">Mature</span></li>
+<li class="source" data-tags="" title="Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.">RoyalRoad<span class="version">1.0.0-alpha.1</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from webtoons.com.">Webtoon<span class="version">1.0.0-alpha.18</span></li>
+<li class="source" data-tags="" title="Extension that pulls content from weebcentral.com.">WeebCentral<span class="version">1.0.0-alpha.25</span></li>
+</ul>
+<p class="status" hidden></p>
+<p class="empty noir-only" hidden>No sources match this filter.</p>
+</div>
+</div>
+</main>
+<footer class="noir-only js-footer">NightShadess24 Extensions (0.9 Test Version) · 23 sources · built 2026-10-14</footer>
+
+<script>
+(function () {
+  var REPOS = [{"ref":"0.9/stable","label":"Stable"},{"ref":"0.9/testversion","label":"Test Version"}];
+  var CURRENT = "0.9/testversion";
+  var BUILD_SITE_ROOT = "https://nightshadess24.github.io/myprivaterepo-/";
+  var RATING_TAGS = {"MATURE":{"label":"Mature","type":"warning"},"ADULT":{"label":"18+","type":"danger"}};
+  var data = {};
+  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: the same sources, with the newest Comix fixes first.","buildTime":"2026-10-14T09:20:38.521Z","sources":[{"name":"AllManga","description":"Extension that pulls content from allmanga.to.","version":"1.0.0-alpha.4","contentRating":"MATURE","badges":[]},{"name":"Atsumaru","description":"Extension that pulls content from atsu.moe.","version":"1.0.0-alpha.25","contentRating":"SAFE","badges":[]},{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.71","contentRating":"SAFE","badges":[]},{"name":"FlameComics","description":"Extension that pulls content from FlameComics.xyz.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[]},{"name":"HiveToons","description":"Extension that pulls content from hivetoons.org.","version":"1.0.0-alpha.3","contentRating":"MATURE","badges":[]},{"name":"LNori","description":"Extension that pulls content from LNori.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[{"label":"Novel","textColor":"#ffffff","backgroundColor":"#3baf4b"}]},{"name":"MangaDemon","description":"Extension that pulls content from demonicscans.org.","version":"1.0.0-alpha.15","contentRating":"SAFE","badges":[]},{"name":"MangaDex","description":"Extension that pulls content from mangadex.org.","version":"1.0.0-alpha.27","contentRating":"SAFE","badges":[]},{"name":"MangaDot","description":"Extension that pulls content from MangaDot.net","version":"1.0.0-alpha.6","contentRating":"SAFE","badges":[]},{"name":"MangaFire","description":"Extension that pulls content from mangafire.to.","version":"1.0.0-alpha.22","contentRating":"SAFE","badges":[]},{"name":"MangaFox","description":"Extension that pulls content from fanfox.net.","version":"1.0.0-alpha.13","contentRating":"MATURE","badges":[]},{"name":"Mangago","description":"Extension that pulls content from mangago.me.","version":"1.0.0-alpha.1","contentRating":"ADULT","badges":[]},{"name":"MangaKatana","description":"Extension that pulls content from mangakatana.com.","version":"1.0.0-alpha.15","contentRating":"MATURE","badges":[]},{"name":"Mangapill","description":"Extension that pulls content from mangapill.com.","version":"1.0.0-alpha.12","contentRating":"SAFE","badges":[]},{"name":"MangaPlus","description":"Extension that pulls content from mangaplus.shueisha.co.jp.","version":"1.0.0-alpha.11","contentRating":"SAFE","badges":[]},{"name":"MangaTaro","description":"Extension that pulls content from mangataro.org.","version":"1.0.0-alpha.3","contentRating":"SAFE","badges":[]},{"name":"Mgeko","description":"Extension that pulls content from mgeko.cc.","version":"1.0.0-alpha.29","contentRating":"SAFE","badges":[]},{"name":"PunkRecords","description":"Extension pour récupérer le contenu de punkrecordz.com.","version":"1.0.0-alpha.2","contentRating":"SAFE","badges":[]},{"name":"QiScans","description":"Extension that pulls content from qimanhwa.com.","version":"1.0.0-alpha.15","contentRating":"SAFE","badges":[]},{"name":"Roliascan","description":"Extension that pulls content from roliascan.com.","version":"1.0.0-alpha.1","contentRating":"MATURE","badges":[]},{"name":"RoyalRoad","description":"Extension that pulls web novels from royalroad.com and renders their chapters as readable pages.","version":"1.0.0-alpha.1","contentRating":"SAFE","badges":[]},{"name":"Webtoon","description":"Extension that pulls content from webtoons.com.","version":"1.0.0-alpha.18","contentRating":"SAFE","badges":[]},{"name":"WeebCentral","description":"Extension that pulls content from weebcentral.com.","version":"1.0.0-alpha.25","contentRating":"SAFE","badges":[]}]};
+
+  var root = document.documentElement;
+  var themes = { noir: "☀ Classic", classic: "☾ Noir" };
+  var toggle = document.querySelector(".theme-toggle");
+  function applyTheme(theme) {
+    root.dataset.theme = theme;
+    toggle.textContent = themes[theme];
+    try { localStorage.setItem("repo-theme", theme); } catch (e) {}
+  }
+  toggle.addEventListener("click", function () {
+    applyTheme(root.dataset.theme === "noir" ? "classic" : "noir");
+    if (root.dataset.theme === "classic") showAll(); // Classic ignores the filter
+  });
+  toggle.textContent = themes[root.dataset.theme] || themes.noir;
+
+  // Each repository lives at <site root><branch>, e.g. …/myprivaterepo-/0.9/stable
+  function siteRoot() {
+    var at = location.pathname.indexOf("/" + CURRENT);
+    if (/^https?:$/.test(location.protocol) && at !== -1) {
+      return location.origin + location.pathname.slice(0, at + 1);
+    }
+    return BUILD_SITE_ROOT;
+  }
+  function baseUrlOf(ref) {
+    var site = siteRoot();
+    return site ? site + ref : "";
+  }
+  function addRepoLink(displayName, ref) {
+    return "paperback://addRepo?displayName=" + encodeURIComponent(displayName) + "&url=" + encodeURIComponent(baseUrlOf(ref));
+  }
+
+  var list = document.querySelector(".sources");
+  var tabs = document.querySelector(".tabs");
+  var empty = document.querySelector(".empty");
+  var status = document.querySelector(".status");
+  var links = Array.prototype.slice.call(document.querySelectorAll(".repo-link"));
+  var selected = CURRENT;
+  var shown = CURRENT;
+  var loading = {};
+
+  links.forEach(function (link) {
+    if (baseUrlOf(link.dataset.ref)) link.href = baseUrlOf(link.dataset.ref) + "/";
+  });
+  function labelOf(ref) {
+    var repo = REPOS.filter(function (r) { return r.ref === ref; })[0];
+    return repo ? repo.label : ref;
+  }
+
+  function load(ref) {
+    if (data[ref] || loading[ref]) return;
+    loading[ref] = true;
+    fetch(baseUrlOf(ref) + "/versioning.json", { cache: "no-cache" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (versioning) {
+        data[ref] = {
+          name: versioning.repository.name,
+          description: versioning.repository.description,
+          buildTime: versioning.buildTime,
+          sources: versioning.sources.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }),
+        };
+      })
+      .catch(function () {
+        data[ref] = { missing: true };
+      })
+      .then(function () {
+        loading[ref] = false;
+        if (shown === ref) show(ref);
+      });
+  }
+
+  function tagsOf(source) {
+    var tags = (source.badges || []).map(function (badge) {
+      return {
+        label: badge.label,
+        style: "background-color:" + badge.backgroundColor + ";border-color:" + badge.backgroundColor + ";color:" + badge.textColor,
+      };
+    });
+    var rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
+    if (rating) tags.push(rating);
+    return tags;
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function setText(selector, text) {
+    document.querySelectorAll(selector).forEach(function (node) { node.textContent = text; });
+  }
+
+  function renderTabs(labels) {
+    tabs.textContent = "";
+    var all = el("button", "tab tab--brand", "All Sources");
+    all.type = "button";
+    all.dataset.filter = "";
+    all.setAttribute("aria-pressed", "true");
+    tabs.appendChild(all);
+    labels.forEach(function (label) {
+      var tab = el("button", "tab", label);
+      tab.type = "button";
+      tab.dataset.filter = label;
+      tab.setAttribute("aria-pressed", "false");
+      tabs.appendChild(tab);
+    });
+  }
+
+  function renderSources(sources) {
+    list.textContent = "";
+    var labels = [];
+    sources.forEach(function (source) {
+      var tags = tagsOf(source);
+      var item = el("li", "source", source.name);
+      item.title = source.description || "";
+      item.dataset.tags = tags.map(function (t) { return t.label; }).join("|");
+      item.appendChild(el("span", "version", source.version || ""));
+      tags.forEach(function (tag) {
+        var span = el("span", "el-tag el-tag--dark el-tag--mini" + (tag.type ? " el-tag--" + tag.type : ""), tag.label);
+        if (tag.style) span.setAttribute("style", tag.style);
+        item.appendChild(span);
+        if (labels.indexOf(tag.label) === -1) labels.push(tag.label);
+      });
+      list.appendChild(item);
+    });
+    renderTabs(labels);
+    empty.hidden = true;
+  }
+
+  function show(ref) {
+    shown = ref;
+    links.forEach(function (link) {
+      if (link.dataset.ref === selected) link.setAttribute("aria-current", "true");
+      else link.removeAttribute("aria-current");
+    });
+    var repo = data[ref];
+    if (!repo || repo.missing) {
+      list.textContent = "";
+      renderTabs([]);
+      empty.hidden = true;
+      status.hidden = false;
+      status.textContent = repo ? "This repository isn't published yet." : "Loading sources…";
+      setText(".js-repo-name", labelOf(ref));
+      setText(".js-repo-description", "");
+      setText(".js-base-url", baseUrlOf(ref));
+      if (!repo) load(ref);
+      return;
+    }
+    status.hidden = true;
+    setText(".js-repo-name", repo.name);
+    setText(".js-repo-description", repo.description);
+    setText(".js-base-url", baseUrlOf(ref));
+    setText(".js-footer", repo.name + " · " + repo.sources.length + " sources · built " + String(repo.buildTime || "").slice(0, 10));
+    document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = addRepoLink(repo.name, ref); });
+    if (ref === selected) document.title = repo.name;
+    renderSources(repo.sources);
+  }
+
+  // Hover (or keyboard focus) shows a repository; leaving goes back to the
+  // chosen one; a click or tap chooses it.
+  var nav = document.querySelector(".repo-switch");
+  links.forEach(function (link) {
+    link.addEventListener("mouseenter", function () { if (shown !== link.dataset.ref) show(link.dataset.ref); });
+    link.addEventListener("focus", function () { if (shown !== link.dataset.ref) show(link.dataset.ref); });
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      selected = link.dataset.ref;
+      show(selected);
+    });
+  });
+  nav.addEventListener("mouseleave", function () { if (shown !== selected) show(selected); });
+  nav.addEventListener("focusout", function (event) {
+    if (!nav.contains(event.relatedTarget) && shown !== selected) show(selected);
+  });
+
+  // Filter tabs (Noir)
+  function showAll() {
+    list.querySelectorAll(".source").forEach(function (item) { item.hidden = false; });
+    empty.hidden = true;
+  }
+  tabs.addEventListener("click", function (event) {
+    var tab = event.target.closest(".tab");
+    if (!tab) return;
+    var filter = tab.dataset.filter;
+    tabs.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-pressed", String(t === tab)); });
+    var count = 0;
+    list.querySelectorAll(".source").forEach(function (item) {
+      var match = !filter || item.dataset.tags.split("|").indexOf(filter) !== -1;
+      item.hidden = !match;
+      if (match) count++;
+    });
+    empty.hidden = count > 0;
+  });
+
+  var copy = document.querySelector(".copyButton");
+  copy.addEventListener("click", function () {
+    var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy URL"; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(baseUrlOf(shown)).then(done, function () {});
+  });
+
+  show(CURRENT);
+  REPOS.forEach(function (repo) { if (repo.ref !== CURRENT) load(repo.ref); });
+})();
+</script>
+</body>
+</html>
