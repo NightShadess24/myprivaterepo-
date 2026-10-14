@@ -658,21 +658,27 @@ ${sources.map(sourceItem).join("\n")}
     renderSources(repo.sources);
   }
 
-  // Hover (or keyboard focus) shows a repository; leaving goes back to the
-  // chosen one; a click or tap chooses it.
+  // With a mouse, hovering a link shows that repository and leaving goes back
+  // to the chosen one. A click or tap chooses it. Touch gets no hover preview:
+  // on iPhone the page changing under a tap cancels the tap, so "Add this
+  // repository" would flip back to Stable instead of opening Paperback.
   var nav = document.querySelector(".repo-switch");
+  function choose(ref) {
+    selected = ref;
+    try { sessionStorage.setItem("repo-choice", ref); } catch (e) {}
+    show(ref);
+  }
   links.forEach(function (link) {
-    link.addEventListener("mouseenter", function () { if (shown !== link.dataset.ref) show(link.dataset.ref); });
-    link.addEventListener("focus", function () { if (shown !== link.dataset.ref) show(link.dataset.ref); });
+    link.addEventListener("pointerenter", function (event) {
+      if (event.pointerType === "mouse" && shown !== link.dataset.ref) show(link.dataset.ref);
+    });
     link.addEventListener("click", function (event) {
       event.preventDefault();
-      selected = link.dataset.ref;
-      show(selected);
+      choose(link.dataset.ref);
     });
   });
-  nav.addEventListener("mouseleave", function () { if (shown !== selected) show(selected); });
-  nav.addEventListener("focusout", function (event) {
-    if (!nav.contains(event.relatedTarget) && shown !== selected) show(selected);
+  nav.addEventListener("pointerleave", function (event) {
+    if (event.pointerType === "mouse" && shown !== selected) show(selected);
   });
 
   // Filter tabs (Noir)
@@ -700,7 +706,13 @@ ${sources.map(sourceItem).join("\n")}
     if (navigator.clipboard) navigator.clipboard.writeText(baseUrlOf(shown)).then(done, function () {});
   });
 
-  show(CURRENT);
+  // Keep the repository chosen in this tab, e.g. when Safari reloads the page
+  // on coming back from Paperback.
+  try {
+    var saved = sessionStorage.getItem("repo-choice");
+    if (REPOS.some(function (repo) { return repo.ref === saved; })) selected = saved;
+  } catch (e) {}
+  show(selected);
   REPOS.forEach(function (repo) { if (repo.ref !== CURRENT) load(repo.ref); });
 })();
 </script>
