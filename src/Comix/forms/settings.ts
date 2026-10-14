@@ -13,9 +13,12 @@ import {
   SelectRow,
   StepperRow,
   ToggleRow,
+  WebViewRow,
+  type Cookie,
 } from "@paperback/types";
 
-import { DISCOVERY_SECTIONS, type SectionEntry } from "../models";
+import { DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
+import { clearCloudflareChallenge } from "../network";
 import {
   contentRatings,
   contentTypes,
@@ -33,7 +36,14 @@ import {
 } from "../utils/filters";
 import {
   clearLog,
+  describeCookies,
+  getLastCaptchaTitle,
   getLog,
+  isSiteDomain,
+  logEvent,
+  passCandidates,
+  saveClearance,
+  saveWafPass,
   getRefreshPace,
   loadClearance,
   loadWafPassInfo,
@@ -56,9 +66,37 @@ function saveSetting(form: Form, key: string, value: unknown): void {
   form.reloadForm();
 }
 
+// The page to solve comix's puzzle on: the manga that last asked for it (the
+// site shows its puzzle there when the chapter list needs it), else the home page.
+function puzzlePageUrl(): string {
+  const hid = getLastCaptchaTitle();
+  return hid ? `${DOMAIN}/title/${hid}` : `${DOMAIN}/`;
+}
+
 export class ComixSettingsForm extends Form {
   override getSections() {
+    const userAgent = Application.getState("comix_user_agent") as string | undefined;
     return [
+      Section(
+        {
+          id: "site_puzzle",
+          header: "Comix's Puzzle",
+          footer:
+            "When Comix says it wants its puzzle solved: open this, pass Cloudflare's check if it shows, wait for comix's puzzle (rotate the picture or tap the shapes), solve it, wait for the chapter list to appear, then tap Done.",
+        },
+        [
+          WebViewRow("solve_puzzle", {
+            title: "Solve Comix's Puzzle",
+            request: {
+              url: puzzlePageUrl(),
+              method: "GET",
+              ...(userAgent && { headers: { "user-agent": userAgent } }),
+            },
+            onComplete: Application.Selector(this as ComixSettingsForm, "handlePuzzleDone"),
+            onCancel: Application.Selector(this as ComixSettingsForm, "handlePuzzleCancel"),
+          }),
+        ],
+      ),
       Section("settings", [
         NavigationRow("Contents", {
           title: "Contents",
@@ -118,6 +156,23 @@ export class ComixSettingsForm extends Form {
   async refreshFilters() {
     await ensureFilters(true);
     this.reloadForm();
+  }
+
+  // Keeps what the puzzle page left behind: Cloudflare's pass and the site's
+  // own cookies (`session`, and `waf_pass` once the puzzle is solved).
+  async handlePuzzleDone(cookies: Cookie[]) {
+    const site = cookies.filter((cookie) => isSiteDomain(cookie.domain));
+    logEvent("puzzle done", `got ${describeCookies(site)}`);
+    const clearance = site.find((cookie) => cookie.name === "cf_clearance");
+    if (clearance) saveClearance(clearance, "puzzle page");
+    const pass = passCandidates(site);
+    if (pass.length > 0) saveWafPass(pass, "puzzle page");
+    clearCloudflareChallenge();
+    this.reloadForm();
+  }
+
+  async handlePuzzleCancel() {
+    logEvent("puzzle done", "closed without finishing");
   }
 
   async handleQuickRefreshChange(value: boolean) {

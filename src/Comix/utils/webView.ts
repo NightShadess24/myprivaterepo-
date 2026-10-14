@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright © 2026 Inkdex */
 
-import { CloudflareError, type Cookie, type CookieStorageInterceptor } from "@paperback/types";
+import { type Cookie, type CookieStorageInterceptor } from "@paperback/types";
 import * as cheerio from "cheerio";
 
 import { type ChapterItem, type ChapterPages, type ResultManga, DOMAIN } from "../models";
@@ -185,16 +185,11 @@ async function runWebViewNow<T>(
         clearWafPass("the site asked for the check again");
       }
       // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
-      // The banner opens the puzzle page itself, the one the API names, rather
-      // than the title page: on the title page the check screen can be closed
-      // (Cloudflare's part already passes) before the site ever shows its puzzle.
-      const challenge =
-        /"challenge":"(\/@waf\/[^"]*)"/.exec(result.detail ?? "")?.[1] ??
-        /opened (\/@waf\/\S*)/.exec(result.detail ?? "")?.[1] ??
-        "/@waf/challenge";
-      throw new CloudflareError(
-        { url: `${DOMAIN}${challenge}`, method: "GET", headers: { "user-agent": userAgent } },
-        "Comix wants its own puzzle solved. Tap the banner, solve the puzzle, then close the page and try again.",
+      // The app's check screen closes as soon as Cloudflare's part passes, before
+      // comix shows its puzzle, so point the reader at the puzzle browser in the
+      // extension's settings, which stays open until they tap Done.
+      throw new Error(
+        "Comix wants its own puzzle solved. Open Settings → Comix → Solve Comix's Puzzle, solve it, tap Done, then try again.",
       );
     }
     throw new Error(`Comix: ${result.__comixError}`);

@@ -26,13 +26,7 @@ import {
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import {
-  browseUrl,
-  clearCloudflareChallenge,
-  ComixInterceptor,
-  fetchText,
-  probeSiteCheck,
-} from "./network";
+import { browseUrl, clearCloudflareChallenge, ComixInterceptor, fetchText } from "./network";
 import {
   chapterPath,
   chapterUpdatedAtMs,
@@ -59,7 +53,6 @@ import {
 } from "./utils/filters";
 import {
   describeCookies,
-  getLastCaptchaTitle,
   loadClearance,
   logEvent,
   passCandidates,
@@ -102,6 +95,9 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     this.globalRateLimiter.registerInterceptor();
     this.cookieStorageInterceptor.registerInterceptor();
     this.mainInterceptor.registerInterceptor();
+    // The settings page builds its puzzle browser synchronously; give it the
+    // app's user agent, which Cloudflare's and comix's passes are tied to.
+    Application.setState(await Application.getDefaultUserAgent(), "comix_user_agent");
 
     // Drop Cloudflare's leftover in-progress challenge cookies (cf_chl_*). Move
     // the Cloudflare pass into state, where every instance reads it.
@@ -139,22 +135,11 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     if (strayPass) this.cookieStorageInterceptor.setCookie(strayPass);
     clearCloudflareChallenge();
 
-    // The check screen's whole set of site cookies (its `session` together with
-    // Cloudflare's __cf_bm/_cfuvid) is what solved the human check, so hand
-    // the full set to every page. If the site still asks for the check, the
-    // page drops it again, so a bad set is never replayed in a loop.
+    // Hand the check screen's site cookies (its `session`, and `waf_pass` once
+    // comix's puzzle is solved) to every page. If the site still asks for its
+    // puzzle, the page drops them again, so a bad set is never replayed.
     const candidates = passCandidates(site);
     if (candidates.length > 0) saveWafPass(candidates, "check");
-
-    // For Diagnostics: how the API answers with and without those cookies.
-    const hid = /\/title\/([^/?#-]+)/.exec(page)?.[1] ?? getLastCaptchaTitle();
-    if (candidates.length === 0 || !hid) return;
-    const without = await probeSiteCheck(hid, []);
-    const withPass = await probeSiteCheck(hid, candidates);
-    logEvent(
-      "check probe",
-      `without: ${without.result} (${without.detail}); with: ${withPass.result} (${withPass.detail})`,
-    );
   }
 
   async getSettingsForm(): Promise<Form> {
