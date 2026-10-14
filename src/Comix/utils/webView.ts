@@ -16,7 +16,7 @@ import {
   clearWafPass,
   describeCookies,
   getRefreshPace,
-  isBrowserBoundCookie,
+  isChallengeCookie,
   isSiteDomain,
   loadWafPass,
   logEvent,
@@ -79,7 +79,7 @@ export const isSiteCookie = isSiteDomain;
 // Cookies the extension keeps for comix.to: everything except Cloudflare's own
 // fingerprint cookies (__cf_bm, _cfuvid, cf_chl_*), which belong to the browser
 // that made them.
-export const isKeptCookie = (cookie: Cookie) => !isBrowserBoundCookie(cookie.name);
+export const isKeptCookie = (cookie: Cookie) => !isChallengeCookie(cookie.name);
 
 // Saves cookies from the check screen or a page load: cf_clearance goes to
 // state (read fresh for every request). The site's other cookies are only

@@ -91,16 +91,16 @@ const pathOf = (url: string) => url.replace(/^https?:\/\/[^/]+/i, "").split("?")
 
 export class ComixInterceptor extends PaperbackInterceptor {
   override async interceptRequest(request: Request): Promise<Request> {
-    // Send the newest Cloudflare pass and the site's verified human-check pass
-    // from state (see utils/session.ts), over whatever the cookie store's
-    // in-memory copy holds. A probe (probeSiteCheck) names its own cookies in
-    // PROBE_COOKIES_HEADER instead.
+    // Send the newest Cloudflare pass and the site's human-check pass from state
+    // (see utils/session.ts), over whatever the cookie store's in-memory copy
+    // holds. A probe (probeSiteCheck) sends only the cookies it names in
+    // PROBE_COOKIES_HEADER, plus the Cloudflare pass.
     const { [PROBE_COOKIES_HEADER]: probeCookies, ...rest } = request.headers ?? {};
     const headers = { ...rest, "user-agent": await Application.getDefaultUserAgent() };
     if (!isSiteUrl(request.url)) return { ...request, headers };
-    const cookies: Record<string, string> = { ...request.cookies };
+    const cookies: Record<string, string> =
+      probeCookies !== undefined ? {} : { ...request.cookies };
     if (probeCookies !== undefined) {
-      delete cookies.session;
       for (const pair of probeCookies.split("; ")) {
         const at = pair.indexOf("=");
         if (at > 0) cookies[pair.slice(0, at)] = pair.slice(at + 1);

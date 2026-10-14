@@ -38,7 +38,6 @@ import {
   loadClearance,
   loadWafPassInfo,
   REFRESH_PACES,
-  siteCookieNames,
   timeAgo,
   useQuickRefresh,
 } from "../utils/session";
@@ -153,11 +152,11 @@ class DiagnosticsForm extends Form {
           title: wafPass ? "Site check pass: saved" : "Site check pass: none yet",
           subtitle: wafPass
             ? `From ${wafPass.source}, ${timeAgo(wafPass.savedAt)}`
-            : "Saved once a page loads, or once a check gets past comix's human check",
+            : "Saved after a check, or once a page loads",
         }),
         LabelRow("site_pass", {
-          title: "Site cookies seen at the last check",
-          subtitle: siteCookieNames().join(", ") || "None yet",
+          title: "Site pass cookies",
+          subtitle: wafPass ? wafPass.cookies.map((c) => c.name).join(", ") : "None",
         }),
       ]),
       Section({ id: "log", header: "Recent events", footer: "Newest first." }, [

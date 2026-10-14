@@ -87,8 +87,10 @@ export const isSiteDomain = (domain: string) => {
   return host === "comix.to" || host.endsWith(".comix.to");
 };
 
-export const isBrowserBoundCookie = (name: string) =>
-  /^(__cf_bm|_cfuvid|__cflb|__cfruid|__cfseq.*|cf_chl_.*|cf_ob_info|cf_use_ob)$/i.test(name);
+// Cloudflare's in-progress challenge cookies: only meaningful mid-challenge.
+// (alpha.52–56 also left out __cf_bm and _cfuvid; the site's human-check pass
+// turned out not to work without the check screen's full set of cookies.)
+export const isChallengeCookie = (name: string) => /^cf_chl_/i.test(name);
 
 function storedSiteCookies(): Record<string, StoredCookie> {
   const stored = Application.getState(SITE_COOKIES_KEY) as Record<string, StoredCookie> | undefined;
@@ -102,7 +104,7 @@ export function saveSiteCookies(cookies: readonly Cookie[], source: string): str
   const changed: string[] = [];
   for (const cookie of cookies) {
     if (!cookie.value || !cookie.domain || !isSiteDomain(cookie.domain)) continue;
-    if (cookie.name === "cf_clearance" || isBrowserBoundCookie(cookie.name)) continue;
+    if (cookie.name === "cf_clearance" || isChallengeCookie(cookie.name)) continue;
     if (stored[cookie.name]?.value === cookie.value) continue;
     stored[cookie.name] = {
       name: cookie.name,
@@ -146,9 +148,10 @@ export const siteCookieNames = () => loadSiteCookies().map((cookie) => cookie.na
 
 // ---------------------------------------------------------------------------
 // The site's human-check pass. The API answers `captcha_required` until the
-// request carries the site cookies (in practice its `session`) of a browser
-// that solved /@waf/challenge. Cookies are only kept as the pass once a probe
-// request with them got past the check, so an unsolved copy is never replayed.
+// request carries the site cookies of a browser that solved /@waf/challenge
+// (its `session` together with Cloudflare's __cf_bm/_cfuvid). Kept from the
+// check screen and from pages that loaded; dropped as soon as the site asks for
+// the check again, so a set that doesn't work is never replayed in a loop.
 // ---------------------------------------------------------------------------
 
 const WAF_PASS_KEY = "comix_waf_pass";
@@ -184,7 +187,7 @@ export const passCandidates = (cookies: readonly Cookie[]): Cookie[] =>
       cookie.domain &&
       isSiteDomain(cookie.domain) &&
       cookie.name !== "cf_clearance" &&
-      !isBrowserBoundCookie(cookie.name),
+      !isChallengeCookie(cookie.name),
   );
 
 export function saveWafPass(cookies: readonly Cookie[], source: string): void {
