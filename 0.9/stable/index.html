@@ -145,12 +145,14 @@ ul { margin-top: 0; }
 }
 [data-theme="noir"] .tabs {
   display: flex;
+  justify-content: center;
+  justify-content: safe center;
   gap: 26px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 18px 16px 14px;
-  max-width: 1100px;
+  max-width: 920px;
   margin: 0 auto;
+  padding: 0 0 26px;
 }
 [data-theme="noir"] .tabs::-webkit-scrollbar { display: none; }
 [data-theme="noir"] .tab {
@@ -173,7 +175,7 @@ ul { margin-top: 0; }
 [data-theme="noir"] .tab[aria-pressed="true"] { background-size: 100% 1px; }
 [data-theme="noir"] .tab--brand { font-family: "Cormorant Garamond", "Times New Roman", serif; font-size: 17px; font-weight: 600; }
 
-[data-theme="noir"] main { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+[data-theme="noir"] main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 48px; }
 [data-theme="noir"] .banner {
   display: flex;
   align-items: center;
@@ -233,7 +235,7 @@ ul { margin-top: 0; }
   cursor: pointer;
 }
 [data-theme="noir"] .section-title {
-  margin: 64px 0 34px;
+  margin: 64px 0 26px;
   text-align: center;
   font-family: "Cormorant Garamond", "Times New Roman", serif;
   font-size: clamp(30px, 6vw, 48px);
@@ -257,14 +259,8 @@ ul { margin-top: 0; }
 <body>
 <button class="theme-toggle" type="button" aria-label="Switch theme"></button>
 
-<!-- Noir: top bar, filter tabs, banners -->
+<!-- Noir: top bar, banners, filter tabs above the sources -->
 <div class="topbar noir-only">NightShadess24 Extensions (0.9)</div>
-<nav class="tabs noir-only" aria-label="Filter sources">
-<button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
-<button class="tab" type="button" data-filter="Mature" aria-pressed="false">Mature</button>
-<button class="tab" type="button" data-filter="Novel" aria-pressed="false">Novel</button>
-<button class="tab" type="button" data-filter="18+" aria-pressed="false">18+</button>
-</nav>
 
 <main>
 <div class="noir-only">
@@ -276,6 +272,12 @@ ul { margin-top: 0; }
 <div class="baseUrlBar"><code class="js-base-url">https://nightshadess24.github.io/myprivaterepo-/0.9/stable</code><button class="copyButton" type="button">Copy URL</button></div>
 </section>
 <h2 class="section-title">AVAILABLE<br>SOURCES</h2>
+<nav class="tabs" aria-label="Filter sources">
+<button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
+<button class="tab" type="button" data-filter="Mature" aria-pressed="false">Mature</button>
+<button class="tab" type="button" data-filter="Novel" aria-pressed="false">Novel</button>
+<button class="tab" type="button" data-filter="18+" aria-pressed="false">18+</button>
+</nav>
 </div>
 
 <!-- Classic: header, guide, base URL -->
