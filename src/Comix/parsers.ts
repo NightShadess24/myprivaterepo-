@@ -13,7 +13,6 @@ import * as cheerio from "cheerio";
 import {
   DOMAIN,
   NO_IMAGE,
-  type ApiResponse,
   type ChapterItem,
   type ChapterPages,
   type MangaItem,
@@ -100,31 +99,50 @@ export const parseChapters = (sourceManga: SourceManga, items: ChapterItem[]): C
   items.map((chapter) => ({
     chapterId: chapter.id.toString(),
     sourceManga,
-    langCode: chapter.language,
+    langCode: chapter.language || "en",
     chapNum: chapter.number,
-    title: chapter.name,
-    volume: chapter.volume,
+    title: chapter.name || undefined,
+    volume: chapter.volume ?? undefined,
     version: chapter.isOfficial
       ? `★ ${chapter.group?.name ?? "Official"}`
       : (chapter.group?.name ?? "Unknown"),
     sortingIndex: chapter.number,
-    publishDate: parseRelativeDate(chapter.createdAtFormatted),
-    additionalInfo: { vote: chapter.votes.toString(), url: chapter.url },
+    publishDate: parseRelativeDate(chapter.createdAtFormatted ?? ""),
+    additionalInfo: { vote: String(chapter.votes ?? 0), url: chapterPath(chapter.url) },
   }));
+
+// Chapter URLs have come both site-relative and absolute; the reader page is
+// always loaded from DOMAIN, so keep only the path.
+export function chapterPath(url: string): string {
+  const titleAt = url.indexOf("/title/");
+  if (titleAt > 0) return url.slice(titleAt);
+  return url.startsWith("/") ? url : `/${url}`;
+}
 
 export function parseChapterDetails(
   chapterId: string,
-  pages: ApiResponse<ChapterPages>,
+  mangaId: string,
+  pages: ChapterPages,
 ): ChapterDetails {
-  const { baseUrl, items } = pages.result.pages;
-  const base = (baseUrl ?? "").replace(/\/$/, "");
+  const base = (pages.baseUrl ?? "").replace(/\/$/, "");
   return {
     id: chapterId,
-    mangaId: pages.result.mangaId.toString(),
-    pages: items.map((img) =>
-      img.url.startsWith("http") ? img.url : `${base}/${img.url.replace(/^\//, "")}`,
-    ),
+    mangaId,
+    pages: pages.items.map((img) => {
+      const url = img.url.startsWith("http") ? img.url : `${base}/${img.url.replace(/^\//, "")}`;
+      return img.s === 1 ? withV3Flag(url) : url;
+    }),
   };
+}
+
+// V3 pages are only served with their X-Scramble-* headers when `v3` is in the query.
+function withV3Flag(url: string): string {
+  const hashAt = url.indexOf("#");
+  const path = hashAt === -1 ? url : url.slice(0, hashAt);
+  const hash = hashAt === -1 ? "" : url.slice(hashAt);
+  const query = path.split("?")[1] ?? "";
+  if (query.split("&").some((param) => param.split("=")[0] === "v3")) return url;
+  return `${path}${path.includes("?") ? "&" : "?"}v3${hash}`;
 }
 
 function toContentRating(content: string): ContentRating {
@@ -141,32 +159,43 @@ function toContentRating(content: string): ContentRating {
 
 function parseRelativeDate(value: string): Date {
   const now = new Date();
-  const match = value.match(/^(\d+)\s*(mo|yr|[smhdwy])s?(\s+ago)?$/i);
+  const match = value
+    .trim()
+    .match(/^(\d+)\s*(mo|mon|month|yr|year|min|sec|hr|hour|day|week|[smhdwy])s?(\s+ago)?$/i);
   if (!match) {
     return now;
   }
   const amount = Number(match[1]);
   switch (match[2].toLowerCase()) {
     case "s":
+    case "sec":
       now.setSeconds(now.getSeconds() - amount);
       break;
     case "m":
+    case "min":
       now.setMinutes(now.getMinutes() - amount);
       break;
     case "h":
+    case "hr":
+    case "hour":
       now.setHours(now.getHours() - amount);
       break;
     case "d":
+    case "day":
       now.setDate(now.getDate() - amount);
       break;
     case "w":
+    case "week":
       now.setDate(now.getDate() - amount * 7);
       break;
     case "mo":
+    case "mon":
+    case "month":
       now.setMonth(now.getMonth() - amount);
       break;
     case "yr":
     case "y":
+    case "year":
       now.setFullYear(now.getFullYear() - amount);
       break;
   }

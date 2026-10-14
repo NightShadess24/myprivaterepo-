@@ -24,15 +24,15 @@ import {
 
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
-import {
-  DOMAIN,
-  type ApiResponse,
-  type ChapterPages,
-  type Metadata,
-  type SearchMetadata,
-} from "./models";
+import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
 import { browseUrl, ComixInterceptor, fetchText } from "./network";
-import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
+import {
+  chapterPath,
+  parseChapterDetails,
+  parseChapters,
+  parseMangaDetails,
+  parseMangaList,
+} from "./parsers";
 import type ComixConfig from "./pbconfig";
 import {
   defaultSearchMetadata,
@@ -52,8 +52,10 @@ import {
 import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
+  // The site's firewall has blocked IPs for request bursts since 11 Oct 2026,
+  // so stay well under its limit (images are served from other hosts).
   private globalRateLimiter = new BasicRateLimiter("rateLimiter", {
-    numberOfRequests: 5,
+    numberOfRequests: 2,
     bufferInterval: 1,
     ignoreImages: true,
   });
@@ -73,8 +75,11 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     cookies: Cookie[],
     _localStorage: Record<string, string>,
   ): Promise<void> {
+    // Besides cf_clearance, keep the site's own cookies: solving its captcha
+    // (`/@waf/challenge`) in the bypass browser is what lets the API answer again.
     for (const cookie of cookies) {
-      if (cookie.name == "cf_clearance") {
+      const domain = cookie.domain.replace(/^\./, "");
+      if (cookie.name == "cf_clearance" || domain === "comix.to" || domain.endsWith(".comix.to")) {
         this.cookieStorageInterceptor.setCookie(cookie);
       }
     }
@@ -300,8 +305,8 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     if (typeof url !== "string" || !url) {
       throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
     }
-    const payload = await pageListViaWebView(url, this.cookieStorageInterceptor);
-    return parseChapterDetails(chapter.chapterId, JSON.parse(payload) as ApiResponse<ChapterPages>);
+    const pages = await pageListViaWebView(chapterPath(url), this.cookieStorageInterceptor);
+    return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
   }
 }
 

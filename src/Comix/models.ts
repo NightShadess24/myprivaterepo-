@@ -62,23 +62,30 @@ export type MangaListItem = SearchResultItem & {
   infoItems: [{ symbol: string; text: string }, { symbol: string; text: string }];
 };
 
+// Fields beyond id/number/url are optional: the decoded chapter list has dropped
+// some of them before (e.g. `mangaId`), so parse defensively.
 export interface ChapterItem {
   id: number;
-  mangaId: number;
-  isOfficial: boolean;
   number: number;
-  name: string;
-  language: string;
-  volume: number;
-  votes: number;
-  createdAtFormatted: string;
   url: string;
-  group?: { name: string } | null;
+  mangaId?: number;
+  isOfficial?: boolean;
+  name?: string | null;
+  language?: string | null;
+  volume?: number | null;
+  votes?: number | null;
+  createdAtFormatted?: string | null;
+  group?: { id?: number; name: string } | null;
 }
 
+// The reader's decoded page list. `s: 1` marks a V3 page, which needs `?v3` on its
+// URL for the server to send the X-Scramble-* headers. `alt`/`node` name the
+// fallback image hosts the site's reader retries a failed page on.
 export interface ChapterPages {
-  mangaId: number;
-  pages: { baseUrl: string; items: { url: string }[] };
+  baseUrl?: string;
+  items: { url: string; s?: number }[];
+  alt?: string[];
+  node?: string | null;
 }
 
 export interface OptionItem {
