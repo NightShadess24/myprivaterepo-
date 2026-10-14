@@ -13,12 +13,18 @@ import {
 } from "../network";
 import {
   clearanceCookie,
+  clearWafPass,
+  describeCookies,
   getRefreshPace,
   isBrowserBoundCookie,
   isSiteDomain,
+  loadWafPass,
   logEvent,
+  passCandidates,
   saveClearance,
   saveSiteCookies,
+  saveWafPass,
+  setLastCaptchaTitle,
 } from "./session";
 
 // A bootstrap resolves `window.__comixResult__` with this instead of data when it
@@ -96,13 +102,15 @@ export function storeSiteCookies(
   saveSiteCookies(site, source);
 }
 
-// Cookies for a WebView run: only the newest Cloudflare pass. Everything else
-// the WebView keeps in its own browser storage, where the site's fresh values
-// live (as in alpha.53, when opening and reading manga worked).
+// Cookies for a WebView run: the newest Cloudflare pass and, once one has been
+// confirmed, the site's human-check pass. Nothing unconfirmed is handed over:
+// replaying unverified copies made the check loop in alpha.54.
 function webViewCookies(): Cookie[] {
   const clearance = clearanceCookie();
-  return clearance ? [clearance] : [];
+  return [...loadWafPass(), ...(clearance ? [clearance] : [])];
 }
+
+const hidOfPage = (pageUrl: string) => /\/title\/([^/?#-]+)/.exec(pageUrl)?.[1];
 
 // Loads a Comix page in a WebView and lets the site's own JS run end-to-end:
 // the bundle signs API requests and decodes the answers internally, and the
@@ -137,13 +145,23 @@ async function runWebViewNow<T>(
     storage: { cookies },
   });
 
-  // Keep passes the run set or renewed (cf_clearance, the site's own passes).
+  // Keep a Cloudflare pass the run renewed; note the site's cookie names.
   storeSiteCookies(cookieInterceptor, raw.storage?.cookies ?? [], "page load");
+  const pageCookies = passCandidates(raw.storage?.cookies ?? []);
 
   const result = raw.result;
   const page = pageUrl.replace(DOMAIN, "").split("?")[0] || "/";
   if (result === undefined || result === null) {
     throw new Error("Comix WebView returned no result");
+  }
+  if (!isWebViewError(result) && pageCookies.length > 0) {
+    // The site answered, so the cookies this page ended with got past its
+    // human check: keep them as the pass (refreshes and other instances use it).
+    const kept = loadWafPass();
+    const same =
+      kept.length === pageCookies.length &&
+      pageCookies.every((c) => kept.some((k) => k.name === c.name && k.value === c.value));
+    if (!same) saveWafPass(pageCookies, "page that loaded");
   }
   if (isWebViewError(result)) {
     if (result.__comixError === CLOUDFLARE) {
@@ -159,8 +177,13 @@ async function runWebViewNow<T>(
     if (result.__comixError === CAPTCHA) {
       logEvent(
         "captcha",
-        `on ${page}: ${result.detail || "?"}; gave the page ${cookies.map((c) => c.name).join(", ") || "no cookies"}`,
+        `on ${page}: ${result.detail || "?"}; gave ${describeCookies(cookies)}; page had ${describeCookies(pageCookies)}`,
       );
+      const hid = hidOfPage(pageUrl);
+      if (hid) setLastCaptchaTitle(hid);
+      if (cookies.some((c) => c.name !== "cf_clearance")) {
+        clearWafPass("the site asked for the check again");
+      }
       // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
       // The bypass banner opens the page in a browser so the reader can solve it.
       throw new CloudflareError(

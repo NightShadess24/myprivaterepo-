@@ -36,6 +36,7 @@ import {
   getLog,
   getRefreshPace,
   loadClearance,
+  loadWafPassInfo,
   REFRESH_PACES,
   siteCookieNames,
   timeAgo,
@@ -136,6 +137,7 @@ export class ComixSettingsForm extends Form {
 class DiagnosticsForm extends Form {
   override getSections() {
     const pass = loadClearance();
+    const wafPass = loadWafPassInfo();
     const log = getLog();
     return [
       Section({ id: "pass", header: "Cloudflare pass" }, [
@@ -146,6 +148,12 @@ class DiagnosticsForm extends Form {
                 pass.expires ? `, expires in ${expiresIn(pass.expires)}` : ""
               }`
             : "Open a Comix title and complete the Cloudflare check",
+        }),
+        LabelRow("site_check_pass", {
+          title: wafPass ? "Site check pass: saved" : "Site check pass: none yet",
+          subtitle: wafPass
+            ? `From ${wafPass.source}, ${timeAgo(wafPass.savedAt)}`
+            : "Saved once a page loads, or once a check gets past comix's human check",
         }),
         LabelRow("site_pass", {
           title: "Site cookies seen at the last check",

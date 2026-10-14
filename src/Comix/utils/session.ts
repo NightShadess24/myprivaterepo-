@@ -144,6 +144,90 @@ export function saveSiteStorage(storage: Record<string, string> | undefined, sou
 
 export const siteCookieNames = () => loadSiteCookies().map((cookie) => cookie.name);
 
+// ---------------------------------------------------------------------------
+// The site's human-check pass. The API answers `captcha_required` until the
+// request carries the site cookies (in practice its `session`) of a browser
+// that solved /@waf/challenge. Cookies are only kept as the pass once a probe
+// request with them got past the check, so an unsolved copy is never replayed.
+// ---------------------------------------------------------------------------
+
+const WAF_PASS_KEY = "comix_waf_pass";
+const LAST_CAPTCHA_KEY = "comix_last_captcha_title";
+
+interface StoredPass {
+  cookies: StoredCookie[];
+  savedAt: number;
+  source: string;
+}
+
+const toStored = (cookie: Cookie): StoredCookie => ({
+  name: cookie.name,
+  value: cookie.value,
+  domain: cookie.domain,
+  path: cookie.path,
+  expires: cookie.expires instanceof Date ? cookie.expires.getTime() : undefined,
+});
+
+const fromStored = (cookie: StoredCookie): Cookie => ({
+  name: cookie.name,
+  value: cookie.value,
+  domain: cookie.domain,
+  path: cookie.path ?? "/",
+  expires: cookie.expires !== undefined ? new Date(cookie.expires) : undefined,
+});
+
+// Candidates for the pass: the site's own cookies, not Cloudflare's.
+export const passCandidates = (cookies: readonly Cookie[]): Cookie[] =>
+  cookies.filter(
+    (cookie) =>
+      cookie.value &&
+      cookie.domain &&
+      isSiteDomain(cookie.domain) &&
+      cookie.name !== "cf_clearance" &&
+      !isBrowserBoundCookie(cookie.name),
+  );
+
+export function saveWafPass(cookies: readonly Cookie[], source: string): void {
+  Application.setState(
+    { cookies: cookies.map(toStored), savedAt: Date.now(), source } satisfies StoredPass,
+    WAF_PASS_KEY,
+  );
+  logEvent("site pass", `kept ${describeCookies(cookies)} (${source})`);
+}
+
+export function loadWafPassInfo(): StoredPass | undefined {
+  const stored = Application.getState(WAF_PASS_KEY) as StoredPass | undefined;
+  return stored && Array.isArray(stored.cookies) && stored.cookies.length > 0 ? stored : undefined;
+}
+
+export function loadWafPass(): Cookie[] {
+  const now = Date.now();
+  return (loadWafPassInfo()?.cookies ?? [])
+    .filter((cookie) => cookie.expires === undefined || cookie.expires > now)
+    .map(fromStored);
+}
+
+export function clearWafPass(reason: string): void {
+  if (!loadWafPassInfo()) return;
+  Application.setState(undefined, WAF_PASS_KEY);
+  logEvent("site pass", `dropped (${reason})`);
+}
+
+export const setLastCaptchaTitle = (hid: string) => Application.setState(hid, LAST_CAPTCHA_KEY);
+export const getLastCaptchaTitle = () =>
+  Application.getState(LAST_CAPTCHA_KEY) as string | undefined;
+
+// A short, non-reversible tag for a cookie value, so Diagnostics can show
+// whether two cookies are the same without showing either.
+export function fingerprint(value: string): string {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i++) hash = (Math.imul(hash, 33) ^ value.charCodeAt(i)) >>> 0;
+  return hash.toString(36).slice(0, 5);
+}
+
+export const describeCookies = (cookies: readonly Cookie[]) =>
+  cookies.map((cookie) => `${cookie.name}#${fingerprint(cookie.value)}`).join(", ") || "no cookies";
+
 export function loadSiteStorage(): Record<string, string> {
   const stored = Application.getState(SITE_STORAGE_KEY) as Record<string, string> | undefined;
   return stored && typeof stored === "object" ? stored : {};

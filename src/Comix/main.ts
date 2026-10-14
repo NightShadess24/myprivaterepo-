@@ -26,7 +26,13 @@ import {
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import { browseUrl, clearCloudflareChallenge, ComixInterceptor, fetchText } from "./network";
+import {
+  browseUrl,
+  clearCloudflareChallenge,
+  ComixInterceptor,
+  fetchText,
+  probeSiteCheck,
+} from "./network";
 import {
   chapterPath,
   chapterUpdatedAtMs,
@@ -52,11 +58,14 @@ import {
   useYearFilter,
 } from "./utils/filters";
 import {
+  describeCookies,
+  getLastCaptchaTitle,
   loadClearance,
   logEvent,
+  passCandidates,
   saveClearance,
   saveSiteCookies,
-  saveSiteStorage,
+  saveWafPass,
   timeAgo,
   useQuickRefresh,
   withDiagnostics,
@@ -113,24 +122,31 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   // localStorage — whatever the check left behind — so every later request,
   // including a library refresh, carries them.
   async cloudflareBypassCompleted(
-    _request: Request,
+    request: Request,
     cookies: Cookie[],
     siteStorage: Record<string, string>,
   ): Promise<void> {
     const site = cookies.filter((cookie) => isSiteCookie(cookie.domain));
+    const page = request?.url?.replace(DOMAIN, "") || "?";
     logEvent(
       "check done",
-      `got ${site.map((c) => c.name).join(", ") || "no site cookies"}; ${
-        Object.keys(siteStorage ?? {}).length
-      } storage keys`,
+      `on ${page}: got ${describeCookies(site)}; ${Object.keys(siteStorage ?? {}).length} storage keys`,
     );
     storeSiteCookies(this.cookieStorageInterceptor, site, "check");
     const strayPass = cookies.find(
       (cookie) => cookie.name === "cf_clearance" && !isSiteCookie(cookie.domain),
     );
     if (strayPass) this.cookieStorageInterceptor.setCookie(strayPass);
-    saveSiteStorage(siteStorage, "check");
     clearCloudflareChallenge();
+
+    // Did the check screen's cookies get past the site's human check? Ask the
+    // API once with exactly those cookies; keep them as the pass only if so.
+    const candidates = passCandidates(site);
+    const hid = /\/title\/([^/?#-]+)/.exec(page)?.[1] ?? getLastCaptchaTitle();
+    if (candidates.length === 0 || !hid) return;
+    const probe = await probeSiteCheck(hid, candidates);
+    logEvent("check probe", `${probe.result} with ${describeCookies(candidates)}: ${probe.detail}`);
+    if (probe.result === "passed") saveWafPass(candidates, "check");
   }
 
   async getSettingsForm(): Promise<Form> {
