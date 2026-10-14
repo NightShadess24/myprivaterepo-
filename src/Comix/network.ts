@@ -12,6 +12,7 @@ import {
 import { DOMAIN } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
+import { loadClearance, logEvent } from "./utils/session";
 
 // Once Cloudflare challenges, every further request only digs the hole deeper
 // (a library refresh would keep firing title after title). So after a
@@ -46,14 +47,21 @@ const header = (headers: Record<string, string> | undefined, name: string) => {
   return undefined;
 };
 
+const isSiteUrl = (url: string) => /^https?:\/\/([^/]+\.)?comix\.to(?=[/:?#]|$)/i.test(url);
+const pathOf = (url: string) => url.replace(/^https?:\/\/[^/]+/i, "").split("?")[0] || "/";
+
 export class ComixInterceptor extends PaperbackInterceptor {
   override async interceptRequest(request: Request): Promise<Request> {
+    // Send the newest Cloudflare pass from state (see utils/session.ts), over
+    // whatever the cookie store's in-memory copy holds.
+    const clearance = isSiteUrl(request.url) ? loadClearance() : undefined;
     return {
       ...request,
       headers: {
         ...request.headers,
         "user-agent": await Application.getDefaultUserAgent(),
       },
+      ...(clearance && { cookies: { ...request.cookies, cf_clearance: clearance.value } }),
     };
   }
 
@@ -63,6 +71,12 @@ export class ComixInterceptor extends PaperbackInterceptor {
     data: ArrayBuffer,
   ): Promise<ArrayBuffer> {
     if (header(response.headers, "cf-mitigated") === "challenge") {
+      logEvent(
+        "challenge",
+        `${pathOf(request.url)} (HTTP ${response.status}, ${
+          request.cookies?.cf_clearance ? "pass was sent" : "no pass sent"
+        })`,
+      );
       markCloudflareChallenged();
       throw await cloudflareChallenge();
     }
@@ -116,11 +130,13 @@ export async function fetchText(url: string): Promise<string> {
     (response.status === 403 || response.status === 503) &&
     /challenge-platform|<title>Just a moment/i.test(text)
   ) {
+    logEvent("challenge", `${pathOf(url)} (HTTP ${response.status}, challenge page)`);
     markCloudflareChallenged();
     throw await cloudflareChallenge();
   }
   // Cloudflare's firewall block page (the site blocks IPs that send bursts).
   if (response.status === 403 && /you have been blocked/i.test(text)) {
+    logEvent("blocked", `${pathOf(url)} (HTTP 403, IP blocked)`);
     throw new Error(
       "Comix has blocked your network for now (usually after too many requests). Wait a while, then try again.",
     );

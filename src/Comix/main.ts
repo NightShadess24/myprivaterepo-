@@ -52,8 +52,18 @@ import {
   useYearFilter,
 } from "./utils/filters";
 import {
+  loadClearance,
+  logEvent,
+  saveClearance,
+  timeAgo,
+  useQuickRefresh,
+  withDiagnostics,
+} from "./utils/session";
+import {
   browseViaWebView,
   chapterListViaWebView,
+  isKeptCookie,
+  isSiteCookie,
   pageListViaWebView,
   storeSiteCookie,
 } from "./utils/webView";
@@ -81,6 +91,14 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     this.globalRateLimiter.registerInterceptor();
     this.cookieStorageInterceptor.registerInterceptor();
     this.mainInterceptor.registerInterceptor();
+
+    // Versions alpha.49–51 also stored the bypass browser's other cookies
+    // (__cf_bm, cf_chl_*, the site's session). Drop those; keep the pass.
+    const stored = this.cookieStorageInterceptor.cookies;
+    const kept = stored.filter((cookie) => !isSiteCookie(cookie.domain) || isKeptCookie(cookie));
+    if (kept.length !== stored.length) this.cookieStorageInterceptor.cookies = kept;
+    const clearance = kept.find((cookie) => cookie.name === "cf_clearance");
+    if (clearance && !loadClearance()) saveClearance(clearance, "cookie store");
   }
 
   async cloudflareBypassCompleted(
@@ -88,16 +106,20 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     cookies: Cookie[],
     _localStorage: Record<string, string>,
   ): Promise<void> {
-    // Besides cf_clearance, keep the site's own cookies: solving its captcha
-    // (`/@waf/challenge`) in the bypass browser is what lets the API answer again.
-    // storeSiteCookie replaces older copies, so only the fresh clearance is sent.
+    // Keep only the Cloudflare pass (and the site's captcha pass, if any). The
+    // bypass browser's other cookies are tied to that browser.
+    let gotPass = false;
     for (const cookie of cookies) {
-      const domain = cookie.domain.replace(/^\./, "");
-      if (domain === "comix.to" || domain.endsWith(".comix.to")) {
-        storeSiteCookie(this.cookieStorageInterceptor, cookie);
-      } else if (cookie.name == "cf_clearance") {
+      if (cookie.name === "cf_clearance") {
+        gotPass = true;
+        saveClearance(cookie, "Cloudflare check");
         this.cookieStorageInterceptor.setCookie(cookie);
+      } else if (isSiteCookie(cookie.domain)) {
+        storeSiteCookie(this.cookieStorageInterceptor, cookie, "Cloudflare check");
       }
+    }
+    if (!gotPass) {
+      logEvent("pass", `Cloudflare check finished without a pass (${cookies.length} cookies)`);
     }
     clearCloudflareChallenge();
   }
@@ -309,18 +331,23 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   // Details still server-render their data into `<script id="initial-data">`, so
   // fetch the HTML and let the parser extract it (the JSON API is now 403).
   async getMangaDetails(mangaId: string): Promise<SourceManga> {
-    return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
+    return withDiagnostics(`details ${mangaId}`, async () =>
+      parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`)),
+    );
   }
 
   // With `sinceDate` (a library refresh) only the newest chapter-list pages are
   // read; the app merges them into the chapters it already has.
   async getChapters(sourceManga: SourceManga, sinceDate?: Date): Promise<Chapter[]> {
-    const items = await chapterListViaWebView(
-      sourceManga.mangaId,
-      this.cookieStorageInterceptor,
-      sinceDate,
-    );
-    return parseChapters(sourceManga, items);
+    const label = `${sinceDate ? "refresh" : "chapters"} ${sourceManga.mangaId}`;
+    return withDiagnostics(label, async () => {
+      const items = await chapterListViaWebView(
+        sourceManga.mangaId,
+        this.cookieStorageInterceptor,
+        sinceDate,
+      );
+      return parseChapters(sourceManga, items);
+    });
   }
 
   // Runs once before a library refresh asks for each title.
@@ -338,9 +365,22 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     updateManager: UpdateManager,
     lastUpdateDate?: Date,
   ): Promise<void> {
+    return withDiagnostics("refresh scan", () =>
+      this.scanForUpdates(updateManager, lastUpdateDate),
+    );
+  }
+
+  private async scanForUpdates(updateManager: UpdateManager, lastUpdateDate?: Date): Promise<void> {
     const queued = updateManager.getQueuedItems();
     if (queued.length === 0) return;
-    if (!lastUpdateDate) {
+    const pass = loadClearance();
+    logEvent(
+      "refresh",
+      `${queued.length} titles, last refresh ${lastUpdateDate ? timeAgo(lastUpdateDate.getTime()) : "never"}, pass ${
+        pass ? `from ${pass.source} ${timeAgo(pass.savedAt)}` : "missing"
+      }`,
+    );
+    if (!lastUpdateDate || !useQuickRefresh()) {
       await fetchText(`${DOMAIN}/`);
       return;
     }
@@ -374,26 +414,34 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       if (!hasNext) complete = true;
     }
 
+    let skipped = 0;
     await Promise.all(
       queued.map((manga) => {
         if (updated.has(hidOf(manga.mangaId))) {
           return updateManager.setUpdatePriority(manga.mangaId, "high");
         }
         if (complete && manga.mangaInfo.contentRating !== ContentRating.ADULT) {
+          skipped++;
           return updateManager.setUpdatePriority(manga.mangaId, "skip");
         }
         return Promise.resolve();
       }),
     );
+    logEvent(
+      "refresh scan",
+      `${updated.size} with new chapters, ${skipped} skipped${complete ? "" : " (list not read back far enough, nothing skipped)"}`,
+    );
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
-    const url = chapter.additionalInfo?.url;
-    if (typeof url !== "string" || !url) {
-      throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
-    }
-    const pages = await pageListViaWebView(chapterPath(url), this.cookieStorageInterceptor);
-    return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
+    return withDiagnostics(`read ${chapter.sourceManga.mangaId}`, async () => {
+      const url = chapter.additionalInfo?.url;
+      if (typeof url !== "string" || !url) {
+        throw new Error(`Comix: missing page url for chapter ${chapter.chapterId}`);
+      }
+      const pages = await pageListViaWebView(chapterPath(url), this.cookieStorageInterceptor);
+      return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
+    });
   }
 }
 

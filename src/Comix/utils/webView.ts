@@ -11,6 +11,7 @@ import {
   markCloudflareChallenged,
   throwIfChallenged,
 } from "../network";
+import { clearanceCookie, logEvent, saveClearance } from "./session";
 
 // A bootstrap resolves `window.__comixResult__` with this instead of data when it
 // gives up, so the extension can tell a captcha apart from a timeout.
@@ -41,28 +42,36 @@ function inWebViewQueue<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
-const isSiteCookie = (domain: string) => {
+export const isSiteCookie = (domain: string) => {
   const host = domain.replace(/^\./, "");
   return host === "comix.to" || host.endsWith(".comix.to");
 };
 
-// Stores a site cookie, first dropping any stored cookie of the same name for the
-// site. The same cookie can come back as `comix.to` or `.comix.to`; keeping both
-// sends Cloudflare two cf_clearance values, and a stale one fails the check.
-export function storeSiteCookie(cookieInterceptor: CookieStorageInterceptor, cookie: Cookie): void {
-  if (!cookie.domain || !isSiteCookie(cookie.domain) || !cookie.value) return;
-  const sameName = cookieInterceptor.cookies.filter(
-    (stored) => stored.name === cookie.name && isSiteCookie(stored.domain),
-  );
-  if (
-    sameName.length === 1 &&
-    sameName[0].value === cookie.value &&
-    sameName[0].domain === cookie.domain
-  ) {
-    return;
-  }
-  for (const stored of sameName) cookieInterceptor.deleteCookie(stored);
-  cookieInterceptor.setCookie(cookie);
+// The only cookies the extension keeps for comix.to: Cloudflare's pass and the
+// site's own captcha pass. Others (__cf_bm, cf_chl_*, the site's session) are
+// tied to the browser that made them; replaying them from the app's own
+// requests can make Cloudflare distrust the session.
+export const isKeptCookie = (cookie: Cookie) =>
+  cookie.name === "cf_clearance" || /waf|captcha/i.test(cookie.name);
+
+// Stores a kept cookie for the site; cf_clearance also goes to state.
+export function storeSiteCookie(
+  cookieInterceptor: CookieStorageInterceptor,
+  cookie: Cookie,
+  source: string,
+): void {
+  if (!cookie.value || !isKeptCookie(cookie)) return;
+  if (cookie.name === "cf_clearance") saveClearance(cookie, source);
+  if (cookie.domain && isSiteCookie(cookie.domain)) cookieInterceptor.setCookie(cookie);
+}
+
+// Cookies for a WebView run: the stored ones, with the newest pass from state.
+function webViewCookies(cookieInterceptor: CookieStorageInterceptor): Cookie[] {
+  const clearance = clearanceCookie();
+  const stored = cookieInterceptor
+    .cookiesForUrl(`${DOMAIN}/`)
+    .filter((cookie) => isKeptCookie(cookie) && !(clearance && cookie.name === "cf_clearance"));
+  return clearance ? [...stored, clearance] : stored;
 }
 
 // Loads a Comix page in a WebView and lets the site's own JS run end-to-end:
@@ -88,7 +97,7 @@ async function runWebViewNow<T>(
   const userAgent = await Application.getDefaultUserAgent();
   const $ = cheerio.load(await fetchText(pageUrl));
   // Read after the page fetch, which may have refreshed them.
-  const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
+  const cookies = webViewCookies(cookieInterceptor);
 
   $("head").prepend(`<script>${bootstrap}</script>`);
 
@@ -98,14 +107,15 @@ async function runWebViewNow<T>(
     storage: { cookies },
   });
 
-  // Keep what Cloudflare and the site set or renewed during the run (cf_clearance,
-  // __cf_bm, the site's own session), so the next request carries the fresh ones
-  // instead of the ones the reader's bypass handed over earlier.
+  // If Cloudflare renewed the pass during the run, keep the new one.
   for (const cookie of raw.storage?.cookies ?? []) {
-    storeSiteCookie(cookieInterceptor, cookie);
+    if (cookie.domain && isSiteCookie(cookie.domain)) {
+      storeSiteCookie(cookieInterceptor, cookie, "page load");
+    }
   }
 
   const result = raw.result;
+  const page = pageUrl.replace(DOMAIN, "").split("?")[0] || "/";
   if (result === undefined || result === null) {
     throw new Error("Comix WebView returned no result");
   }
@@ -113,10 +123,15 @@ async function runWebViewNow<T>(
     if (result.__comixError === CLOUDFLARE) {
       // The page's own API calls were challenged: stop here (and hold back the
       // rest of a refresh) rather than keep sending requests into the challenge.
+      logEvent(
+        "challenge",
+        `inside page ${page} (${cookies.some((c) => c.name === "cf_clearance") ? "pass was sent" : "no pass sent"})`,
+      );
       markCloudflareChallenged();
       throw await cloudflareChallenge();
     }
     if (result.__comixError === CAPTCHA) {
+      logEvent("captcha", `site captcha on ${page}`);
       // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
       // The bypass banner opens the page in a browser so the reader can solve it.
       throw new CloudflareError(
