@@ -2,6 +2,7 @@
 /* Copyright © 2026 Inkdex */
 
 import {
+  BasicRateLimiter,
   CloudflareError,
   PaperbackInterceptor,
   URL,
@@ -17,6 +18,15 @@ import { withTimeout } from "./utils/queue";
 
 // comix.to itself (pages, API), as opposed to its image hosts.
 const isSiteUrl = (url: string): boolean => /^https?:\/\/(www\.)?comix\.to([/:?#]|$)/i.test(url);
+
+// The basic limiter only lets images through unthrottled when their url ends in
+// .webp/.jpg/…; comix's page images (and covers) have no extension, so every
+// page was held to the same 5 requests a second as the site. Pace only comix.to.
+export class SiteRateLimiter extends BasicRateLimiter {
+  override async interceptRequest(request: Request): Promise<Request> {
+    return isSiteUrl(request.url) ? super.interceptRequest(request) : request;
+  }
+}
 
 const header = (headers: Record<string, string> | undefined, name: string): string | undefined => {
   for (const [key, value] of Object.entries(headers ?? {})) {
@@ -114,25 +124,32 @@ export class ComixInterceptor extends PaperbackInterceptor {
   }
 }
 
-// Like the site's reader: retry a failed image once, then on the backup hosts.
-// Retries carry `r=N`, which also stops them from retrying again themselves.
+// Like the site's reader: try a failed image on the backup hosts (no wait, it's
+// another server), or once more on the same host after a second if there are
+// none. Retries carry `r=N`, which also stops them from retrying again themselves.
 async function retryImage(url: string, status: number): Promise<ArrayBuffer | null> {
   if (/[?&]r=\d+/.test(url)) return null;
-  const tries: string[] = [];
-  if (status === 404 || status >= 500) tries.push(withParam(url, "r", "1"));
-  (altHostsByUrl.get(urlKey(url)) ?? [])
-    .slice(0, 3)
-    .forEach((host, i) => tries.push(withParam(swapHost(url, host), "r", String(i + 1))));
+  const altHosts = (altHostsByUrl.get(urlKey(url)) ?? []).slice(0, 3);
+  const tries = altHosts.map((host, i) => withParam(swapHost(url, host), "r", String(i + 1)));
+  if (tries.length === 0 && (status === 404 || status >= 500)) {
+    await Application.sleep(1);
+    tries.push(withParam(url, "r", "1"));
+  }
 
   for (const next of tries) {
-    await Application.sleep(1);
     try {
       const [retryResponse, buffer] = await Application.scheduleRequest({
         url: next,
         method: "GET",
       });
       if (retryResponse.status < 400) {
-        logImage(`HTTP ${status} from ${shortUrl(url)}, worked on ${shortUrl(next)}`, false);
+        if (imageLogBudget > 0) {
+          imageLogBudget--;
+          logEvent(
+            "image retried",
+            `HTTP ${status} from ${shortUrl(url)}, got it from ${shortUrl(next)}`,
+          );
+        }
         return buffer;
       }
     } catch {

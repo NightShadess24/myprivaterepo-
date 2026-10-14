@@ -2,7 +2,6 @@
 /* Copyright © 2026 Inkdex */
 
 import {
-  BasicRateLimiter,
   CloudflareError,
   ContentRating,
   CookieStorageInterceptor,
@@ -26,7 +25,7 @@ import {
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
 import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
-import { browseUrl, ComixInterceptor, fetchText, startImageLog } from "./network";
+import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
 import {
@@ -48,7 +47,7 @@ import { errorText, logEvent } from "./utils/log";
 import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
-  private globalRateLimiter = new BasicRateLimiter("rateLimiter", {
+  private globalRateLimiter = new SiteRateLimiter("rateLimiter", {
     numberOfRequests: 5,
     bufferInterval: 1,
     ignoreImages: true,
