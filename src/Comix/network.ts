@@ -12,7 +12,7 @@ import {
 import { DOMAIN } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
-import { loadClearance, loadSiteCookies, logEvent } from "./utils/session";
+import { loadClearance, logEvent } from "./utils/session";
 
 // Once Cloudflare challenges, every further request only digs the hole deeper
 // (a library refresh would keep firing title after title). So after a
@@ -52,15 +52,15 @@ const pathOf = (url: string) => url.replace(/^https?:\/\/[^/]+/i, "").split("?")
 
 export class ComixInterceptor extends PaperbackInterceptor {
   override async interceptRequest(request: Request): Promise<Request> {
-    // Send the newest Cloudflare pass and the site's own passes from state (see
-    // utils/session.ts), over whatever the cookie store's in-memory copy holds.
+    // Send the newest Cloudflare pass from state (see utils/session.ts), over
+    // whatever the cookie store's in-memory copy holds. (alpha.54 also replayed
+    // the site's other cookies from the check screen here; that put stale copies
+    // over the browser's fresh ones and made the human check loop.)
     const headers = { ...request.headers, "user-agent": await Application.getDefaultUserAgent() };
     if (!isSiteUrl(request.url)) return { ...request, headers };
-    const cookies: Record<string, string> = { ...request.cookies };
-    for (const cookie of loadSiteCookies()) cookies[cookie.name] = cookie.value;
     const clearance = loadClearance();
-    if (clearance) cookies.cf_clearance = clearance.value;
-    return { ...request, headers, cookies };
+    if (!clearance) return { ...request, headers };
+    return { ...request, headers, cookies: { ...request.cookies, cf_clearance: clearance.value } };
   }
 
   override async interceptResponse(

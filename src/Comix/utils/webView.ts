@@ -16,8 +16,6 @@ import {
   getRefreshPace,
   isBrowserBoundCookie,
   isSiteDomain,
-  loadSiteCookies,
-  loadSiteStorage,
   logEvent,
   saveClearance,
   saveSiteCookies,
@@ -25,7 +23,7 @@ import {
 
 // A bootstrap resolves `window.__comixResult__` with this instead of data when it
 // gives up, so the extension can tell a captcha apart from a timeout.
-type WebViewError = { __comixError: string };
+type WebViewError = { __comixError: string; detail?: string };
 
 const CAPTCHA = "captcha";
 const CLOUDFLARE = "cloudflare";
@@ -77,8 +75,10 @@ export const isSiteCookie = isSiteDomain;
 // that made them.
 export const isKeptCookie = (cookie: Cookie) => !isBrowserBoundCookie(cookie.name);
 
-// Saves cookies from the check screen or a page load: cf_clearance and the
-// site's own passes go to state (read fresh for every request).
+// Saves cookies from the check screen or a page load: cf_clearance goes to
+// state (read fresh for every request). The site's other cookies are only
+// recorded by name for Diagnostics — sending saved copies of them overrode the
+// browser's fresh ones and made the human check loop (alpha.54).
 export function storeSiteCookies(
   cookieInterceptor: CookieStorageInterceptor,
   cookies: readonly Cookie[],
@@ -96,24 +96,12 @@ export function storeSiteCookies(
   saveSiteCookies(site, source);
 }
 
-// Cookies for a WebView run: the stored ones, then the site's passes and the
-// newest Cloudflare pass from state on top.
-function webViewCookies(cookieInterceptor: CookieStorageInterceptor): Cookie[] {
-  const byName = new Map<string, Cookie>();
-  for (const cookie of cookieInterceptor.cookiesForUrl(`${DOMAIN}/`)) {
-    if (isKeptCookie(cookie)) byName.set(cookie.name, cookie);
-  }
-  for (const cookie of loadSiteCookies()) byName.set(cookie.name, cookie);
+// Cookies for a WebView run: only the newest Cloudflare pass. Everything else
+// the WebView keeps in its own browser storage, where the site's fresh values
+// live (as in alpha.53, when opening and reading manga worked).
+function webViewCookies(): Cookie[] {
   const clearance = clearanceCookie();
-  if (clearance) byName.set(clearance.name, clearance);
-  return [...byName.values()];
-}
-
-// Puts the site's saved localStorage back before its own scripts run.
-function siteStorageScript(): string {
-  const storage = loadSiteStorage();
-  if (Object.keys(storage).length === 0) return "";
-  return `(function(){try{var s=${JSON.stringify(storage).replaceAll("<", "\\u003c")};for(var k in s){if(localStorage.getItem(k)===null)localStorage.setItem(k,s[k]);}}catch(e){}})();`;
+  return clearance ? [clearance] : [];
 }
 
 // Loads a Comix page in a WebView and lets the site's own JS run end-to-end:
@@ -139,9 +127,9 @@ async function runWebViewNow<T>(
   const userAgent = await Application.getDefaultUserAgent();
   const $ = cheerio.load(await fetchText(pageUrl));
   // Read after the page fetch, which may have refreshed them.
-  const cookies = webViewCookies(cookieInterceptor);
+  const cookies = webViewCookies();
 
-  $("head").prepend(`<script>${siteStorageScript()}${bootstrap}</script>`);
+  $("head").prepend(`<script>${bootstrap}</script>`);
 
   const raw = await Application.executeInWebView({
     source: { html: $.html(), baseUrl: pageUrl, loadCSS: false, loadImages: false, userAgent },
@@ -163,7 +151,7 @@ async function runWebViewNow<T>(
       // rest of a refresh) rather than keep sending requests into the challenge.
       logEvent(
         "challenge",
-        `inside page ${page} (${cookies.some((c) => c.name === "cf_clearance") ? "pass was sent" : "no pass sent"})`,
+        `inside page ${page}: ${result.detail || "?"} (${cookies.some((c) => c.name === "cf_clearance") ? "pass was sent" : "no pass sent"})`,
       );
       markCloudflareChallenged();
       throw await cloudflareChallenge();
@@ -171,7 +159,7 @@ async function runWebViewNow<T>(
     if (result.__comixError === CAPTCHA) {
       logEvent(
         "captcha",
-        `site captcha on ${page}; sent ${cookies.map((c) => c.name).join(", ") || "no cookies"}`,
+        `on ${page}: ${result.detail || "?"}; gave the page ${cookies.map((c) => c.name).join(", ") || "no cookies"}`,
       );
       // The site's own human check (`403 captcha_required` → `/@waf/challenge`).
       // The bypass banner opens the page in a browser so the reader can solve it.
@@ -210,8 +198,8 @@ function captureBootstrap(handlerFactory: string): string {
         settled = true;
         resolveResult(value);
       }
-      function fail(message) {
-        finish({ __comixError: String(message) });
+      function fail(message, detail) {
+        finish({ __comixError: String(message), detail: detail ? String(detail).slice(0, 240) : "" });
       }
       var idleTimer;
       function armIdle(ms) {
@@ -273,13 +261,16 @@ function captureBootstrap(handlerFactory: string): string {
       // reader opens /@waf/challenge in an iframe. Nobody can solve it in this
       // hidden WebView, so report it instead of waiting for the timeout.
       // A Cloudflare challenge on the page's own requests is reported the same way.
+      function where(url) {
+        return String(url).replace(new RegExp("^https?://[^/]+"), "").split("?")[0];
+      }
       function checkCaptcha(status, url, body, mitigated) {
         if (String(mitigated).toLowerCase() === "challenge") {
-          fail("${CLOUDFLARE}");
+          fail("${CLOUDFLARE}", "HTTP " + status + " " + where(url));
           return;
         }
         if (status === 403 && String(url).indexOf("/api/") !== -1 && /captcha/i.test(String(body))) {
-          fail("${CAPTCHA}");
+          fail("${CAPTCHA}", "API said HTTP 403 on " + where(url) + ": " + String(body).slice(0, 140));
         }
       }
       var xhrProto = XMLHttpRequest.prototype;
@@ -333,7 +324,8 @@ function captureBootstrap(handlerFactory: string): string {
           clearInterval(wafPoll);
           return;
         }
-        if (document.querySelector('iframe[src*="/@waf/"]')) fail("${CAPTCHA}");
+        var waf = document.querySelector('iframe[src*="/@waf/"]');
+        if (waf) fail("${CAPTCHA}", "site opened " + where(waf.getAttribute("src")));
       }, 500);
     })();
   `;
