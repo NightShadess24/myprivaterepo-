@@ -20,6 +20,7 @@ import {
   type SearchResultItem,
   type SortingOption,
   type SourceManga,
+  type UpdateManager,
 } from "@paperback/types";
 
 import { ComixAdvancedSearchForm } from "./forms/search";
@@ -295,9 +296,24 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
   }
 
-  async getChapters(sourceManga: SourceManga): Promise<Chapter[]> {
-    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor);
+  // With `sinceDate` (a library refresh) only the newest chapter-list pages are
+  // read; the app merges them into the chapters it already has.
+  async getChapters(sourceManga: SourceManga, sinceDate?: Date): Promise<Chapter[]> {
+    const items = await chapterListViaWebView(
+      sourceManga.mangaId,
+      this.cookieStorageInterceptor,
+      sinceDate,
+    );
     return parseChapters(sourceManga, items);
+  }
+
+  // Runs once before a library refresh asks for each title. One request here
+  // means that if Cloudflare wants a check, the banner shows once up front
+  // instead of every title failing with its own challenge.
+  async processTitlesForUpdates(updateManager: UpdateManager): Promise<void> {
+    if (updateManager.getQueuedItems().length > 0) {
+      await fetchText(`${DOMAIN}/`);
+    }
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {

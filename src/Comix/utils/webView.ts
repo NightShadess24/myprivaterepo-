@@ -18,20 +18,50 @@ const isWebViewError = (value: unknown): value is WebViewError =>
   value !== null &&
   typeof (value as Partial<WebViewError>).__comixError === "string";
 
+// Each WebView run loads a whole site page (scripts plus its API calls). A
+// library refresh asks for many titles at once, and that burst is what makes
+// Cloudflare challenge again and drop the clearance the reader just earned. So
+// WebView runs go one at a time with a short gap between them.
+const WEBVIEW_GAP_SECONDS = 1;
+let webViewQueue: Promise<unknown> = Promise.resolve();
+
+function inWebViewQueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = webViewQueue.then(task, task);
+  webViewQueue = run.then(
+    () => Application.sleep(WEBVIEW_GAP_SECONDS),
+    () => Application.sleep(WEBVIEW_GAP_SECONDS),
+  );
+  return run;
+}
+
+const isSiteCookie = (domain: string) => {
+  const host = domain.replace(/^\./, "");
+  return host === "comix.to" || host.endsWith(".comix.to");
+};
+
 // Loads a Comix page in a WebView and lets the site's own JS run end-to-end:
 // the bundle signs API requests and decodes the answers internally, and the
 // injected bootstrap reads the decoded data back out, so the rotating signer and
 // cipher never need reimplementing. The WebView runs under the app's default UA
 // (source.userAgent), the same UA cf_clearance is bound to, so the page's own
 // loads + same-origin API XHRs all pass Cloudflare.
-async function runProxiedWebView<T>(
+function runProxiedWebView<T>(
   pageUrl: string,
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<T> {
-  const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
+  return inWebViewQueue(() => runWebViewNow<T>(pageUrl, bootstrap, cookieInterceptor));
+}
+
+async function runWebViewNow<T>(
+  pageUrl: string,
+  bootstrap: string,
+  cookieInterceptor: CookieStorageInterceptor,
+): Promise<T> {
   const userAgent = await Application.getDefaultUserAgent();
   const $ = cheerio.load(await fetchText(pageUrl));
+  // Read after the page fetch, which may have refreshed them.
+  const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
 
   $("head").prepend(`<script>${bootstrap}</script>`);
 
@@ -40,6 +70,15 @@ async function runProxiedWebView<T>(
     inject: `return window.__comixResult__`,
     storage: { cookies },
   });
+
+  // Keep what Cloudflare and the site set or renewed during the run (cf_clearance,
+  // __cf_bm, the site's own session), so the next request carries the fresh ones
+  // instead of the ones the reader's bypass handed over earlier.
+  for (const cookie of raw.storage?.cookies ?? []) {
+    if (cookie.domain && isSiteCookie(cookie.domain) && cookie.value) {
+      cookieInterceptor.setCookie(cookie);
+    }
+  }
 
   const result = raw.result;
   if (result === undefined || result === null) {
@@ -215,6 +254,7 @@ function captureBootstrap(handlerFactory: string): string {
 const CHAPTER_LIST_HANDLER = `
   function (finish, fail, armIdle) {
     var chapterPaths = __CHAPTER_PATHS__;
+    var stopBeforeMs = __STOP_BEFORE_MS__;
     var MAX_PAGES = 1000;
     var PAGE_DELAY_MS = 500;
     var PAGER_FALLBACK_MS = 3000;
@@ -231,6 +271,24 @@ const CHAPTER_LIST_HANDLER = `
         if (item.url.indexOf(chapterPaths[i]) !== -1) return true;
       }
       return false;
+    }
+
+    // A chapter's upload time in ms: an epoch/ISO field when the API sends one,
+    // else the relative "3 days ago" text. null when unknown.
+    function itemTime(item) {
+      var raw = item.createdAt !== undefined ? item.createdAt : item.created_at;
+      if (typeof raw === "number" && raw > 0) return raw < 1e12 ? raw * 1000 : raw;
+      if (typeof raw === "string") {
+        var parsed = Date.parse(raw);
+        if (!isNaN(parsed)) return parsed;
+      }
+      var text = typeof item.createdAtFormatted === "string" ? item.createdAtFormatted.trim() : "";
+      var m = /^(\\d+)\\s*(mo|mon|month|yr|year|min|sec|hr|hour|day|week|[smhdwy])s?(\\s+ago)?$/i.exec(text);
+      if (!m) return null;
+      var unit = m[2].toLowerCase();
+      var ms = { s: 1e3, sec: 1e3, m: 6e4, min: 6e4, h: 36e5, hr: 36e5, hour: 36e5, d: 864e5, day: 864e5,
+        w: 6048e5, week: 6048e5, mo: 2592e6, mon: 2592e6, month: 2592e6, y: 31536e6, yr: 31536e6, year: 31536e6 }[unit];
+      return ms ? Date.now() - Number(m[1]) * ms : null;
     }
 
     function pagerButtons() {
@@ -297,6 +355,16 @@ const CHAPTER_LIST_HANDLER = `
         seen[items[i].id] = true;
         chapters.push(items[i]);
       }
+      // Library refresh: once a newest-first page ends on a chapter older than
+      // the last update, every later page is older still, so stop here.
+      if (stopBeforeMs !== null && items.length > 1) {
+        var newestFirst = items[0].number >= items[items.length - 1].number;
+        var oldestOnPage = itemTime(items[items.length - 1]);
+        if (newestFirst && oldestOnPage !== null && oldestOnPage < stopBeforeMs) {
+          finish(JSON.stringify(chapters));
+          return;
+        }
+      }
       var hasNext = meta.hasNext !== undefined ? !!meta.hasNext : typeof lastPage === "number" && page < lastPage;
       if (!hasNext || page >= Math.min(typeof lastPage === "number" ? lastPage : MAX_PAGES, MAX_PAGES)) {
         var count = chapters.length;
@@ -314,16 +382,27 @@ const CHAPTER_LIST_HANDLER = `
   }
 `;
 
+// How far before the last update to keep reading, since upload times are often
+// only known as relative text ("3 days ago").
+const SINCE_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
+
 export async function chapterListViaWebView(
   mangaId: string,
   cookieInterceptor: CookieStorageInterceptor,
+  sinceDate?: Date,
 ): Promise<ChapterItem[]> {
   // Chapter URLs look like `/title/{hid}-{slug}/{id}-chapter-{n}`.
   const hid = mangaId.split("-")[0];
   const chapterPaths = JSON.stringify([`/title/${hid}-`, `/title/${hid}/`]);
+  const stopBeforeMs = sinceDate ? String(sinceDate.getTime() - SINCE_MARGIN_MS) : "null";
   const payload = await runProxiedWebView<string>(
     `${DOMAIN}/title/${mangaId}`,
-    captureBootstrap(CHAPTER_LIST_HANDLER.replace("__CHAPTER_PATHS__", chapterPaths)),
+    captureBootstrap(
+      CHAPTER_LIST_HANDLER.replace("__CHAPTER_PATHS__", chapterPaths).replace(
+        "__STOP_BEFORE_MS__",
+        stopBeforeMs,
+      ),
+    ),
     cookieInterceptor,
   );
   return JSON.parse(payload) as ChapterItem[];
@@ -361,7 +440,8 @@ export async function pageListViaWebView(
   chapterPagePath: string,
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<ChapterPages> {
-  const payload = await runProxiedWebView<string>(
+  // Not queued: opening a chapter shouldn't wait behind a library refresh.
+  const payload = await runWebViewNow<string>(
     `${DOMAIN}${chapterPagePath}`,
     captureBootstrap(PAGE_LIST_HANDLER),
     cookieInterceptor,
