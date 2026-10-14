@@ -16,12 +16,17 @@ import { scheduleComix } from "./queue";
 // site's own code, so it looks like normal app traffic and survives its frequent
 // bundle rotations.
 
+// `queued: false` skips the one-at-a-time queue: Discover's sections (browse
+// pages) load side by side, as in this repo's earlier versions, so the home
+// page fills in quickly. Chapter lists and chapter pages stay queued.
 async function runProxiedWebView<T>(
   pageUrl: string,
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
+  { queued = true }: { queued?: boolean } = {},
 ): Promise<T> {
-  return scheduleComix(async () => {
+  const schedule = queued ? scheduleComix : <R>(task: () => Promise<R>) => task();
+  return schedule(async () => {
     const cookies = cookieInterceptor.cookiesForUrl(`${DOMAIN}/`);
     const userAgent = await Application.getDefaultUserAgent();
     const $ = cheerio.load(await fetchText(pageUrl));
@@ -270,6 +275,7 @@ export async function browseViaWebView(
     browseUrl,
     bootstrap,
     cookieInterceptor,
+    { queued: false },
   );
   if (!result) {
     console.log(`[Comix] browse timed out for ${browseUrl}`);
