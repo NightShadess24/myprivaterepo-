@@ -3,8 +3,8 @@
 // remembered per browser:
 //
 //   - Noir (default): dark, shop-style page — slim top bar, filter tabs,
-//     banner links with a gold accent, serif display headings and a grid of
-//     source cards with icons, tags, versions and one-tap install links.
+//     banner links with a gold accent, serif display headings and the plain
+//     list of sources with their tags.
 //   - Classic: the classic Paperback 0.8 repository page — logo, "Add to
 //     Paperback" button, guide, base URL and a plain list of sources.
 //
@@ -38,9 +38,6 @@ const escapeHtml = (value) =>
 const addRepoLink = (baseUrl) =>
   `paperback://addRepo?displayName=${encodeURIComponent(name)}&url=${encodeURIComponent(baseUrl)}`;
 
-const installLink = (id, baseUrl) =>
-  `paperback://installExtensions?data=${Buffer.from(JSON.stringify([[id, baseUrl]])).toString("base64")}`;
-
 const RATING_TAGS = {
   MATURE: { label: "Mature", type: "warning" },
   ADULT: { label: "18+", type: "danger" },
@@ -61,24 +58,12 @@ const tagHtml = (tag) =>
     tag.style ? ` style="${escapeHtml(tag.style)}"` : ""
   }>${escapeHtml(tag.label)}</span>`;
 
-function sourceItem(source, baseUrl) {
+function sourceItem(source) {
   const tags = sourceTags(source);
   const filters = tags.map((tag) => tag.label).join("|");
-  const icon = `${encodeURIComponent(source.id)}/static/${encodeURIComponent(source.icon ?? "icon.png")}`;
-  const developers = (source.developers ?? []).map((dev) => dev.name).join(", ");
-  return `<li class="source" data-tags="${escapeHtml(filters)}" title="${escapeHtml(source.description ?? "")}">
-<span class="source__icon"><img src="${icon}" alt="" loading="lazy" onerror="this.remove()"></span>
-<span class="source__tags">${tags.map(tagHtml).join("")}</span>
-<span class="source__name">${escapeHtml(source.name)}</span>${tags
-    .map(tagHtml)
-    .map((t) => t.replace('class="', 'class="inline '))
-    .join("")}
-<span class="source__version">v${escapeHtml(source.version)}</span>
-<span class="source__dev">${developers ? `by ${escapeHtml(developers)}` : "&nbsp;"}</span>
-<a class="source__install js-install" data-id="${escapeHtml(source.id)}" href="${escapeHtml(
-    installLink(source.id, baseUrl),
-  )}">Install in Paperback</a>
-</li>`;
+  return `<li class="source" data-tags="${escapeHtml(filters)}" title="${escapeHtml(
+    source.description ?? "",
+  )}">${escapeHtml(source.name)}${tags.map(tagHtml).join("")}</li>`;
 }
 
 const baseUrl = deployedBaseUrl();
@@ -187,12 +172,6 @@ ul { margin-top: 0; }
 [data-theme="classic"] .baseUrl p { margin-left: 16px; }
 [data-theme="classic"] #listDiv { line-height: 1.5; }
 [data-theme="classic"] .sources { padding-left: 40px; }
-[data-theme="classic"] .source { list-style: disc; }
-[data-theme="classic"] .source__icon,
-[data-theme="classic"] .source__tags,
-[data-theme="classic"] .source__version,
-[data-theme="classic"] .source__dev,
-[data-theme="classic"] .source__install { display: none; }
 [data-theme="classic"] .theme-toggle { background: #fff; color: #2c3e50; border: 1px solid #dfe2e5; }
 
 /* ---------- Noir (dark shop style) ---------- */
@@ -204,7 +183,6 @@ ul { margin-top: 0; }
   --muted: #a3a3aa;
   --gold: #c9a45c;
   --blue: #5d9dfe;
-  --maroon: #8e2433;
   color-scheme: dark;
 }
 [data-theme="noir"] body {
@@ -338,39 +316,14 @@ ul { margin-top: 0; }
   line-height: 1.1;
   color: #e6e6e6;
 }
-[data-theme="noir"] .sources {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 30px 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-[data-theme="noir"] .source { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
-[data-theme="noir"] .source[hidden] { display: none; }
-[data-theme="noir"] .source__icon {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
-  margin-bottom: 6px;
-  background: #fff;
-}
-[data-theme="noir"] .source__icon img { width: 62%; height: 62%; object-fit: contain; border-radius: 18%; }
-[data-theme="noir"] .source__tags { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
-[data-theme="noir"] .source__tags .el-tag { margin: 0; border-radius: 0; background-color: var(--maroon); border-color: var(--maroon); color: #fff; }
-[data-theme="noir"] .source .el-tag.inline { display: none; }
-[data-theme="noir"] .source__name { font-weight: 600; line-height: 1.35; }
-[data-theme="noir"] .source__version { font-size: 14px; }
-[data-theme="noir"] .source__dev { font-size: 13px; color: var(--muted); }
-[data-theme="noir"] .source__install { font-size: 14px; }
-[data-theme="noir"] .source__install:hover { text-decoration: underline; }
-[data-theme="noir"] .empty { text-align: center; color: var(--muted); }
+[data-theme="noir"] #listDiv { max-width: 920px; margin: 0 auto; }
+[data-theme="noir"] .sources { margin: 0; padding-left: 40px; line-height: 1.5; font-size: 16px; }
+[data-theme="noir"] .empty { color: var(--muted); }
 [data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
 
 @media (max-width: 560px) {
   [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
   [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
-  [data-theme="noir"] .sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
 }
 </style>
@@ -424,7 +377,7 @@ ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${
 <!-- Both: the sources -->
 <div id="listDiv">
 <ul class="sources">
-${sources.map((source) => sourceItem(source, baseUrl)).join("\n")}
+${sources.map(sourceItem).join("\n")}
 </ul>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
@@ -476,9 +429,6 @@ ${sources.map((source) => sourceItem(source, baseUrl)).join("\n")}
       "&url=" + encodeURIComponent(baseUrl);
     document.querySelectorAll(".js-base-url").forEach(function (el) { el.textContent = baseUrl; });
     document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = link; });
-    document.querySelectorAll(".js-install").forEach(function (a) {
-      a.href = "paperback://installExtensions?data=" + btoa(JSON.stringify([[a.dataset.id, baseUrl]]));
-    });
   }
 
   var copy = document.querySelector(".copyButton");
