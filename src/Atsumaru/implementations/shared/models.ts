@@ -1,0 +1,178 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright © 2026 Inkdex */
+
+export const DOMAIN = "https://atsu.moe";
+export const DOMAIN_CDN = "https://cdn.atsu.moe";
+export const HOME_PAGE_SIZE = 20;
+export const HOME_SECTION_METADATA_ID = "atsumaru-home-section";
+
+export type HomeEndpoint =
+  | "bingeWorthy"
+  | "genreSpotlight"
+  | "hiddenGems"
+  | "hotArrivals"
+  | "hotUpdates"
+  | "mostBookmarked"
+  | "mostPolarizing"
+  | "mostTalkedAbout"
+  | "popular"
+  | "recentlyAdded"
+  | "recentlyUpdated"
+  | "rising"
+  | "topRated";
+
+export type HomeTimeframe = "daily" | "weekly" | "monthly" | "all";
+
+export enum AtsuContentRating {
+  Safe = "Safe",
+  Suggestive = "Suggestive",
+  Erotica = "Erotica",
+  Pornographic = "Pornographic",
+}
+
+export enum AtsuComicType {
+  Manga = "Manga",
+  Manhwa = "Manwha", // API spelling
+  Manhua = "Manhua",
+  OEL = "OEL",
+}
+
+export enum AtsuMedium {
+  Comic = "Comic",
+  Novel = "Novel",
+}
+
+export type AtsuContentType = AtsuComicType | AtsuMedium.Novel;
+
+export interface AtsuMangaItem {
+  id: string;
+  image: string;
+  isAdult: boolean;
+  smallImage?: string;
+  mediumImage?: string;
+  title: string;
+  type: AtsuComicType;
+  medium: AtsuMedium;
+  mbContentRating?: AtsuContentRating | null;
+}
+
+export interface AtsuInfiniteResponse {
+  items: AtsuMangaItem[];
+}
+
+export interface AtsuMangaPageResponse {
+  mangaPage: AtsuMangaDetails;
+}
+
+export interface AtsuMangaDetails {
+  id: string;
+  authors: Array<{ id: string; name: string }>;
+  scanlators: Array<{ id: string; name: string }>;
+  banner: string | null;
+  genres: AtsuTag[];
+  englishTitle: string;
+  poster: {
+    id: string;
+    image: string;
+    smallImage?: string;
+    mediumImage?: string;
+  };
+  title: string;
+  type: AtsuComicType;
+  medium: AtsuMedium;
+  mbContentRating?: AtsuContentRating | null;
+  otherNames: string[];
+  synopsis: string;
+  status: string;
+  totalChapterCount: number;
+  isAdult: boolean;
+}
+
+export interface AtsuTag {
+  id: string;
+  name: string;
+}
+
+export interface AtsuChapter {
+  id: string;
+  number: number;
+  title: string;
+  createdAt: number;
+  index: number;
+  pageCount: number;
+  scanlationMangaId: string | null;
+}
+
+export interface AtsuChaptersResponse {
+  chapters: AtsuChapter[];
+  pages: number;
+  page: number;
+}
+
+export interface AtsuReadChapterResponse {
+  readChapter: {
+    id: string;
+    title: string;
+    pages: AtsuPage[];
+  };
+}
+
+export interface AtsuReadNovelChapterResponse {
+  readNovelChapter: {
+    id: string;
+    title: string;
+    number: number;
+    scanlationMangaId: string;
+    paragraphs: string[];
+    wordCount: number;
+    paragraphComments: Record<string, number>;
+  };
+}
+
+export interface AtsuPage {
+  id: string;
+  image: string;
+  number: number;
+  width: number;
+  height: number;
+  aspectRatio: number;
+}
+
+export interface AtsuSearchDocument {
+  id: string;
+  title: string;
+  englishTitle?: string;
+  poster: string;
+  posterSmall?: string;
+  posterMedium?: string;
+  type: string;
+  medium: AtsuMedium;
+  isAdult: boolean;
+  mbContentRating?: AtsuContentRating | null;
+}
+
+export interface AtsuSearchHit {
+  document: AtsuSearchDocument;
+}
+
+export interface AtsuSearchResponse {
+  found: number;
+  hits?: AtsuSearchHit[];
+  page: number;
+}
+
+export interface AtsuAvailableFiltersResponse {
+  genres: Array<{ id: string; name: string }>;
+  types: Array<{ id: string; name: string }>;
+  statuses: Array<{ id: string; name: string }>;
+}
+
+export interface ExtractedFilters {
+  includedTags: string[];
+  excludedTags: string[];
+  selectedTypes: string[];
+  selectedStatuses: string[];
+  selectedYears: number[];
+  minChapters: number | null;
+  officialTranslation: boolean;
+}
