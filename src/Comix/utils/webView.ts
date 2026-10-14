@@ -32,6 +32,19 @@ const CHECK_WAIT_MS = 12000;
 const SITE_BOOTSTRAP = `
 (function () {
   var check = (window.__comixCheck = { seen: false, since: 0 });
+  // Cloudflare (not comix) refusing the page's own requests or scripts: the
+  // Cloudflare pass is missing or expired, so only a check by hand helps.
+  window.__comixCloudflare = false;
+  window.__comixScriptFailedAt = 0;
+  function sawCloudflare() { window.__comixCloudflare = true; }
+  try {
+    window.addEventListener("error", function (event) {
+      var target = event && event.target;
+      if (target && target.tagName === "SCRIPT" && /comix\\.to\\/|^\\//.test(target.getAttribute("src") || "")) {
+        window.__comixScriptFailedAt = window.__comixScriptFailedAt || Date.now();
+      }
+    }, true);
+  } catch (e) {}
   function sawCheck() {
     if (!check.seen) { check.seen = true; check.since = Date.now(); }
   }
@@ -72,7 +85,8 @@ const SITE_BOOTSTRAP = `
       try {
         xhr.addEventListener("loadend", function () {
           try {
-            if (xhr.status === 403 && /captcha/i.test(String(xhr.responseText || ""))) sawCheck();
+            if (xhr.getResponseHeader("cf-mitigated") === "challenge") sawCloudflare();
+            else if (xhr.status === 403 && /captcha/i.test(String(xhr.responseText || ""))) sawCheck();
           } catch (e) {}
         });
       } catch (e) {}
@@ -91,7 +105,8 @@ const SITE_BOOTSTRAP = `
         }
         return originalFetch.apply(this, arguments).then(function (response) {
           try {
-            if (response.status === 403) {
+            if (response.headers.get("cf-mitigated") === "challenge") sawCloudflare();
+            else if (response.status === 403) {
               response.clone().text().then(function (text) { if (/captcha/i.test(text)) sawCheck(); }, function () {});
             }
           } catch (e) {}
@@ -119,20 +134,48 @@ const CHECK_HELPERS = `
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   var check = window.__comixCheck || { seen: false, since: 0 };
   var stuck = function () { return check.seen && Date.now() - check.since > ${CHECK_WAIT_MS}; };
+  // Cloudflare refused a request outright, or comix's own scripts failed to
+  // load and its code still hasn't started 3 s later.
+  var blocked = function () {
+    if (window.__comixCloudflare) return true;
+    var failedAt = window.__comixScriptFailedAt;
+    return !!failedAt && !window.__comixAxios && Date.now() - failedAt > 3000;
+  };
   var CHECK = { check: true };
+  var CLOUDFLARE = { cloudflare: true };
   var orCheck = function (work) {
     return Promise.race([
       work,
       new Promise(function (resolve) {
         var timer = setInterval(function () {
-          if (stuck()) { clearInterval(timer); resolve(CHECK); }
+          if (blocked()) { clearInterval(timer); resolve(CLOUDFLARE); }
+          else if (stuck()) { clearInterval(timer); resolve(CHECK); }
         }, 200);
         work.then(function () { clearInterval(timer); }, function () { clearInterval(timer); });
       }),
     ]);
   };
   var checkResult = function () { return JSON.stringify({ ok: false, check: true, error: "comix's own check didn't clear" }); };
+  var cloudflareResult = function () { return JSON.stringify({ ok: false, cloudflare: true, error: "Cloudflare refused the page's requests" }); };
+  var stopper = function (resp) { return resp === CLOUDFLARE ? cloudflareResult() : resp === CHECK ? checkResult() : null; };
 `;
+
+// Cloudflare refused what the hidden page asked for: its pass is missing or
+// expired. Opens `pageUrl` in the check browser to get a new one by hand.
+async function cloudflareError(pageUrl: string, what: string): Promise<CloudflareError> {
+  logEvent(
+    "cloudflare",
+    `${what}: Cloudflare refused the page's requests, opening it to pass the check`,
+  );
+  return new CloudflareError(
+    {
+      url: pageUrl,
+      method: "GET",
+      headers: { "user-agent": await Application.getDefaultUserAgent() },
+    },
+    "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
+  );
+}
 
 // The error that opens `pageUrl` in Paperback's check browser, where comix's own
 // check (if it shows) can be passed by hand like on any visit. What that browser
@@ -277,6 +320,7 @@ return (async function () {
 
   while (check.seen || Date.now() - started < 8000) {
     if (window.__comixPages__) return found("reader");
+    if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
     if (!check.seen && net.chapterStatus >= 400) break;
     await sleep(100);
@@ -300,13 +344,16 @@ return (async function () {
 
   var apiStatus = null;
   var apiError = null;
-  while (!window.__comixAxios && Date.now() - started < 13000) await sleep(100);
+  while (!window.__comixAxios && Date.now() - started < 13000) {
+    if (blocked()) return cloudflareResult();
+    await sleep(100);
+  }
   var axios = window.__comixAxios;
   if (window.__comixPages__) return found("reader");
   if (axios) {
     try {
       var resp = await orCheck(axios.get("/chapters/" + ${id}));
-      if (resp === CHECK) return checkResult();
+      if (stopper(resp)) return stopper(resp);
       var holder = findHolder(resp && resp.data, 0);
       if (holder) {
         return JSON.stringify({ ok: true, via: "api", holder: JSON.stringify(holder) });
@@ -325,6 +372,7 @@ return (async function () {
   var until = axios ? 25000 : 30000;
   while (Date.now() - started < until) {
     if (window.__comixPages__) return found("reader");
+    if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
     await sleep(150);
   }
@@ -340,7 +388,7 @@ return (async function () {
 
 type InjectResult<T> =
   | ({ ok: true } & T)
-  | { ok: false; check?: boolean; status?: number | null; error: string };
+  | { ok: false; check?: boolean; cloudflare?: boolean; status?: number | null; error: string };
 
 function parseInjectResult<T>(raw: unknown): InjectResult<T> {
   if (typeof raw !== "string") {
@@ -371,6 +419,7 @@ export async function pageListViaWebView(
   );
 
   if (!result.ok) {
+    if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter ${chapterPagePath}`);
     if (result.check) throw await checkError(pageUrl, `chapter ${chapterPagePath}`);
     logEvent(
       "page list failed",
@@ -437,13 +486,14 @@ function buildChapterListInject(mangaId: string, maxPages: number): string {
   return `
 return (async function () {
   ${CHECK_HELPERS}
-  var deadline = Date.now() + 45000;
+  var deadline = Date.now() + 15000;
   while (!window.__comixAxios && Date.now() < deadline) {
+    if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
     await sleep(100);
   }
   var axios = window.__comixAxios;
-  if (!axios) return JSON.stringify({ ok: false, status: 503, error: "axios instance not found" });
+  if (!axios) return JSON.stringify({ ok: false, status: 503, error: "comix's page didn't start (no API client after 15 s)" });
 
   var path = "/manga/" + ${id} + "/chapters";
   var chapters = [];
@@ -453,7 +503,7 @@ return (async function () {
     while (page <= lastPage && page <= ${maxPages}) {
       if (page > 1) await sleep(700);
       var resp = await orCheck(axios.get(path, { params: { page: page, limit: 100, "order[number]": "desc" } }));
-      if (resp === CHECK) return checkResult();
+      if (stopper(resp)) return stopper(resp);
       var data = resp.data || {};
       chapters = chapters.concat(data.items || []);
       var meta = data.meta || {};
@@ -465,6 +515,7 @@ return (async function () {
     var resp2 = e && e.response;
     return JSON.stringify({
       ok: false,
+      cloudflare: blocked(),
       check: check.seen,
       status: resp2 && resp2.status,
       error: String((e && e.message) || e),
@@ -493,6 +544,7 @@ export async function chapterListViaWebView(
   );
 
   if (!result.ok) {
+    if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter list of ${mangaId}`);
     if (result.check) throw await checkError(pageUrl, `chapter list of ${mangaId}`);
     const status = result.status;
     logEvent(
@@ -561,7 +613,11 @@ export async function browseViaWebView(
       var watch = setInterval(function () {
         var check = window.__comixCheck;
         if (done) { clearInterval(watch); return; }
-        if (check && check.seen && Date.now() - check.since > ${CHECK_WAIT_MS}) {
+        var failedAt = window.__comixScriptFailedAt;
+        if (window.__comixCloudflare || (failedAt && Date.now() - failedAt > 3000)) {
+          clearInterval(watch);
+          finish({ __comixCloudflare: true });
+        } else if (check && check.seen && Date.now() - check.since > ${CHECK_WAIT_MS}) {
           clearInterval(watch);
           finish({ __comixCheck: true });
         }
@@ -571,12 +627,14 @@ export async function browseViaWebView(
       }, 20000);
     })();
   `;
-  const result = await runProxiedWebView<(ResultManga & { __comixCheck?: boolean }) | null>(
-    browseUrl,
-    bootstrap,
-    cookieInterceptor,
-    { browse: true, timeoutSeconds: 45, what: "loading the list" },
-  );
+  const result = await runProxiedWebView<
+    (ResultManga & { __comixCheck?: boolean; __comixCloudflare?: boolean }) | null
+  >(browseUrl, bootstrap, cookieInterceptor, {
+    browse: true,
+    timeoutSeconds: 45,
+    what: "loading the list",
+  });
+  if (result?.__comixCloudflare) throw await cloudflareError(browseUrl, "list");
   if (result?.__comixCheck) throw await checkError(browseUrl, "list");
   if (!result) {
     console.log(`[Comix] browse timed out for ${browseUrl}`);

@@ -72,6 +72,21 @@ function logImage(detail: string, failed: boolean): void {
 
 const shortUrl = (url: string): string => url.replace(/^https?:\/\//, "").slice(0, 90);
 
+// Cloudflare's "Just a moment…" / block page, for when its cf-mitigated
+// header doesn't come through.
+const CLOUDFLARE_PAGE =
+  /<title>\s*(Just a moment|Attention Required)|cf_chl_opt|\/cdn-cgi\/challenge-platform\/|cf-error-details/i;
+
+function isCloudflareBlock(status: number, data: ArrayBuffer): boolean {
+  if (status !== 403 && status !== 429 && status !== 503) return false;
+  try {
+    const text = Application.arrayBufferToUTF8String(data.slice(0, 64 * 1024));
+    return CLOUDFLARE_PAGE.test(text);
+  } catch {
+    return false;
+  }
+}
+
 function withParam(url: string, key: string, value: string): string {
   const [beforeHash] = url.split("#");
   const re = new RegExp(`([?&])${key}=[^&]*`);
@@ -102,17 +117,31 @@ export class ComixInterceptor extends PaperbackInterceptor {
     response: Response,
     data: ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    if (header(response.headers, "cf-mitigated") === "challenge") {
-      throw new CloudflareError({
-        url: DOMAIN,
-        method: "GET",
-        headers: {
-          "user-agent": await Application.getDefaultUserAgent(),
+    const siteUrl = isSiteUrl(request.url);
+    // Cloudflare's check page, recognised by its header or (when that's
+    // missing) by its content: say so right away, opening the page that was
+    // asked for, instead of loading the check page as if it were comix.
+    if (
+      header(response.headers, "cf-mitigated") === "challenge" ||
+      (siteUrl && isCloudflareBlock(response.status, data))
+    ) {
+      const isPage = siteUrl && !/\/api\//.test(request.url);
+      logEvent(
+        "cloudflare",
+        `${shortUrl(request.url)} answered with Cloudflare's check (HTTP ${response.status})`,
+      );
+      throw new CloudflareError(
+        {
+          url: isPage ? request.url : `${DOMAIN}/`,
+          method: "GET",
+          headers: {
+            "user-agent": await Application.getDefaultUserAgent(),
+          },
         },
-      });
+        "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
+      );
     }
 
-    const siteUrl = isSiteUrl(request.url);
     if (!siteUrl && response.status >= 400) {
       const recovered = await retryImage(request.url, response.status);
       if (recovered) return recovered;

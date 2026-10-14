@@ -160,7 +160,7 @@ export class ComixSettingsForm extends Form {
   // Same as the app's own bypass banner: keep the fresh cf_clearance.
   // Same as the app's own check browser: keep what comix.to left.
   async handleCheckDone(cookies: Cookie[]) {
-    const kept = keepSiteCookies(this.cookieStore, cookies);
+    const kept = keepSiteCookies(this.cookieStore, cookies, { fromCheckBrowser: true });
     logEvent("check browser", `settings: kept ${kept.length ? kept.join(", ") : "nothing"}`);
     this.reloadForm();
   }

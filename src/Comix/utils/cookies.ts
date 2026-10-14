@@ -4,14 +4,27 @@
 import type { Cookie, CookieStorageInterceptor } from "@paperback/types";
 
 // comix.to's cookies are kept the way a browser keeps them: whatever the site
-// (or Cloudflare, on comix.to) leaves after a page, or after the check browser,
-// is sent back next time. A real visitor carries the same session from page to
-// page; starting every hidden page with an empty browser is what made comix
-// ask for its own check. Cloudflare's in-progress challenge cookies (cf_chl_*)
-// are left out.
+// leaves after a page, or after the check browser, is sent back next time. A
+// real visitor carries the same session from page to page; starting every
+// hidden page with an empty browser is what made comix ask for its own check.
+//
+// Cloudflare's own cookies (its pass cf_clearance, and __cf_bm / _cfuvid) are
+// only taken from the check browser, where they were earned: a hidden page
+// can't earn a pass, and a copy of one from there (without its expiry date)
+// would replace the real one and be lost when the app restarts. Cloudflare's
+// in-progress challenge cookies (cf_chl_*) are never kept.
 
 const isSiteDomain = (domain: string): boolean =>
   /(^|\.)comix\.to$/i.test(String(domain ?? "").replace(/^\./, ""));
+
+const isCloudflareCookie = (name: string): boolean =>
+  name === "cf_clearance" || name === "__cf_bm" || name === "_cfuvid";
+
+const sameCookie = (a: Cookie, b: Cookie): boolean =>
+  a.name === b.name &&
+  a.domain.replace(/^(www)?\.?/i, "").toLowerCase() ===
+    b.domain.replace(/^(www)?\.?/i, "").toLowerCase() &&
+  (a.path ?? "/") === (b.path ?? "/");
 
 function normalized(cookie: Cookie): Cookie | null {
   if (!cookie || typeof cookie.name !== "string" || !cookie.name) return null;
@@ -28,14 +41,22 @@ function normalized(cookie: Cookie): Cookie | null {
 }
 
 // Saves comix.to cookies into the store; returns the names kept.
+// `fromCheckBrowser`: the cookies come from a check the user went through.
 export function keepSiteCookies(
   store: CookieStorageInterceptor,
   cookies: readonly Cookie[] | undefined | null,
+  { fromCheckBrowser = false }: { fromCheckBrowser?: boolean } = {},
 ): string[] {
   const kept: string[] = [];
   for (const cookie of cookies ?? []) {
     const copy = normalized(cookie);
     if (!copy) continue;
+    if (!fromCheckBrowser && isCloudflareCookie(copy.name)) continue;
+    // The same cookie without its expiry date: keep the one that has it.
+    if (!copy.expires) {
+      const stored = store.cookies.find((existing) => sameCookie(existing, copy));
+      if (stored?.expires && stored.value === copy.value) continue;
+    }
     store.setCookie(copy);
     kept.push(copy.name);
   }

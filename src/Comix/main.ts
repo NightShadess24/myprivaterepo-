@@ -98,7 +98,9 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     cookies: Cookie[],
     _localStorage: Record<string, string>,
   ): Promise<void> {
-    const kept = keepSiteCookies(this.cookieStorageInterceptor, cookies);
+    const kept = keepSiteCookies(this.cookieStorageInterceptor, cookies, {
+      fromCheckBrowser: true,
+    });
     logEvent(
       "check browser",
       `${request.url.replace(/^https?:\/\//, "")}: kept ${kept.length ? kept.join(", ") : "nothing"}`,
