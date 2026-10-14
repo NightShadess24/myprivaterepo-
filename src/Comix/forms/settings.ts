@@ -84,7 +84,7 @@ export class ComixSettingsForm extends Form {
           id: "cloudflare",
           header: "Checks",
           footer:
-            "Two checks guard comix: Cloudflare's, and comix's own (\"Verify you're human\"). Each pass works for every manga until it runs out. To get a fresh one, open the check, complete it if it shows (comix's often passes by itself), wait for comix's page, then tap Done. If things keep failing, tap Forget for a clean start.",
+            "Two checks guard comix: Cloudflare's, and comix's own (\"Verify you're human\"). Do the Checks goes through both: Cloudflare's first when it's needed, then comix's (it often passes by itself), then comix's home page, where you tap Done. comix's pass lasts about 5 minutes, Cloudflare's longer; each works for every manga. If things keep failing, tap Forget for a clean start.",
         },
         [
           SelectRow("site_address", {
@@ -105,23 +105,13 @@ export class ComixSettingsForm extends Form {
             value: pass ? "Saved" : "None",
             subtitle: expiry(pass?.expires),
           }),
-          WebViewRow("cloudflare_check", {
-            title: "Redo Cloudflare Check",
-            request: {
-              url: `${siteUrl()}/`,
-              method: "GET",
-              headers: { "user-agent": this.userAgent },
-            },
-            onComplete: Application.Selector(this as ComixSettingsForm, "handleCheckDone"),
-            onCancel: Application.Selector(this as ComixSettingsForm, "handleCheckCancelled"),
-          }),
           LabelRow("comix_pass", {
             title: "comix Pass",
             value: comixPass ? "Saved" : "None",
             subtitle: expiry(comixPass?.expires),
           }),
-          WebViewRow("comix_check", {
-            title: "Do comix's Check",
+          WebViewRow("checks", {
+            title: "Do the Checks",
             request: {
               url: checkPage(),
               method: "GET",
