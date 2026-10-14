@@ -38,6 +38,7 @@ import {
 } from "../utils/filters";
 import { clearLog, getLog, logEvent } from "../utils/log";
 import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
+import { CHAPTER_LIST_SPEEDS, getChapterListSpeed } from "../utils/webView";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
   return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
@@ -158,7 +159,7 @@ export class ComixSettingsForm extends Form {
         {
           id: "chapter_lists",
           footer:
-            "comix hands out chapter lists 20 at a time, 3 seconds apart, so a long list (500+ entries) takes a minute or two the first time. Lists are remembered: opening a manga again only asks for what's new.",
+            "comix hands out chapter lists 20 at a time, so a long list (500+ entries) takes a while the first time: about 30 s at Fast, 1 min at Balanced, 1½ min at Safe. Faster speeds may make comix ask for its check; if that happens, pick a safer one. Lists are remembered: opening a manga again only asks for what's new.",
         },
         [
           SelectRow("chapter_list_mode", {
@@ -172,6 +173,19 @@ export class ComixSettingsForm extends Form {
             onValueChange: Application.Selector(
               this as ComixSettingsForm,
               "handleChapterListModeChange",
+            ),
+          }),
+          SelectRow("chapter_list_speed", {
+            title: "Chapter List Speed",
+            subtitle: getChapterListSpeed().title,
+            layout: "list",
+            value: [getChapterListSpeed().id],
+            items: CHAPTER_LIST_SPEEDS.map((speed) => ({ id: speed.id, title: speed.title })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleChapterListSpeedChange",
             ),
           }),
         ],
@@ -223,6 +237,11 @@ export class ComixSettingsForm extends Form {
       (cookie) => !/(^|\.)comix\.to$/i.test(cookie.domain.replace(/^\./, "")),
     );
     logEvent("check browser", "forgot all comix.to cookies");
+    this.reloadForm();
+  }
+
+  async handleChapterListSpeedChange(value: string[]) {
+    if (value[0]) Application.setState(value[0], "chapter_list_speed");
     this.reloadForm();
   }
 

@@ -29,10 +29,37 @@ import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
 // can't pass it (nobody can see it), so don't keep the reader waiting long.
 const CHECK_WAIT_MS = 6000;
 
-// Like the Mihon extension: comix blocks clients that page chapter lists
-// faster than one request every 3 seconds. Every chapter-list request (the
-// title page's own one included) is kept at least this far from the last one.
-const CHAPTER_REQUEST_GAP_MS = 3000;
+// How far apart chapter-list requests go (the title page's own included):
+// Settings → Chapter List Speed. The Mihon extension found comix blocks
+// clients paging faster than every 3 s; quicker settings may get its check.
+export interface ChapterListSpeed {
+  id: string;
+  title: string;
+  gapMs: number;
+}
+
+export const CHAPTER_LIST_SPEEDS: ChapterListSpeed[] = [
+  { id: "fast", title: "Fast (1 s apart, comix may ask for its check)", gapMs: 1000 },
+  { id: "balanced", title: "Balanced (2 s apart)", gapMs: 2000 },
+  { id: "safe", title: "Safe (3 s apart)", gapMs: 3000 },
+];
+
+export function getChapterListSpeed(): ChapterListSpeed {
+  const id = Application.getState("chapter_list_speed") as string | undefined;
+  return CHAPTER_LIST_SPEEDS.find((speed) => speed.id === id) ?? CHAPTER_LIST_SPEEDS[1]!;
+}
+
+export const chapterGapMs = (): number => getChapterListSpeed().gapMs;
+
+// comix refused a chapter list: suggest a safer speed.
+function suggestSaferSpeed(why: string): void {
+  const speed = getChapterListSpeed();
+  if (speed.gapMs >= 3000) return;
+  logEvent(
+    "chapter list",
+    `comix refused a chapter list at ${speed.gapMs / 1000} s spacing (${why}). If it keeps happening, pick a safer Chapter List Speed in Comix's settings.`,
+  );
+}
 
 // Runs first in every hidden page, before the site's scripts:
 // - notes when comix puts up its own check (a captcha_required answer, a
@@ -302,7 +329,7 @@ export async function checkError(what: string, why?: CheckWhy | null): Promise<C
 // `urgent` (opening a chapter) goes ahead of chapter lists still waiting.
 // Every run has a time limit: a WebView that never answers gives an error
 // instead of loading forever, and the queue moves on.
-// `paced` (chapter lists): starts no sooner than CHAPTER_REQUEST_GAP_MS after
+// `paced` (chapter lists): starts no sooner than chapterGapMs() after
 // the last paced page ended, less the second or so the title page takes to
 // make its own chapter request, so a library refresh doesn't fire them back
 // to back.
@@ -336,7 +363,7 @@ async function runProxiedWebView<T>(
 ): Promise<T> {
   const run = async (): Promise<T> => {
     if (paced) {
-      const wait = lastPacedRunEnded + CHAPTER_REQUEST_GAP_MS - PAGE_START_MS - Date.now();
+      const wait = lastPacedRunEnded + chapterGapMs() - PAGE_START_MS - Date.now();
       if (wait > 0) await Application.sleep(wait / 1000);
     }
     try {
@@ -648,7 +675,7 @@ const SITE_CHAPTERS_BOOTSTRAP = `
 
 // Reads a manga's chapters from its title page: the page's own first page
 // (20 newest), then pages of 20 like the site's pager, each at least
-// CHAPTER_REQUEST_GAP_MS after the one before (comix refuses bigger pages past
+// chapterGapMs() after the one before (comix refuses bigger pages past
 // the first, and quicker paging). Stops early, keeping what it has:
 // - `refresh`: after the page's own first page (a library update)
 // - when a page holds a chapter already known (`known`, from a complete list)
@@ -668,7 +695,7 @@ function buildChapterListInject(mangaId: string, opts: ChapterListOptions): stri
 return (async function () {
   ${CHECK_HELPERS}
   var started = Date.now();
-  var GAP = ${CHAPTER_REQUEST_GAP_MS};
+  var GAP = ${chapterGapMs()};
   var REFRESH = ${opts.refresh};
   var START = ${opts.startPage === null ? "null" : Number(opts.startPage)};
   var BUDGET = ${Math.max(0, Math.round(opts.budgetMs))};
@@ -828,7 +855,10 @@ export async function chapterListViaWebView(
 
   if (!result.ok) {
     if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter list of ${mangaId}`);
-    if (result.check) throw await checkError(`chapter list of ${mangaId}`, result.why);
+    if (result.check) {
+      suggestSaferSpeed(mangaId);
+      throw await checkError(`chapter list of ${mangaId}`, result.why);
+    }
     const status = result.status;
     logEvent(
       "chapter list failed",
@@ -843,6 +873,7 @@ export async function chapterListViaWebView(
     }
     throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);
   }
+  if (result.stopped && /check/.test(result.stopped.reason)) suggestSaferSpeed(mangaId);
   return result;
 }
 

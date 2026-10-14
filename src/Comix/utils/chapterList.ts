@@ -11,9 +11,9 @@ import {
   type StoredChapter,
 } from "./chapterCache";
 import { errorText, logEvent } from "./log";
-import { chapterListViaWebView } from "./webView";
+import { chapterGapMs, chapterListViaWebView } from "./webView";
 
-// comix only lets chapter lists be read 20 at a time, 3 seconds apart, so a
+// comix only lets chapter lists be read 20 at a time, a few seconds apart, so a
 // long list (600+ entries) takes minutes. Instead:
 // - first open: the newest chapters within about 20 s of paging; the rest is
 //   read in the background, a few pages at a time, and remembered
@@ -114,7 +114,7 @@ export async function getChapterItems(
   } else if (nextPage !== null) {
     logEvent(
       "chapter list",
-      `${mangaId}: showing the newest ${items.length} of ${total} chapters after ${seconds(started)}s; the rest loads in the background (about ${Math.ceil((total - items.length) / 20) * 3 + 10}s), then pull down on the manga's chapter list to see them${frame}`,
+      `${mangaId}: showing the newest ${items.length} of ${total} chapters after ${seconds(started)}s; the rest loads in the background (about ${Math.ceil(((total - items.length) / 20) * (chapterGapMs() / 1000)) + 10}s), then pull down on the manga's chapter list to see them${frame}`,
     );
     // Pick up a page early: new chapters since may have moved the pages along.
     const from = quick ? Math.max(2, nextPage - 1) : nextPage;
@@ -128,7 +128,7 @@ export async function getChapterItems(
           ? `${fresh.length} read, the rest remembered`
           : result.via === "page" && result.pages <= 1
             ? "from the title page"
-            : `${result.pages} of ${result.lastPage} pages of 20, 3 s apart`;
+            : `${result.pages} of ${result.lastPage} pages of 20, ${chapterGapMs() / 1000} s apart`;
     logEvent(
       "chapter list",
       `${mangaId}: ${items.length} chapters (${how}) in ${seconds(started)}s${frame}`,

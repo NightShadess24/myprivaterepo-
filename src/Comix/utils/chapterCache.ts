@@ -6,7 +6,7 @@ import { parseRelativeDate } from "../parsers";
 
 // Chapter lists are remembered per manga, so opening a manga again only asks
 // comix for what's new (usually one request) instead of paging through the
-// whole list again, 20 chapters and 3 seconds at a time. Kept compact (one
+// whole list again, 20 chapters and a few seconds at a time. Kept compact (one
 // short row per chapter) for the most recently opened manga.
 
 export interface StoredChapter extends ChapterItem {
