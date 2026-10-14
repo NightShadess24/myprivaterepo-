@@ -646,22 +646,51 @@ const SITE_CHAPTERS_BOOTSTRAP = `
 })();
 `;
 
-// After the title page's own first page: pages of 20, newest first (like the
-// site's pager), each at least CHAPTER_REQUEST_GAP_MS after the one before.
-// A library refresh (`refresh`) only needs the newest page: the app merges
-// chapters.
-function buildChapterListInject(mangaId: string, refresh: boolean): string {
+// Reads a manga's chapters from its title page: the page's own first page
+// (20 newest), then pages of 20 like the site's pager, each at least
+// CHAPTER_REQUEST_GAP_MS after the one before (comix refuses bigger pages past
+// the first, and quicker paging). Stops early, keeping what it has:
+// - `refresh`: after the page's own first page (a library update)
+// - when a page holds a chapter already known (`known`, from a complete list)
+// - after `budgetMs` of paging, saying which page is next (`nextPage`)
+// - when comix refuses or a request fails or hangs (`stopped`)
+// `startPage` reads on from there instead (a background continuation).
+interface ChapterListOptions {
+  refresh: boolean;
+  known: readonly number[];
+  startPage: number | null;
+  budgetMs: number;
+}
+
+function buildChapterListInject(mangaId: string, opts: ChapterListOptions): string {
   const id = JSON.stringify(mangaId);
   return `
 return (async function () {
   ${CHECK_HELPERS}
   var started = Date.now();
   var GAP = ${CHAPTER_REQUEST_GAP_MS};
-  var done = function (items, via, pages, lastPage) {
-    return JSON.stringify({ ok: true, items: items, via: via, pages: pages, lastPage: lastPage, frame: frame.seen });
+  var REFRESH = ${opts.refresh};
+  var START = ${opts.startPage === null ? "null" : Number(opts.startPage)};
+  var BUDGET = ${Math.max(0, Math.round(opts.budgetMs))};
+  var known = {};
+  ${JSON.stringify(opts.known)}.forEach(function (k) { known[k] = true; });
+  var hasKnown = function (items) {
+    return (items || []).some(function (item) { return item && known[item.id]; });
   };
 
-  // The title page's own newest chapters.
+  var chapters = [];
+  var page = 1;
+  var lastPage = 1;
+  var total = null;
+  var via = "api";
+  var result = function (extra) {
+    var out = { ok: true, items: chapters, via: via, pages: page - 1, lastPage: lastPage, total: total, frame: frame.seen };
+    for (var k in extra) out[k] = extra[k];
+    return JSON.stringify(out);
+  };
+
+  // The title page's own newest chapters (also when reading on: it tells when
+  // the page's own request went out, for the pacing).
   while (!window.__comixSiteChapters && Date.now() - started < 8000) {
     if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
@@ -669,67 +698,80 @@ return (async function () {
     await sleep(100);
   }
   var site = window.__comixSiteChapters;
-  if (site) {
+  if (site && START === null) {
     var siteMeta = site.meta || {};
-    var whole = (siteMeta.lastPage || 1) <= 1 ||
-      (typeof siteMeta.total === "number" && site.items.length >= siteMeta.total);
-    if (${refresh} || whole) return done(site.items, "page", 0, 1);
+    chapters = site.items.slice();
+    via = "page";
+    page = 2;
+    lastPage = siteMeta.lastPage || 1;
+    total = typeof siteMeta.total === "number" ? siteMeta.total : null;
+    if (REFRESH || hasKnown(chapters) || page > lastPage) {
+      return result({ nextPage: page > lastPage ? null : page, reachedKnown: hasKnown(chapters) });
+    }
+  } else if (START !== null) {
+    page = START;
+    lastPage = START;
   }
 
   var deadline = started + 15000;
   while (!window.__comixAxios && Date.now() < deadline) {
-    if (blocked()) return cloudflareResult();
-    if (stuck()) return checkResult();
+    if (blocked()) return chapters.length ? result({ nextPage: page, stopped: { page: page, reason: "Cloudflare refused" } }) : cloudflareResult();
+    if (stuck()) return chapters.length ? result({ nextPage: page, stopped: { page: page, reason: "comix wanted its check" } }) : checkResult();
     await sleep(100);
   }
   var axios = window.__comixAxios;
   if (!axios) {
+    if (chapters.length) return result({ nextPage: page, stopped: { page: page, reason: "comix's page didn't start" } });
     if (check.seen) return checkResult();
     return JSON.stringify({ ok: false, status: 503, error: "comix's page didn't start (no API client after 15 s)" });
   }
 
   var path = "/manga/" + ${id} + "/chapters";
-  var maxPages = ${refresh ? 1 : 1000};
-  // Go on from the page's own first page (20 chapters), the same way its pager
-  // does: 20 at a time, newest first, 3 s apart. comix refuses bigger pages
-  // past the first ("captcha required"), even with a fresh pass.
-  var chapters = site ? site.items.slice() : [];
-  var page = site ? 2 : 1;
-  var lastPage = site ? ((site.meta || {}).lastPage || 1) : 1;
-  var stopBy = started + 130000;
-  // A refusal or failure partway keeps the chapters already read.
-  var partial = function (reason) {
-    return JSON.stringify({
-      ok: true, items: chapters, via: site ? "page+api" : "api", pages: page - 1, lastPage: lastPage,
-      frame: frame.seen, stopped: { page: page, reason: reason },
-    });
+  var maxPages = REFRESH ? 1 : 100000;
+  var stopAt = Date.now() + BUDGET;
+  var stop = function (reason) {
+    return chapters.length || START !== null
+      ? result({ nextPage: page, stopped: { page: page, reason: reason } })
+      : null;
   };
   // The page's own request was just before its answer arrived.
   var lastRequest = site ? site.at : Date.now() - GAP + 1000;
   try {
-    while (page <= lastPage && page <= maxPages) {
-      if (Date.now() > stopBy) return partial("out of time");
+    while ((page <= lastPage || START !== null && page === START) && page <= maxPages) {
+      if (Date.now() > stopAt && (chapters.length || START !== null)) return result({ nextPage: page });
       while (Date.now() < lastRequest + GAP) {
-        if (blocked()) return chapters.length ? partial("Cloudflare refused") : cloudflareResult();
-        if (stuck()) return chapters.length ? partial("comix wanted its check") : checkResult();
+        if (blocked()) return stop("Cloudflare refused") || cloudflareResult();
+        if (stuck()) return stop("comix wanted its check") || checkResult();
         await sleep(100);
       }
       lastRequest = Date.now();
-      var resp = await orCheck(axios.get(path, { params: { page: page, limit: 20, "order[number]": "desc" } }));
-      if (stopper(resp)) return chapters.length ? partial("comix wanted its check") : stopper(resp);
+      var TOO_SLOW = {};
+      var resp = await Promise.race([
+        orCheck(axios.get(path, { params: { page: page, limit: 20, "order[number]": "desc" } })),
+        sleep(15000).then(function () { return TOO_SLOW; }),
+      ]);
+      if (resp === TOO_SLOW) {
+        return stop("comix took over 15 s to answer") ||
+          JSON.stringify({ ok: false, status: 504, error: "comix took over 15 s to answer" });
+      }
+      if (stopper(resp)) return stop("comix wanted its check") || stopper(resp);
       var data = resp.data || {};
-      chapters = chapters.concat(data.items || []);
+      var items = data.items || [];
+      chapters = chapters.concat(items);
       var meta = data.meta || {};
       lastPage = meta.lastPage || page;
+      if (typeof meta.total === "number") total = meta.total;
       page = page + 1;
+      if (hasKnown(items)) return result({ nextPage: page > lastPage ? null : page, reachedKnown: true });
+      if (items.length === 0) break;
     }
-    return done(chapters, site ? "page+api" : "api", page - 1, lastPage);
+    return result({ nextPage: page <= lastPage && page <= maxPages ? page : null });
   } catch (e) {
     var wanted = refused(e);
     var resp2 = e && e.response;
-    if (chapters.length) {
-      return partial(wanted ? "comix wanted its check" : "HTTP " + ((resp2 && resp2.status) || "error"));
-    }
+    var why = wanted ? "comix wanted its check" : "HTTP " + ((resp2 && resp2.status) || "error");
+    var partial = stop(why);
+    if (partial) return partial;
     if (wanted) return checkResult();
     return JSON.stringify({
       ok: false,
@@ -744,32 +786,35 @@ return (async function () {
 `;
 }
 
-// Load a manga's chapter list from the title page: what the page loads by
-// itself first, then (only when there's more) the site's own API client, paced.
-// `refresh` (a library update) reads only the newest page.
+export interface ChapterListResult {
+  items: ChapterItem[];
+  via: string;
+  pages: number;
+  lastPage: number;
+  total: number | null;
+  nextPage: number | null;
+  reachedKnown?: boolean;
+  stopped?: { page: number; reason: string };
+  frame?: boolean;
+}
+
+// One run of the title page (see buildChapterListInject). Errors (Cloudflare,
+// comix's check with nothing read) are thrown as the banner that resolves them.
 export async function chapterListViaWebView(
   mangaId: string,
   cookieInterceptor: CookieStorageInterceptor,
-  { refresh = false }: { refresh?: boolean } = {},
-): Promise<ChapterItem[]> {
+  opts: ChapterListOptions,
+): Promise<ChapterListResult> {
   const pageUrl = `${DOMAIN}/title/${mangaId}`;
-  const started = Date.now();
-  const result = parseInjectResult<{
-    items: ChapterItem[];
-    via: string;
-    pages: number;
-    lastPage: number;
-    frame?: boolean;
-    stopped?: { page: number; reason: string };
-  }>(
+  const result = parseInjectResult<ChapterListResult>(
     await runProxiedWebView<unknown>(
       pageUrl,
       BOOTSTRAP_AXIOS + SITE_CHAPTERS_BOOTSTRAP,
       cookieInterceptor,
       {
         paced: true,
-        inject: buildChapterListInject(mangaId, refresh),
-        timeoutSeconds: 150,
+        inject: buildChapterListInject(mangaId, opts),
+        timeoutSeconds: Math.round(opts.budgetMs / 1000) + 60,
         what: "loading the chapter list",
       },
     ),
@@ -792,25 +837,7 @@ export async function chapterListViaWebView(
     }
     throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);
   }
-
-  if (result.stopped) {
-    logEvent(
-      "chapter list cut short",
-      `${mangaId}: showing the newest ${result.items.length} chapters; page ${result.stopped.page} of ${result.lastPage} failed (${result.stopped.reason}). Open the manga again later for the rest.`,
-    );
-  } else if (!refresh) {
-    const how =
-      result.via === "page"
-        ? "from the title page"
-        : `${result.pages} of ${result.lastPage} pages of 20, 3 s apart`;
-    logEvent(
-      "chapter list",
-      `${mangaId}: ${result.items.length} chapters (${how}) in ${Math.round(
-        (Date.now() - started) / 1000,
-      )}s` + (result.frame ? ", comix showed its check frame (carried on)" : ""),
-    );
-  }
-  return result.items;
+  return result;
 }
 
 // `/browse` serves an empty shell and loads its list via an encrypted XHR, so

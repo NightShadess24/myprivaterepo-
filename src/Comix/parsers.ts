@@ -96,7 +96,12 @@ export function parseMangaDetails(mangaId: string, html: string): SourceManga {
   };
 }
 
-export const parseChapters = (sourceManga: SourceManga, items: ChapterItem[]): Chapter[] =>
+// `date`: when the chapter was uploaded (ms), worked out when it was first read
+// and kept with remembered chapter lists (comix only gives "2 days ago").
+export const parseChapters = (
+  sourceManga: SourceManga,
+  items: (ChapterItem & { date?: number })[],
+): Chapter[] =>
   items.map((chapter) => ({
     chapterId: chapter.id.toString(),
     sourceManga,
@@ -108,8 +113,10 @@ export const parseChapters = (sourceManga: SourceManga, items: ChapterItem[]): C
       ? `★ ${chapter.group?.name ?? "Official"}`
       : (chapter.group?.name ?? "Unknown"),
     sortingIndex: chapter.number,
-    publishDate: parseRelativeDate(chapter.createdAtFormatted),
-    additionalInfo: { vote: chapter.votes.toString(), url: chapter.url },
+    publishDate: chapter.date
+      ? new Date(chapter.date)
+      : parseRelativeDate(chapter.createdAtFormatted),
+    additionalInfo: { vote: String(chapter.votes ?? 0), url: chapter.url },
   }));
 
 export function parseChapterDetails(
@@ -169,7 +176,7 @@ function toContentRating(content: string): ContentRating {
   }
 }
 
-function parseRelativeDate(value: string): Date {
+export function parseRelativeDate(value: string): Date {
   const now = new Date();
   const match = value.match(/^(\d+)\s*(mo|yr|[smhdwy])s?(\s+ago)?$/i);
   if (!match) {

@@ -28,6 +28,7 @@ import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
 import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
+import { getChapterItems } from "./utils/chapterList";
 import { describeCookies, keepSiteCookies } from "./utils/cookies";
 import {
   defaultSearchMetadata,
@@ -45,7 +46,7 @@ import {
   useYearFilter,
 } from "./utils/filters";
 import { errorText, logEvent } from "./utils/log";
-import { browseViaWebView, chapterListViaWebView, pageListViaWebView } from "./utils/webView";
+import { browseViaWebView, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   private globalRateLimiter = new SiteRateLimiter("rateLimiter", {
@@ -324,12 +325,14 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
   }
 
-  // `sinceDate` is set for library updates: then only the newest 100 chapters
-  // are read (the app merges them into what it has), one request per title.
+  // `sinceDate` is set for library updates: then only the title page's own
+  // newest page is read (the app merges it into what it has). See chapterList.
   async getChapters(sourceManga: SourceManga, sinceDate?: Date): Promise<Chapter[]> {
-    const items = await chapterListViaWebView(sourceManga.mangaId, this.cookieStorageInterceptor, {
-      refresh: sinceDate !== undefined,
-    });
+    const items = await getChapterItems(
+      sourceManga.mangaId,
+      this.cookieStorageInterceptor,
+      sinceDate !== undefined,
+    );
     return parseChapters(sourceManga, items);
   }
 
