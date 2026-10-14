@@ -1,8 +1,14 @@
 // Replaces the toolchain's generated homepage (`bundles/index.html`) with a
-// static page in the style of the classic Paperback 0.8 repository homepage:
-// logo, name, "Add to Paperback" button, guide, base URL and a plain list of
-// sources with their badges. Runs after `paperback-cli bundle`.
+// static page that has two themes, picked with the toggle in the corner and
+// remembered per browser:
 //
+//   - Noir (default): dark, shop-style page — slim top bar, filter tabs,
+//     banner links with a gold accent, serif display headings and a grid of
+//     source cards with icons, tags, versions and one-tap install links.
+//   - Classic: the classic Paperback 0.8 repository page — logo, "Add to
+//     Paperback" button, guide, base URL and a plain list of sources.
+//
+// Runs after `paperback-cli bundle`.
 // Usage: node scripts/homepage.mjs [bundleFolder]
 
 import fs from "node:fs";
@@ -32,92 +38,92 @@ const escapeHtml = (value) =>
 const addRepoLink = (baseUrl) =>
   `paperback://addRepo?displayName=${encodeURIComponent(name)}&url=${encodeURIComponent(baseUrl)}`;
 
+const installLink = (id, baseUrl) =>
+  `paperback://installExtensions?data=${Buffer.from(JSON.stringify([[id, baseUrl]])).toString("base64")}`;
+
 const RATING_TAGS = {
   MATURE: { label: "Mature", type: "warning" },
   ADULT: { label: "18+", type: "danger" },
 };
 
-function sourceItem(source) {
-  const tags = [];
-  for (const badge of source.badges ?? []) {
-    tags.push(
-      `<span class="el-tag el-tag--dark el-tag--mini" style="background-color:${escapeHtml(
-        badge.backgroundColor,
-      )};border-color:${escapeHtml(badge.backgroundColor)};color:${escapeHtml(badge.textColor)}">${escapeHtml(
-        badge.label,
-      )}</span>`,
-    );
-  }
+function sourceTags(source) {
+  const tags = (source.badges ?? []).map((badge) => ({
+    label: badge.label,
+    style: `background-color:${badge.backgroundColor};border-color:${badge.backgroundColor};color:${badge.textColor}`,
+  }));
   const rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
-  if (rating) {
-    tags.push(
-      `<span class="el-tag el-tag--dark el-tag--mini el-tag--${rating.type}">${rating.label}</span>`,
-    );
-  }
-  return `<li title="${escapeHtml(source.description ?? "")}">${escapeHtml(source.name)}${tags.join("")}</li>`;
+  if (rating) tags.push({ label: rating.label, type: rating.type });
+  return tags;
+}
+
+const tagHtml = (tag) =>
+  `<span class="el-tag el-tag--dark el-tag--mini${tag.type ? ` el-tag--${tag.type}` : ""}"${
+    tag.style ? ` style="${escapeHtml(tag.style)}"` : ""
+  }>${escapeHtml(tag.label)}</span>`;
+
+function sourceItem(source, baseUrl) {
+  const tags = sourceTags(source);
+  const filters = tags.map((tag) => tag.label).join("|");
+  const icon = `${encodeURIComponent(source.id)}/static/${encodeURIComponent(source.icon ?? "icon.png")}`;
+  const developers = (source.developers ?? []).map((dev) => dev.name).join(", ");
+  return `<li class="source" data-tags="${escapeHtml(filters)}" title="${escapeHtml(source.description ?? "")}">
+<span class="source__icon"><img src="${icon}" alt="" loading="lazy" onerror="this.remove()"></span>
+<span class="source__tags">${tags.map(tagHtml).join("")}</span>
+<span class="source__name">${escapeHtml(source.name)}</span>${tags
+    .map(tagHtml)
+    .map((t) => t.replace('class="', 'class="inline '))
+    .join("")}
+<span class="source__version">v${escapeHtml(source.version)}</span>
+<span class="source__dev">${developers ? `by ${escapeHtml(developers)}` : "&nbsp;"}</span>
+<a class="source__install js-install" data-id="${escapeHtml(source.id)}" href="${escapeHtml(
+    installLink(source.id, baseUrl),
+  )}">Install in Paperback</a>
+</li>`;
 }
 
 const baseUrl = deployedBaseUrl();
 const sources = [...versioning.sources].sort((a, b) => a.name.localeCompare(b.name));
+const filterLabels = [
+  ...new Set(sources.flatMap((source) => sourceTags(source).map((t) => t.label))),
+];
 
 const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="noir">
 <head>
 <meta name="robots" content="noindex">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="https://paperback.moe/pb-logo.svg">
 <title>${escapeHtml(name)}</title>
+<script>
+try {
+  var saved = localStorage.getItem("repo-theme");
+  if (saved === "classic" || saved === "noir") document.documentElement.dataset.theme = saved;
+} catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-body {
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-  -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
-  background-color: #fff;
-  padding: 3.6rem 2rem 1.5rem;
-  text-align: center;
-}
+/* ---------- Shared ---------- */
+* { box-sizing: border-box; }
 .title { font-weight: 700; margin-bottom: 8px; }
-
-/* Header */
 .icon { max-height: 8rem; }
-h1 { font-size: 1.7rem; margin: 1rem auto; }
-.pageDescription { max-width: 35rem; font-size: 1.3rem; line-height: 1.3; color: #6a8bad; margin: 1rem auto; }
-.addToPaperbackButton {
-  display: inline-block;
-  width: 10rem;
-  line-height: 1.7;
-  margin: .25rem;
-  padding: .4rem;
-  color: #fff;
-  background-color: #2e84bf;
-  border-bottom: 1px solid #2977ac;
-  border-radius: 4px;
-  transition: background-color .1s ease;
-}
-.addToPaperbackButton:hover { background-color: #3992cf; text-decoration: none; }
-
-/* Content */
-.content { margin: auto; max-width: 920px; text-align: left; }
-blockquote {
-  font-size: .9rem;
-  color: #999;
-  border-left: .2rem solid #dfe2e5;
-  margin: 1rem 0;
-  padding: .25rem 0 .25rem 1rem;
-  line-height: 1.6;
-}
-blockquote p { margin-top: 2px; margin-bottom: 2px; }
-a { font-weight: 500; text-decoration: none; color: #2196f3; }
-a:hover { text-decoration: underline; }
-
-/* Base URL */
-.baseUrl { background-color: #f0f4f8; border-radius: .4rem; padding: .1rem .1rem; overflow-wrap: anywhere; }
-.baseUrl p { margin-left: 16px; }
-
-/* Available sources */
+.noir-only { display: none; }
+.classic-only { display: revert; }
 ul { margin-top: 0; }
-#listDiv { line-height: 1.5; }
+
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 20;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
 
 /* Tags, after Element's tag component (https://element.eleme.io/#/en-US/component/tag) */
 .el-tag {
@@ -131,7 +137,6 @@ ul { margin-top: 0; }
   background-color: #ecf5ff;
   border: 1px solid #d9ecff;
   border-radius: 4px;
-  box-sizing: border-box;
   white-space: nowrap;
 }
 .el-tag--dark { background-color: #409eff; border-color: #409eff; color: #fff; }
@@ -140,16 +145,267 @@ ul { margin-top: 0; }
 .el-tag--dark.el-tag--info { background-color: #909399; border-color: #909399; color: #fff; }
 .el-tag--dark.el-tag--danger { background-color: #f56c6c; border-color: #f56c6c; color: #fff; }
 .el-tag--dark.el-tag--warning { background-color: #e6a23c; border-color: #e6a23c; color: #fff; }
+
+/* ---------- Classic (Paperback 0.8 repository page) ---------- */
+[data-theme="classic"] body {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2c3e50;
+  background-color: #fff;
+  margin: 8px;
+  padding: 3.6rem 2rem 1.5rem;
+  text-align: center;
+}
+[data-theme="classic"] h1 { font-size: 1.7rem; margin: 1rem auto; }
+[data-theme="classic"] .pageDescription { max-width: 35rem; font-size: 1.3rem; line-height: 1.3; color: #6a8bad; margin: 1rem auto; }
+[data-theme="classic"] .addToPaperbackButton {
+  display: inline-block;
+  width: 10rem;
+  line-height: 1.7;
+  margin: .25rem;
+  padding: .4rem;
+  color: #fff;
+  background-color: #2e84bf;
+  border-bottom: 1px solid #2977ac;
+  border-radius: 4px;
+  transition: background-color .1s ease;
+}
+[data-theme="classic"] .addToPaperbackButton:hover { background-color: #3992cf; text-decoration: none; }
+[data-theme="classic"] .content { margin: auto; max-width: 920px; text-align: left; }
+[data-theme="classic"] blockquote {
+  font-size: .9rem;
+  color: #999;
+  border-left: .2rem solid #dfe2e5;
+  margin: 1rem 0;
+  padding: .25rem 0 .25rem 1rem;
+  line-height: 1.6;
+}
+[data-theme="classic"] blockquote p { margin-top: 2px; margin-bottom: 2px; }
+[data-theme="classic"] a { font-weight: 500; text-decoration: none; color: #2196f3; }
+[data-theme="classic"] a:hover { text-decoration: underline; }
+[data-theme="classic"] .baseUrl { background-color: #f0f4f8; border-radius: .4rem; padding: .1rem .1rem; overflow-wrap: anywhere; }
+[data-theme="classic"] .baseUrl p { margin-left: 16px; }
+[data-theme="classic"] #listDiv { line-height: 1.5; }
+[data-theme="classic"] .sources { padding-left: 40px; }
+[data-theme="classic"] .source { list-style: disc; }
+[data-theme="classic"] .source__icon,
+[data-theme="classic"] .source__tags,
+[data-theme="classic"] .source__version,
+[data-theme="classic"] .source__dev,
+[data-theme="classic"] .source__install { display: none; }
+[data-theme="classic"] .theme-toggle { background: #fff; color: #2c3e50; border: 1px solid #dfe2e5; }
+
+/* ---------- Noir (dark shop style) ---------- */
+[data-theme="noir"] {
+  --bg: #1b1b1d;
+  --surface: #232326;
+  --line: #e9e9e9;
+  --text: #f2f2f2;
+  --muted: #a3a3aa;
+  --gold: #c9a45c;
+  --blue: #5d9dfe;
+  --maroon: #8e2433;
+  color-scheme: dark;
+}
+[data-theme="noir"] body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+[data-theme="noir"] .noir-only { display: revert; }
+[data-theme="noir"] .classic-only,
+[data-theme="noir"] [hidden] { display: none !important; }
+[data-theme="noir"] a { color: var(--blue); text-decoration: none; }
+[data-theme="noir"] .theme-toggle { background: transparent; color: var(--text); border: 1px solid #4a4a50; top: 9px; }
+[data-theme="noir"] .theme-toggle:hover { border-color: var(--text); }
+
+[data-theme="noir"] .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 52px;
+  line-height: 52px;
+  text-align: center;
+  background: var(--bg);
+  padding: 0 104px; /* room for the theme toggle */
+  border-bottom: 1px solid #2c2c30;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme="noir"] .tabs {
+  display: flex;
+  gap: 26px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 18px 16px 14px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+[data-theme="noir"] .tabs::-webkit-scrollbar { display: none; }
+[data-theme="noir"] .tab {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background-image: linear-gradient(var(--text), var(--text));
+  background-size: 0 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size .25s ease;
+}
+[data-theme="noir"] .tab:hover,
+[data-theme="noir"] .tab[aria-pressed="true"] { background-size: 100% 1px; }
+[data-theme="noir"] .tab--brand { font-family: "Cormorant Garamond", "Times New Roman", serif; font-size: 17px; font-weight: 600; }
+
+[data-theme="noir"] main { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+[data-theme="noir"] .banner {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 14px 0;
+  padding: 22px 22px;
+  background: #0d0d0e;
+  border-top: 3px solid var(--line);
+  color: var(--gold);
+  text-decoration: none;
+}
+[data-theme="noir"] .banner__label {
+  flex: none;
+  width: 140px;
+  padding-right: 22px;
+  border-right: 1px solid #55555a;
+  color: var(--text);
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+[data-theme="noir"] .banner__text { flex: 1; font-size: clamp(17px, 3.4vw, 28px); font-weight: 700; letter-spacing: .08em; }
+[data-theme="noir"] .banner__chevron { flex: none; font-size: 28px; font-weight: 300; }
+[data-theme="noir"] .banner:hover .banner__chevron { transform: translateX(3px); transition: transform .15s ease; }
+
+[data-theme="noir"] .hero { text-align: center; padding: 56px 0 8px; }
+[data-theme="noir"] .hero h1 {
+  margin: 0;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: clamp(34px, 7vw, 56px);
+  font-weight: 600;
+  line-height: 1.05;
+}
+[data-theme="noir"] .hero p { margin: 14px auto 0; max-width: 34rem; color: var(--muted); line-height: 1.6; }
+[data-theme="noir"] .baseUrlBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 640px;
+  margin: 26px auto 0;
+  padding: 8px 8px 8px 14px;
+  background: #fefefe;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+[data-theme="noir"] .baseUrlBar code { flex: 1; color: #555; font-size: 13px; overflow-wrap: anywhere; text-align: left; }
+[data-theme="noir"] .copyButton {
+  flex: none;
+  border: 0;
+  border-radius: 3px;
+  padding: 6px 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+[data-theme="noir"] .section-title {
+  margin: 64px 0 34px;
+  text-align: center;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: clamp(30px, 6vw, 48px);
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.1;
+  color: #e6e6e6;
+}
+[data-theme="noir"] .sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 30px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+[data-theme="noir"] .source { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+[data-theme="noir"] .source[hidden] { display: none; }
+[data-theme="noir"] .source__icon {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  margin-bottom: 6px;
+  background: #fff;
+}
+[data-theme="noir"] .source__icon img { width: 62%; height: 62%; object-fit: contain; border-radius: 18%; }
+[data-theme="noir"] .source__tags { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
+[data-theme="noir"] .source__tags .el-tag { margin: 0; border-radius: 0; background-color: var(--maroon); border-color: var(--maroon); color: #fff; }
+[data-theme="noir"] .source .el-tag.inline { display: none; }
+[data-theme="noir"] .source__name { font-weight: 600; line-height: 1.35; }
+[data-theme="noir"] .source__version { font-size: 14px; }
+[data-theme="noir"] .source__dev { font-size: 13px; color: var(--muted); }
+[data-theme="noir"] .source__install { font-size: 14px; }
+[data-theme="noir"] .source__install:hover { text-decoration: underline; }
+[data-theme="noir"] .empty { text-align: center; color: var(--muted); }
+[data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
+
+@media (max-width: 560px) {
+  [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
+  [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
+  [data-theme="noir"] .sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
+}
 </style>
 </head>
 <body>
-<header>
+<button class="theme-toggle" type="button" aria-label="Switch theme"></button>
+
+<!-- Noir: top bar, filter tabs, banners -->
+<div class="topbar noir-only">${escapeHtml(name)}</div>
+<nav class="tabs noir-only" aria-label="Filter sources">
+<button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
+${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${escapeHtml(label)}" aria-pressed="false">${escapeHtml(label)}</button>`).join("\n")}
+</nav>
+
+<main>
+<div class="noir-only">
+<a class="banner js-add-repo" href="${escapeHtml(addRepoLink(baseUrl))}"><span class="banner__label">Paperback</span><span class="banner__text">Add this repository</span><span class="banner__chevron">›</span></a>
+<a class="banner" href="https://paperback.moe/help/guides/adding-repos/"><span class="banner__label">Guide</span><span class="banner__text">How to add a repository</span><span class="banner__chevron">›</span></a>
+<section class="hero">
+<h1>${escapeHtml(name)}</h1>
+<p>${escapeHtml(description)}</p>
+<div class="baseUrlBar"><code class="js-base-url">${escapeHtml(baseUrl)}</code><button class="copyButton" type="button">Copy URL</button></div>
+</section>
+<h2 class="section-title">AVAILABLE<br>SOURCES</h2>
+</div>
+
+<!-- Classic: header, guide, base URL -->
+<header class="classic-only">
 <img class="icon" src="https://paperback.moe/icons/logo-alt.svg" alt="Repository logo" onerror="this.onerror=null;this.src='https://paperback.moe/pb-logo.svg'">
 <h1>${escapeHtml(name)}</h1>
 <p class="pageDescription">A Paperback extensions repository</p>
 <a class="addToPaperbackButton js-add-repo" href="${escapeHtml(addRepoLink(baseUrl))}">Add to Paperback</a>
 </header>
 <div class="content">
+<div class="classic-only">
 <p id="repositoryDescription">${escapeHtml(description)}</p>
 <blockquote>
 <p>A guide is available to learn everything about extensions repositories.</p>
@@ -160,25 +416,76 @@ ul { margin-top: 0; }
 </blockquote>
 <div class="baseUrl">
 <p class="title">Base URL:</p>
-<p id="baseUrl">${escapeHtml(baseUrl)}</p>
+<p class="js-base-url">${escapeHtml(baseUrl)}</p>
 </div>
-<div class="availableSources">
 <p class="title">Available Sources:</p>
+</div>
+
+<!-- Both: the sources -->
 <div id="listDiv">
-<ul>
-${sources.map(sourceItem).join("\n")}
+<ul class="sources">
+${sources.map((source) => sourceItem(source, baseUrl)).join("\n")}
 </ul>
+<p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
 </div>
-</div>
+</main>
+<footer class="noir-only">${escapeHtml(name)} · ${sources.length} sources · built ${escapeHtml(
+  versioning.buildTime.slice(0, 10),
+)}</footer>
+
 <script>
 (function () {
-  if (!/^https?:$/.test(location.protocol)) return;
-  var baseUrl = location.origin + location.pathname.replace(/\\/(index\\.html)?$/, "");
-  var link = "paperback://addRepo?displayName=" + encodeURIComponent(${JSON.stringify(name)}) +
-    "&url=" + encodeURIComponent(baseUrl);
-  document.getElementById("baseUrl").textContent = baseUrl;
-  document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = link; });
+  var root = document.documentElement;
+  var themes = { noir: "☀ Classic", classic: "☾ Noir" };
+  var toggle = document.querySelector(".theme-toggle");
+  function apply(theme) {
+    root.dataset.theme = theme;
+    toggle.textContent = themes[theme];
+    try { localStorage.setItem("repo-theme", theme); } catch (e) {}
+  }
+  toggle.addEventListener("click", function () { apply(root.dataset.theme === "noir" ? "classic" : "noir"); });
+  toggle.textContent = themes[root.dataset.theme] || themes.noir;
+
+  // Filter tabs (Noir)
+  var items = document.querySelectorAll(".source");
+  var empty = document.querySelector(".empty");
+  document.querySelectorAll(".tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var filter = tab.dataset.filter;
+      document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-pressed", String(t === tab)); });
+      var shown = 0;
+      items.forEach(function (item) {
+        var match = !filter || item.dataset.tags.split("|").indexOf(filter) !== -1;
+        item.hidden = !match;
+        if (match) shown++;
+      });
+      empty.hidden = shown > 0;
+    });
+  });
+  // Classic theme ignores the filter
+  toggle.addEventListener("click", function () {
+    if (root.dataset.theme === "classic") items.forEach(function (item) { item.hidden = false; });
+  });
+
+  // Base URL from the page's own address
+  var baseUrl = document.querySelector(".js-base-url").textContent.trim();
+  if (/^https?:$/.test(location.protocol)) {
+    baseUrl = location.origin + location.pathname.replace(/\\/(index\\.html)?$/, "");
+    var link = "paperback://addRepo?displayName=" + encodeURIComponent(${JSON.stringify(name)}) +
+      "&url=" + encodeURIComponent(baseUrl);
+    document.querySelectorAll(".js-base-url").forEach(function (el) { el.textContent = baseUrl; });
+    document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = link; });
+    document.querySelectorAll(".js-install").forEach(function (a) {
+      a.href = "paperback://installExtensions?data=" + btoa(JSON.stringify([[a.dataset.id, baseUrl]]));
+    });
+  }
+
+  var copy = document.querySelector(".copyButton");
+  copy.addEventListener("click", function () {
+    var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy URL"; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(baseUrl).then(done, function () {});
+  });
 })();
 </script>
 </body>
