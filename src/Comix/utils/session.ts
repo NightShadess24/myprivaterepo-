@@ -119,3 +119,23 @@ export function timeAgo(at: number): string {
 // with no new chapters. On by default; can be turned off in Settings.
 export const useQuickRefresh = () =>
   (Application.getState("quick_refresh") as boolean | undefined) ?? true;
+
+// How fast a library refresh loads titles (each one is a full site page in a
+// WebView): how many at once, and the gap between starting them.
+export interface RefreshPace {
+  id: string;
+  title: string;
+  concurrency: number;
+  gapMs: number;
+}
+
+export const REFRESH_PACES: RefreshPace[] = [
+  { id: "fast", title: "Fast (3 at a time)", concurrency: 3, gapMs: 250 },
+  { id: "normal", title: "Normal (1 per second)", concurrency: 1, gapMs: 1000 },
+  { id: "safe", title: "Safe (1 every 2.5 s)", concurrency: 1, gapMs: 2500 },
+];
+
+export function getRefreshPace(): RefreshPace {
+  const id = Application.getState("refresh_speed") as string | undefined;
+  return REFRESH_PACES.find((pace) => pace.id === id) ?? REFRESH_PACES[0];
+}

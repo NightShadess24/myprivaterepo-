@@ -31,7 +31,15 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
-import { clearLog, getLog, loadClearance, timeAgo, useQuickRefresh } from "../utils/session";
+import {
+  clearLog,
+  getLog,
+  getRefreshPace,
+  loadClearance,
+  REFRESH_PACES,
+  timeAgo,
+  useQuickRefresh,
+} from "../utils/session";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
   return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
@@ -72,7 +80,7 @@ export class ComixSettingsForm extends Form {
         {
           id: "library_refresh",
           footer:
-            "Quick refresh reads the site's latest-updates list and skips titles with no new chapters. Turn it off to check every title.",
+            "Quick refresh reads the site's latest-updates list and skips titles with no new chapters; turn it off to check every title. If Cloudflare keeps asking for a check during refreshes, pick a slower speed.",
         },
         [
           ToggleRow("quick_refresh", {
@@ -81,6 +89,19 @@ export class ComixSettingsForm extends Form {
             onValueChange: Application.Selector(
               this as ComixSettingsForm,
               "handleQuickRefreshChange",
+            ),
+          }),
+          SelectRow("refresh_speed", {
+            title: "Refresh Speed",
+            subtitle: getRefreshPace().title,
+            layout: "list",
+            value: [getRefreshPace().id],
+            items: REFRESH_PACES.map((pace) => ({ id: pace.id, title: pace.title })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleRefreshSpeedChange",
             ),
           }),
           NavigationRow("diagnostics", {
@@ -100,6 +121,11 @@ export class ComixSettingsForm extends Form {
 
   async handleQuickRefreshChange(value: boolean) {
     Application.setState(value, "quick_refresh");
+    this.reloadForm();
+  }
+
+  async handleRefreshSpeedChange(value: string[]) {
+    if (value[0]) Application.setState(value[0], "refresh_speed");
     this.reloadForm();
   }
 }

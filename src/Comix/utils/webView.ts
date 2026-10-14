@@ -11,7 +11,7 @@ import {
   markCloudflareChallenged,
   throwIfChallenged,
 } from "../network";
-import { clearanceCookie, logEvent, saveClearance } from "./session";
+import { clearanceCookie, getRefreshPace, logEvent, saveClearance } from "./session";
 
 // A bootstrap resolves `window.__comixResult__` with this instead of data when it
 // gives up, so the extension can tell a captcha apart from a timeout.
@@ -26,20 +26,38 @@ const isWebViewError = (value: unknown): value is WebViewError =>
   typeof (value as Partial<WebViewError>).__comixError === "string";
 
 // Each WebView run loads a whole site page: the HTML, the site's scripts and its
-// API calls. A library refresh asks for many titles at once, and that burst makes
-// Cloudflare challenge again and drop the clearance the reader just earned. So
-// background work (chapter lists, the update scan) goes one run at a time, about
-// 2.5 s apart with some jitter — the pace comix's own reader keeps when it opens
-// chapter after chapter. Reading and browsing don't wait in this queue.
-const WEBVIEW_GAP_MS = 2500;
-let webViewQueue: Promise<unknown> = Promise.resolve();
+// API calls. Background work (chapter lists, the update scan) goes through this
+// queue at the pace picked under Settings → Refresh Speed: how many runs at once
+// and the gap between starting them (with a little jitter). Reading and browsing
+// don't wait in this queue.
+let running = 0;
+let nextStartAt = 0;
+const waiting: (() => void)[] = [];
 
-const gap = () => Application.sleep((WEBVIEW_GAP_MS * (0.8 + Math.random() * 0.4)) / 1000);
+async function acquireSlot(): Promise<void> {
+  const pace = getRefreshPace();
+  while (running >= pace.concurrency) {
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  }
+  running++;
+  const now = Date.now();
+  const startAt = Math.max(now, nextStartAt);
+  nextStartAt = startAt + pace.gapMs * (0.8 + Math.random() * 0.4);
+  if (startAt > now) await Application.sleep((startAt - now) / 1000);
+}
 
-function inWebViewQueue<T>(task: () => Promise<T>): Promise<T> {
-  const run = webViewQueue.then(task, task);
-  webViewQueue = run.then(gap, gap);
-  return run;
+function releaseSlot(): void {
+  running--;
+  waiting.shift()?.();
+}
+
+async function inWebViewQueue<T>(task: () => Promise<T>): Promise<T> {
+  await acquireSlot();
+  try {
+    return await task();
+  } finally {
+    releaseSlot();
+  }
 }
 
 export const isSiteCookie = (domain: string) => {

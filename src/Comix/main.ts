@@ -75,10 +75,10 @@ const UPDATE_SCAN_MARGIN_MS = 24 * 60 * 60 * 1000;
 const UPDATE_SCAN_MAX_PAGES = 20;
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
-  // The site's firewall has blocked IPs for request bursts since 11 Oct 2026,
-  // so stay well under its limit (images are served from other hosts).
+  // Page fetches (images are served from other hosts and not limited). The
+  // WebView pace for library refreshes is set under Settings → Refresh Speed.
   private globalRateLimiter = new BasicRateLimiter("rateLimiter", {
-    numberOfRequests: 2,
+    numberOfRequests: 5,
     bufferInterval: 1,
     ignoreImages: true,
   });
