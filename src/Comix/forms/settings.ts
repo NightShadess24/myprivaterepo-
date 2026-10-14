@@ -18,7 +18,15 @@ import {
   type CookieStorageInterceptor,
 } from "@paperback/types";
 
-import { CHECK_PAGE, DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
+import {
+  checkPage,
+  DISCOVERY_SECTIONS,
+  isComixDomain,
+  SITE_ADDRESSES,
+  siteHost,
+  siteUrl,
+  type SectionEntry,
+} from "../models";
 import { CHAPTER_LIST_MODES, getChapterListMode } from "../utils/chapterList";
 import { COMIX_PASS, describeCookies, keepSiteCookies } from "../utils/cookies";
 import {
@@ -65,7 +73,7 @@ export class ComixSettingsForm extends Form {
   }
 
   override getSections() {
-    const saved = this.cookieStore.cookiesForUrl(`${DOMAIN}/`);
+    const saved = this.cookieStore.cookiesForUrl(`${siteUrl()}/`);
     const pass = saved.find((cookie) => cookie.name === "cf_clearance");
     const comixPass = saved.find((cookie) => cookie.name === COMIX_PASS);
     const expiry = (date?: Date) =>
@@ -76,9 +84,22 @@ export class ComixSettingsForm extends Form {
           id: "cloudflare",
           header: "Checks",
           footer:
-            "Two checks guard comix.to: Cloudflare's, and comix's own (\"Verify you're human\"). Each pass works for every manga until it runs out. To get a fresh one, open the check, complete it if it shows (comix's often passes by itself), wait for comix's page, then tap Done. If things keep failing, tap Forget for a clean start.",
+            "Two checks guard comix: Cloudflare's, and comix's own (\"Verify you're human\"). Each pass works for every manga until it runs out. To get a fresh one, open the check, complete it if it shows (comix's often passes by itself), wait for comix's page, then tap Done. If things keep failing, tap Forget for a clean start.",
         },
         [
+          SelectRow("site_address", {
+            title: "Site Address",
+            subtitle: siteHost(),
+            layout: "list",
+            value: [siteHost()],
+            items: SITE_ADDRESSES.map((address) => ({ id: address.id, title: address.title })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleSiteAddressChange",
+            ),
+          }),
           LabelRow("cloudflare_pass", {
             title: "Cloudflare Pass",
             value: pass ? "Saved" : "None",
@@ -87,7 +108,7 @@ export class ComixSettingsForm extends Form {
           WebViewRow("cloudflare_check", {
             title: "Redo Cloudflare Check",
             request: {
-              url: `${DOMAIN}/`,
+              url: `${siteUrl()}/`,
               method: "GET",
               headers: { "user-agent": this.userAgent },
             },
@@ -102,7 +123,7 @@ export class ComixSettingsForm extends Form {
           WebViewRow("comix_check", {
             title: "Do comix's Check",
             request: {
-              url: CHECK_PAGE,
+              url: checkPage(),
               method: "GET",
               headers: { "user-agent": this.userAgent },
             },
@@ -234,9 +255,17 @@ export class ComixSettingsForm extends Form {
   // site's own session and pass).
   async forgetPass() {
     this.cookieStore.cookies = this.cookieStore.cookies.filter(
-      (cookie) => !/(^|\.)comix\.to$/i.test(cookie.domain.replace(/^\./, "")),
+      (cookie) => !isComixDomain(cookie.domain),
     );
-    logEvent("check browser", "forgot all comix.to cookies");
+    logEvent("check browser", "forgot all comix cookies");
+    this.reloadForm();
+  }
+
+  async handleSiteAddressChange(value: string[]) {
+    if (value[0] && value[0] !== siteHost()) {
+      Application.setState(value[0], "site_address");
+      logEvent("check browser", `site address is now ${value[0]}`);
+    }
     this.reloadForm();
   }
 

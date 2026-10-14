@@ -3,12 +3,30 @@
 
 import type { SearchResultItem } from "@paperback/types";
 
-export const DOMAIN = "https://comix.to";
+// Settings → Site Address: comix.to or its other address, comix.ws (the same
+// site). Each address has its own cookies, so its own checks and passes.
+export const SITE_ADDRESSES = [
+  { id: "comix.to", title: "comix.to" },
+  { id: "comix.ws", title: "comix.ws" },
+];
+
+export function siteHost(): string {
+  const id = Application.getState("site_address") as string | undefined;
+  return SITE_ADDRESSES.some((address) => address.id === id) ? id! : "comix.to";
+}
+
+// The site's address, e.g. "https://comix.to".
+export const siteUrl = (): string => `https://${siteHost()}`;
+
 // comix's own check page ("Verify you're human"). Opened in the check browser
 // it shows the check; once passed, comix sets its pass (the waf_pass cookie)
 // and goes on to its home page.
-export const CHECK_PAGE = `${DOMAIN}/@waf/challenge`;
-export const NO_IMAGE = `${DOMAIN}/images/no-poster.png`;
+export const checkPage = (): string => `${siteUrl()}/@waf/challenge`;
+export const NO_IMAGE = "https://comix.to/images/no-poster.png";
+
+// comix.to or comix.ws (or www.), with or without a leading dot.
+export const isComixDomain = (domain: string): boolean =>
+  /(^|\.)comix\.(to|ws)$/i.test(String(domain ?? "").replace(/^\./, ""));
 
 export type SectionEntry = { id: string; title: string };
 

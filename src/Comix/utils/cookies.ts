@@ -3,6 +3,8 @@
 
 import type { Cookie, CookieStorageInterceptor } from "@paperback/types";
 
+import { isComixDomain, siteHost } from "../models";
+
 // comix.to's cookies are kept the way a browser keeps them: whatever the site
 // leaves after a page, or after the check browser, is sent back next time. A
 // real visitor carries the same session from page to page; starting every
@@ -14,8 +16,7 @@ import type { Cookie, CookieStorageInterceptor } from "@paperback/types";
 // would replace the real one and be lost when the app restarts. Cloudflare's
 // in-progress challenge cookies (cf_chl_*) are never kept.
 
-const isSiteDomain = (domain: string): boolean =>
-  /(^|\.)comix\.to$/i.test(String(domain ?? "").replace(/^\./, ""));
+const isSiteDomain = isComixDomain;
 
 const isCloudflareCookie = (name: string): boolean =>
   name === "cf_clearance" || name === "__cf_bm" || name === "_cfuvid";
@@ -84,8 +85,12 @@ export function keepSiteCookies(
 // pass the site keeps under, say, /api still goes along with its API calls.
 export function siteCookies(store: CookieStorageInterceptor): Cookie[] {
   const now = Date.now();
+  const host = siteHost();
   return store.cookies.filter(
-    (cookie) => isSiteDomain(cookie.domain) && (!cookie.expires || cookie.expires.getTime() > now),
+    (cookie) =>
+      isSiteDomain(cookie.domain) &&
+      cookie.domain.replace(/^\./, "").toLowerCase().endsWith(host) &&
+      (!cookie.expires || cookie.expires.getTime() > now),
   );
 }
 

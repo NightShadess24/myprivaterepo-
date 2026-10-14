@@ -10,14 +10,15 @@ import {
   type Response,
 } from "@paperback/types";
 
-import { CHECK_PAGE, DOMAIN } from "./models";
+import { checkPage, siteUrl } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
 import { errorText, logEvent } from "./utils/log";
 import { withTimeout } from "./utils/queue";
 
 // comix.to itself (pages, API), as opposed to its image hosts.
-const isSiteUrl = (url: string): boolean => /^https?:\/\/(www\.)?comix\.to([/:?#]|$)/i.test(url);
+const isSiteUrl = (url: string): boolean =>
+  /^https?:\/\/(www\.)?comix\.(to|ws)([/:?#]|$)/i.test(url);
 
 // The basic limiter only lets images through unthrottled when their url ends in
 // .webp/.jpg/…; comix's page images (and covers) have no extension, so every
@@ -129,22 +130,22 @@ export class ComixInterceptor extends PaperbackInterceptor {
     response: Response,
     data: ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    const siteUrl = isSiteUrl(request.url);
+    const fromSite = isSiteUrl(request.url);
     // Cloudflare's check page, recognised by its header or (when that's
     // missing) by its content: say so right away, opening the page that was
     // asked for, instead of loading the check page as if it were comix.
     if (
       header(response.headers, "cf-mitigated") === "challenge" ||
-      (siteUrl && isCloudflareBlock(response.status, data))
+      (fromSite && isCloudflareBlock(response.status, data))
     ) {
-      const isPage = siteUrl && !/\/api\//.test(request.url);
+      const isPage = fromSite && !/\/api\//.test(request.url);
       logEvent(
         "cloudflare",
         `${shortUrl(request.url)} answered with Cloudflare's check (HTTP ${response.status})`,
       );
       throw new CloudflareError(
         {
-          url: isPage ? request.url : `${DOMAIN}/`,
+          url: isPage ? request.url : `${siteUrl()}/`,
           method: "GET",
           headers: {
             "user-agent": await Application.getDefaultUserAgent(),
@@ -154,26 +155,26 @@ export class ComixInterceptor extends PaperbackInterceptor {
       );
     }
 
-    if (siteUrl && !/\/(api|@waf)\//.test(request.url) && isComixCheckPage(data)) {
+    if (fromSite && !/\/(api|@waf)\//.test(request.url) && isComixCheckPage(data)) {
       logEvent("comix check", `${shortUrl(request.url)} answered with comix's check page`);
       throw new CloudflareError(
         {
-          url: CHECK_PAGE,
+          url: checkPage(),
           method: "GET",
           headers: { "user-agent": await Application.getDefaultUserAgent() },
         },
-        "comix.to wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
+        "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
       );
     }
 
-    if (!siteUrl && response.status >= 400) {
+    if (!fromSite && response.status >= 400) {
       const recovered = await retryImage(request.url, response.status);
       if (recovered) return recovered;
       logImage(`HTTP ${response.status} from ${shortUrl(request.url)}`, true);
       return data;
     }
 
-    return await decodeImage(request.url, response, data, siteUrl);
+    return await decodeImage(request.url, response, data, fromSite);
   }
 }
 
@@ -219,12 +220,12 @@ async function decodeImage(
   url: string,
   response: Response,
   data: ArrayBuffer,
-  siteUrl: boolean,
+  fromSite: boolean,
 ): Promise<ArrayBuffer> {
   const enc = readEncHeaders(response.headers);
   const scramble = readScrambleHeaders(response.headers);
   if (!enc && !scramble) {
-    if (!siteUrl) {
+    if (!fromSite) {
       const mime = sniffImageMime(new Uint8Array(data));
       if (mime) logImage(`${mime.replace("image/", "")} from ${shortUrl(url)} (plain)`, false);
     }
@@ -282,7 +283,7 @@ export async function fetchText(url: string): Promise<string> {
 }
 
 export function browseUrl(query: Record<string, string | string[]>): string {
-  const url = new URL(DOMAIN).addPathComponent("browse");
+  const url = new URL(siteUrl()).addPathComponent("browse");
   for (const [key, value] of Object.entries(query)) {
     url.setQueryItem(key, value);
   }

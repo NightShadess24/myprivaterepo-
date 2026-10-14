@@ -24,7 +24,7 @@ import {
 
 import { ComixAdvancedSearchForm } from "./forms/search";
 import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
-import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
+import { siteUrl, type Metadata, type SearchMetadata } from "./models";
 import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
@@ -322,7 +322,7 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   // Details still server-render their data into `<script id="initial-data">`, so
   // fetch the HTML and let the parser extract it (the JSON API is now 403).
   async getMangaDetails(mangaId: string): Promise<SourceManga> {
-    return parseMangaDetails(mangaId, await fetchText(`${DOMAIN}/title/${mangaId}`));
+    return parseMangaDetails(mangaId, await fetchText(`${siteUrl()}/title/${mangaId}`));
   }
 
   // `sinceDate` is set for library updates: then only the title page's own

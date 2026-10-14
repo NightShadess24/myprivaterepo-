@@ -5,8 +5,8 @@ import { CloudflareError, type CookieStorageInterceptor } from "@paperback/types
 import * as cheerio from "cheerio";
 
 import {
-  CHECK_PAGE,
-  DOMAIN,
+  checkPage,
+  siteUrl,
   type ChapterItem,
   type ChapterPageItems,
   type ResultManga,
@@ -315,11 +315,11 @@ export async function checkError(what: string, why?: CheckWhy | null): Promise<C
   );
   return new CloudflareError(
     {
-      url: CHECK_PAGE,
+      url: checkPage(),
       method: "GET",
       headers: { "user-agent": await Application.getDefaultUserAgent() },
     },
-    "comix.to wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
+    "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
   );
 }
 
@@ -570,7 +570,7 @@ export async function pageListViaWebView(
   chapterId: string,
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<ChapterPageItems> {
-  const pageUrl = `${DOMAIN}${chapterPagePath}`;
+  const pageUrl = `${siteUrl()}${chapterPagePath}`;
   const result = parseInjectResult<{ via: string; holder: string; frame?: boolean }>(
     await runProxiedWebView<unknown>(
       pageUrl,
@@ -838,7 +838,7 @@ export async function chapterListViaWebView(
   cookieInterceptor: CookieStorageInterceptor,
   opts: ChapterListOptions,
 ): Promise<ChapterListResult> {
-  const pageUrl = `${DOMAIN}/title/${mangaId}`;
+  const pageUrl = `${siteUrl()}/title/${mangaId}`;
   const result = parseInjectResult<ChapterListResult>(
     await runProxiedWebView<unknown>(
       pageUrl,

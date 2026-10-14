@@ -11,7 +11,7 @@ import {
 import * as cheerio from "cheerio";
 
 import {
-  DOMAIN,
+  siteUrl,
   NO_IMAGE,
   type ChapterItem,
   type ChapterPageItems,
@@ -91,7 +91,7 @@ export function parseMangaDetails(mangaId: string, html: string): SourceManga {
         { id: "demographic", title: "demographic", tags: toTags(manga.demographics) },
         { id: "genres", title: "genres", tags: toTags(manga.genres) },
       ],
-      shareUrl: `${DOMAIN}${manga.url}`,
+      shareUrl: `${siteUrl()}${manga.url}`,
     },
   };
 }
