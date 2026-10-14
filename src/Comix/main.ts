@@ -28,7 +28,7 @@ import { DOMAIN, type Metadata, type SearchMetadata } from "./models";
 import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
-import { keepSiteCookies } from "./utils/cookies";
+import { describeCookies, keepSiteCookies } from "./utils/cookies";
 import {
   defaultSearchMetadata,
   ensureFilters,
@@ -103,7 +103,11 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     });
     logEvent(
       "check browser",
-      `${request.url.replace(/^https?:\/\//, "")}: kept ${kept.length ? kept.join(", ") : "nothing"}`,
+      `${request.url.replace(/^https?:\/\//, "")}: kept ${
+        kept.length
+          ? describeCookies(cookies.filter((cookie) => kept.includes(cookie.name)))
+          : "nothing"
+      }`,
     );
   }
 

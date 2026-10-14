@@ -59,8 +59,14 @@ export function keepSiteCookies(
     const copy = normalized(cookie);
     if (!copy) continue;
     if (!fromCheckBrowser && isCloudflareCookie(copy.name)) continue;
-    if (fromCheckBrowser && copy.name === COMIX_PASS && !copy.expires) {
-      copy.expires = new Date(Date.now() + COMIX_PASS_KEEP_MS);
+    if (fromCheckBrowser && copy.name === COMIX_PASS) {
+      if (!copy.expires) copy.expires = new Date(Date.now() + COMIX_PASS_KEEP_MS);
+      // A fresh pass replaces any older one, whatever its path.
+      for (const old of store.cookies.filter(
+        (c) => c.name === COMIX_PASS && isSiteDomain(c.domain),
+      )) {
+        store.deleteCookie(old);
+      }
     }
     // The same cookie without its expiry date: keep the one that has it.
     if (!copy.expires) {
@@ -81,4 +87,75 @@ export function siteCookies(store: CookieStorageInterceptor): Cookie[] {
   return store.cookies.filter(
     (cookie) => isSiteDomain(cookie.domain) && (!cookie.expires || cookie.expires.getTime() > now),
   );
+}
+
+// A short tag for a cookie's value (not the value itself), so the Reading Log
+// can show whether the hidden pages carry the same pass and session the check
+// browser ended with.
+function tag(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0").slice(0, 4);
+}
+
+// comix.to cookies for the Reading Log: names, plus a tag (and for comix's
+// pass its domain, path and whether it has an expiry date).
+export function describeCookies(cookies: readonly Cookie[] | undefined | null): string {
+  const site = (cookies ?? []).filter(
+    (cookie) =>
+      cookie &&
+      typeof cookie.domain === "string" &&
+      isSiteDomain(cookie.domain) &&
+      !String(cookie.name).startsWith("cf_chl"),
+  );
+  if (site.length === 0) return "none";
+  return site
+    .map((cookie) => {
+      if (cookie.name !== COMIX_PASS && cookie.name !== "session") return cookie.name;
+      const where =
+        cookie.name === COMIX_PASS
+          ? ` (${cookie.domain} ${cookie.path ?? "/"}${cookie.expires ? "" : ", no expiry"})`
+          : "";
+      return `${cookie.name}#${tag(String(cookie.value ?? ""))}${where}`;
+    })
+    .join(", ");
+}
+
+// A script for the top of a hidden page that puts the saved comix.to cookies
+// in the page's own cookie jar (path / for comix's pass, so its API calls carry
+// it), in case the app didn't hand them to the page. Cookies the page already
+// has are left alone. `window.__comixJar` notes what was written.
+export function pageCookieScript(cookies: readonly Cookie[]): string {
+  const octets = /^[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*$/;
+  const jar = cookies
+    .filter((cookie) => /^[\w.-]+$/.test(cookie.name) && octets.test(String(cookie.value ?? "")))
+    .map((cookie) => [
+      cookie.name,
+      String(cookie.value ?? ""),
+      cookie.name === COMIX_PASS ? "/" : (cookie.path ?? "/"),
+      cookie.expires ? new Date(cookie.expires as Date | string).toUTCString() : "",
+    ]);
+  const data = JSON.stringify(jar).replace(/</g, "\\u003c");
+  return `
+(function () {
+  var jar = ${data};
+  var had = [];
+  var wrote = [];
+  try {
+    var names = function () {
+      return document.cookie.split(";").map(function (c) { return c.split("=")[0].trim(); });
+    };
+    var present = names();
+    jar.forEach(function (c) {
+      if (present.indexOf(c[0]) !== -1) { had.push(c[0]); return; }
+      document.cookie = c[0] + "=" + c[1] + "; path=" + c[2] + (c[3] ? "; expires=" + c[3] : "") + "; secure; samesite=lax";
+      if (names().indexOf(c[0]) !== -1) wrote.push(c[0]);
+    });
+  } catch (e) {}
+  window.__comixJar = { had: had.join(", "), wrote: wrote.join(", ") };
+})();
+`;
 }

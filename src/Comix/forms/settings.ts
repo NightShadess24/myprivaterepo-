@@ -19,7 +19,7 @@ import {
 } from "@paperback/types";
 
 import { CHECK_PAGE, DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
-import { COMIX_PASS, keepSiteCookies } from "../utils/cookies";
+import { COMIX_PASS, describeCookies, keepSiteCookies } from "../utils/cookies";
 import {
   contentRatings,
   contentTypes,
@@ -178,7 +178,14 @@ export class ComixSettingsForm extends Form {
   // Same as the app's own check browser: keep what comix.to left.
   async handleCheckDone(cookies: Cookie[]) {
     const kept = keepSiteCookies(this.cookieStore, cookies, { fromCheckBrowser: true });
-    logEvent("check browser", `settings: kept ${kept.length ? kept.join(", ") : "nothing"}`);
+    logEvent(
+      "check browser",
+      `settings: kept ${
+        kept.length
+          ? describeCookies(cookies.filter((cookie) => kept.includes(cookie.name)))
+          : "nothing"
+      }`,
+    );
     this.reloadForm();
   }
 

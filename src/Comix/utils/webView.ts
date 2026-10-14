@@ -12,7 +12,7 @@ import {
   type ResultManga,
 } from "../models";
 import { fetchText } from "../network";
-import { keepSiteCookies, siteCookies } from "./cookies";
+import { describeCookies, keepSiteCookies, pageCookieScript, siteCookies } from "./cookies";
 import { logEvent } from "./log";
 import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
 
@@ -57,8 +57,22 @@ const SITE_BOOTSTRAP = `
       }
     }, true);
   } catch (e) {}
-  function sawCheck() {
-    if (!check.seen) { check.seen = true; check.since = Date.now(); }
+  // What made comix ask, for the Reading Log: the request and its answer, and
+  // which comix.to cookies the page could see at that moment (names only).
+  function cookieNames() {
+    try {
+      return document.cookie.split(";").map(function (c) { return c.split("=")[0].trim(); }).filter(Boolean).join(", ");
+    } catch (e) { return "?"; }
+  }
+  function shortPath(url) {
+    return String(url || "").replace(/^https?:\\/\\/[^/]+/, "").split("?")[0].slice(0, 60);
+  }
+  function sawCheck(why) {
+    if (!check.seen) {
+      check.seen = true;
+      check.since = Date.now();
+      window.__comixCheckWhy = { why: why, cookies: cookieNames() };
+    }
   }
   var SKIP = /\\/api\\/v1\\/(threads|client-errors)|\\/assets\\/uploads\\/|amung\\.us/;
   function skip(url) { return SKIP.test(String(url || "")); }
@@ -88,7 +102,7 @@ const SITE_BOOTSTRAP = `
     var send = proto.send;
     proto.open = function (method, url) {
       this.__comixUrl = String(url);
-      if (this.__comixUrl.indexOf("/@waf/") !== -1) sawCheck();
+      if (this.__comixUrl.indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(this.__comixUrl));
       return open.apply(this, arguments);
     };
     proto.send = function () {
@@ -98,7 +112,9 @@ const SITE_BOOTSTRAP = `
         xhr.addEventListener("loadend", function () {
           try {
             if (xhr.getResponseHeader("cf-mitigated") === "challenge") sawCloudflare();
-            else if (xhr.status === 403 && /captcha/i.test(String(xhr.responseText || ""))) sawCheck();
+            else if (xhr.status === 403 && /captcha/i.test(String(xhr.responseText || ""))) {
+              sawCheck("HTTP 403 on " + shortPath(xhr.__comixUrl) + ": " + String(xhr.responseText || "").slice(0, 100));
+            }
           } catch (e) {}
         });
       } catch (e) {}
@@ -111,7 +127,7 @@ const SITE_BOOTSTRAP = `
     if (originalFetch) {
       window.fetch = function (input) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
-        if (String(url).indexOf("/@waf/") !== -1) sawCheck();
+        if (String(url).indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(url));
         if (skip(url)) {
           return Promise.resolve(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
         }
@@ -119,7 +135,9 @@ const SITE_BOOTSTRAP = `
           try {
             if (response.headers.get("cf-mitigated") === "challenge") sawCloudflare();
             else if (response.status === 403) {
-              response.clone().text().then(function (text) { if (/captcha/i.test(text)) sawCheck(); }, function () {});
+              response.clone().text().then(function (text) {
+                if (/captcha/i.test(text)) sawCheck("HTTP 403 on " + shortPath(url) + ": " + text.slice(0, 100));
+              }, function () {});
             }
           } catch (e) {}
           return response;
@@ -132,7 +150,7 @@ const SITE_BOOTSTRAP = `
     var doc = document;
     var observer = new MutationObserver(function () {
       try {
-        if (doc.querySelector('iframe[src*="/@waf/"]')) { sawCheck(); observer.disconnect(); }
+        if (doc.querySelector('iframe[src*="/@waf/"]')) { sawCheck("check frame shown"); observer.disconnect(); }
       } catch (e) {}
     });
     observer.observe(doc.documentElement, { childList: true, subtree: true });
@@ -167,7 +185,9 @@ const CHECK_HELPERS = `
       }),
     ]);
   };
-  var checkResult = function () { return JSON.stringify({ ok: false, check: true, error: "comix's own check didn't clear" }); };
+  var checkResult = function () {
+    return JSON.stringify({ ok: false, check: true, error: "comix's own check didn't clear", why: window.__comixCheckWhy || null });
+  };
   var cloudflareResult = function () { return JSON.stringify({ ok: false, cloudflare: true, error: "Cloudflare refused the page's requests" }); };
   var stopper = function (resp) { return resp === CLOUDFLARE ? cloudflareResult() : resp === CHECK ? checkResult() : null; };
 `;
@@ -194,8 +214,18 @@ async function cloudflareError(pageUrl: string, what: string): Promise<Cloudflar
 // its check in hidden pages, so no pass was ever earned there. What the check
 // browser ends with (comix's pass) is kept (see cloudflareBypassCompleted) and
 // sent with every hidden page after that, for every manga.
-export async function checkError(what: string): Promise<CloudflareError> {
-  logEvent("comix check", `${what}: comix wanted its check, opening its check page`);
+export interface CheckWhy {
+  why?: string;
+  cookies?: string;
+}
+
+export async function checkError(what: string, why?: CheckWhy | null): Promise<CloudflareError> {
+  logEvent(
+    "comix check",
+    `${what}: comix wanted its check, opening its check page. ` +
+      `Asked because: ${why?.why ?? "unknown"}. Page could see: ${why?.cookies || "no cookies"}. ` +
+      `Page was given: ${lastRunCookies.sent}. Page ended with: ${lastRunCookies.ended}.`,
+  );
   return new CloudflareError(
     {
       url: CHECK_PAGE,
@@ -226,6 +256,9 @@ interface RunOptions {
 }
 
 let lastPacedRunEnded = 0;
+// The comix.to cookies the last hidden page was given and ended with, for the
+// Reading Log when comix asks for its check.
+let lastRunCookies = { sent: "none", ended: "none" };
 const PAGE_START_MS = 1000;
 
 async function runProxiedWebView<T>(
@@ -258,7 +291,7 @@ async function runProxiedWebView<T>(
     // Read after the page fetch, so the session it was just given goes along.
     const cookies = siteCookies(cookieInterceptor);
 
-    $("head").prepend(`<script>${SITE_BOOTSTRAP}${bootstrap}</script>`);
+    $("head").prepend(`<script>${pageCookieScript(cookies)}${SITE_BOOTSTRAP}${bootstrap}</script>`);
 
     const raw = await Application.executeInWebView({
       source: { html: $.html(), baseUrl: pageUrl, loadCSS: false, loadImages: false, userAgent },
@@ -266,6 +299,10 @@ async function runProxiedWebView<T>(
       storage: { cookies },
     });
     keepSiteCookies(cookieInterceptor, raw?.storage?.cookies);
+    lastRunCookies = {
+      sent: describeCookies(cookies),
+      ended: describeCookies(raw?.storage?.cookies),
+    };
 
     if (raw.result === undefined || raw.result === null) {
       throw new Error("Comix WebView returned no result");
@@ -422,7 +459,14 @@ return (async function () {
 
 type InjectResult<T> =
   | ({ ok: true } & T)
-  | { ok: false; check?: boolean; cloudflare?: boolean; status?: number | null; error: string };
+  | {
+      ok: false;
+      check?: boolean;
+      cloudflare?: boolean;
+      status?: number | null;
+      error: string;
+      why?: CheckWhy | null;
+    };
 
 function parseInjectResult<T>(raw: unknown): InjectResult<T> {
   if (typeof raw !== "string") {
@@ -454,7 +498,7 @@ export async function pageListViaWebView(
 
   if (!result.ok) {
     if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter ${chapterPagePath}`);
-    if (result.check) throw await checkError(`chapter ${chapterPagePath}`);
+    if (result.check) throw await checkError(`chapter ${chapterPagePath}`, result.why);
     logEvent(
       "page list failed",
       `${chapterPagePath}: ${result.error}` + (result.status ? ` (HTTP ${result.status})` : ""),
@@ -610,6 +654,7 @@ return (async function () {
       ok: false,
       cloudflare: blocked(),
       check: check.seen,
+      why: window.__comixCheckWhy || null,
       status: resp2 && resp2.status,
       error: String((e && e.message) || e),
     });
@@ -649,7 +694,7 @@ export async function chapterListViaWebView(
 
   if (!result.ok) {
     if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter list of ${mangaId}`);
-    if (result.check) throw await checkError(`chapter list of ${mangaId}`);
+    if (result.check) throw await checkError(`chapter list of ${mangaId}`, result.why);
     const status = result.status;
     logEvent(
       "chapter list failed",
@@ -727,7 +772,7 @@ export async function browseViaWebView(
           finish({ __comixCloudflare: true });
         } else if (check && check.seen && Date.now() - check.since > ${CHECK_WAIT_MS}) {
           clearInterval(watch);
-          finish({ __comixCheck: true });
+          finish({ __comixCheck: true, why: window.__comixCheckWhy || null });
         }
       }, 250);
       setTimeout(function () {
@@ -736,14 +781,14 @@ export async function browseViaWebView(
     })();
   `;
   const result = await runProxiedWebView<
-    (ResultManga & { __comixCheck?: boolean; __comixCloudflare?: boolean }) | null
+    (ResultManga & { __comixCheck?: boolean; __comixCloudflare?: boolean; why?: CheckWhy }) | null
   >(browseUrl, bootstrap, cookieInterceptor, {
     browse: true,
     timeoutSeconds: 45,
     what: "loading the list",
   });
   if (result?.__comixCloudflare) throw await cloudflareError(browseUrl, "list");
-  if (result?.__comixCheck) throw await checkError("list");
+  if (result?.__comixCheck) throw await checkError("list", result.why);
   if (!result) {
     console.log(`[Comix] browse timed out for ${browseUrl}`);
     throw new Error("Comix browseViaWebView: timed out waiting for browse JSON");
