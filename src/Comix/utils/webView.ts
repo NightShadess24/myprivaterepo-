@@ -81,6 +81,13 @@ const SITE_BOOTSTRAP = `
     } catch (e) {}
     return "";
   }
+  // comix's check frame (or a request to /@waf/) on its own is not a refusal:
+  // the site can put it up while its API keeps answering normally. Only an
+  // API answer of 403 captcha_required counts as comix wanting its check.
+  var frame = (window.__comixFrame = { seen: false, at: 0, how: "" });
+  function sawFrame(how) {
+    if (!frame.seen) { frame.seen = true; frame.at = Date.now(); frame.how = how; }
+  }
   function sawCheck(why) {
     if (!check.seen) {
       check.seen = true;
@@ -91,9 +98,11 @@ const SITE_BOOTSTRAP = `
         net: netLog.slice(-6).join(", "),
         ua: String(navigator.userAgent || ""),
         visible: String(document.visibilityState || ""),
+        frame: frame.seen ? frame.how : "",
       };
     }
   }
+  window.__comixSawCheck = sawCheck;
   var SKIP = /\\/api\\/v1\\/(threads|client-errors)|\\/assets\\/uploads\\/|amung\\.us/;
   function skip(url) { return SKIP.test(String(url || "")); }
 
@@ -123,7 +132,7 @@ const SITE_BOOTSTRAP = `
     proto.open = function (method, url) {
       this.__comixUrl = String(url);
       this.__comixMethod = String(method || "GET");
-      if (this.__comixUrl.indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(this.__comixUrl));
+      if (this.__comixUrl.indexOf("/@waf/") !== -1) sawFrame("the page asked for " + shortPath(this.__comixUrl));
       return open.apply(this, arguments);
     };
     proto.send = function () {
@@ -150,7 +159,7 @@ const SITE_BOOTSTRAP = `
       window.fetch = function (input, init) {
         var url = typeof input === "string" ? input : (input && input.url) || "";
         var method = (init && init.method) || (input && input.method) || "GET";
-        if (String(url).indexOf("/@waf/") !== -1) sawCheck("the page asked for " + shortPath(url));
+        if (String(url).indexOf("/@waf/") !== -1) sawFrame("the page asked for " + shortPath(url));
         if (skip(url)) {
           return Promise.resolve(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
         }
@@ -174,7 +183,7 @@ const SITE_BOOTSTRAP = `
     var doc = document;
     var observer = new MutationObserver(function () {
       try {
-        if (doc.querySelector('iframe[src*="/@waf/"]')) { sawCheck("check frame shown"); observer.disconnect(); }
+        if (doc.querySelector('iframe[src*="/@waf/"]')) { sawFrame("check frame shown"); observer.disconnect(); }
       } catch (e) {}
     });
     observer.observe(doc.documentElement, { childList: true, subtree: true });
@@ -188,6 +197,20 @@ const CHECK_HELPERS = `
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   var check = window.__comixCheck || { seen: false, since: 0 };
   var stuck = function () { return check.seen && Date.now() - check.since > ${CHECK_WAIT_MS}; };
+  // The site put up its check frame instead of loading (its own requests
+  // wait for it): ask the API ourselves rather than wait for the site.
+  var frame = window.__comixFrame || { seen: false, at: 0 };
+  var gated = function () { return !check.seen && frame.seen && Date.now() - frame.at > 1500; };
+  // Our own request answered 403 captcha_required: comix really wants its check.
+  var refused = function (e) {
+    var r = e && e.response;
+    if (!r || r.status !== 403) return false;
+    var text = "";
+    try { text = typeof r.data === "string" ? r.data : JSON.stringify(r.data); } catch (x) {}
+    if (!/captcha/i.test(text)) return false;
+    if (window.__comixSawCheck) window.__comixSawCheck("HTTP 403 on our request: " + text.slice(0, 100));
+    return true;
+  };
   // Cloudflare refused a request outright, or comix's own scripts failed to
   // load and its code still hasn't started 3 s later.
   var blocked = function () {
@@ -244,6 +267,7 @@ export interface CheckWhy {
   net?: string;
   ua?: string;
   visible?: string;
+  frame?: string;
 }
 
 export async function checkError(what: string, why?: CheckWhy | null): Promise<CloudflareError> {
@@ -259,7 +283,8 @@ export async function checkError(what: string, why?: CheckWhy | null): Promise<C
       `Asked because: ${why?.why ?? "unknown"}. Last answers: ${why?.net || "none"}. ` +
       `Page could see: ${why?.cookies || "no cookies"}. ` +
       `Page was given: ${lastRunCookies.sent}. Page ended with: ${lastRunCookies.ended}. ` +
-      `Page's browser: ${agent}${why?.visible ? ` (${why.visible})` : ""}.`,
+      `Page's browser: ${agent}${why?.visible ? ` (${why.visible})` : ""}.` +
+      (why?.frame ? ` Before that: ${why.frame}.` : ""),
   );
   return new CloudflareError(
     {
@@ -421,7 +446,7 @@ return (async function () {
   var started = Date.now();
   var net = window.__comixNet__ || {};
   var found = function (via) {
-    return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__ });
+    return JSON.stringify({ ok: true, via: via, holder: window.__comixPages__, frame: frame.seen });
   };
 
   while (check.seen || Date.now() - started < 8000) {
@@ -429,6 +454,7 @@ return (async function () {
     if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
     if (!check.seen && net.chapterStatus >= 400) break;
+    if (gated()) break;
     await sleep(100);
   }
 
@@ -462,11 +488,12 @@ return (async function () {
       if (stopper(resp)) return stopper(resp);
       var holder = findHolder(resp && resp.data, 0);
       if (holder) {
-        return JSON.stringify({ ok: true, via: "api", holder: JSON.stringify(holder) });
+        return JSON.stringify({ ok: true, via: "api", holder: JSON.stringify(holder), frame: frame.seen });
       }
       apiError = "no pages in the API answer (" +
         Object.keys((resp && resp.data) || {}).slice(0, 8).join(",") + ")";
     } catch (e) {
+      if (refused(e)) return checkResult();
       apiStatus = (e && e.response && e.response.status) || null;
       apiError = String((e && e.message) || e);
     }
@@ -517,7 +544,7 @@ export async function pageListViaWebView(
   cookieInterceptor: CookieStorageInterceptor,
 ): Promise<ChapterPageItems> {
   const pageUrl = `${DOMAIN}${chapterPagePath}`;
-  const result = parseInjectResult<{ via: string; holder: string }>(
+  const result = parseInjectResult<{ via: string; holder: string; frame?: boolean }>(
     await runProxiedWebView<unknown>(
       pageUrl,
       BOOTSTRAP_AXIOS + PAGES_BOOTSTRAP,
@@ -555,6 +582,7 @@ export async function pageListViaWebView(
     `${pages.items.length} pages via ${result.via}` +
       (v3 ? `, ${v3} v3` : "") +
       (pages.alt?.length ? `, ${pages.alt.length} backup hosts` : "") +
+      (result.frame ? ", comix showed its check frame (carried on)" : "") +
       `, first: ${(pages.items[0]?.url ?? "").replace(/^https?:\/\//, "").slice(0, 70)}`,
   );
   return pages;
@@ -630,13 +658,14 @@ return (async function () {
   var started = Date.now();
   var GAP = ${CHAPTER_REQUEST_GAP_MS};
   var done = function (items, via, pages, lastPage) {
-    return JSON.stringify({ ok: true, items: items, via: via, pages: pages, lastPage: lastPage });
+    return JSON.stringify({ ok: true, items: items, via: via, pages: pages, lastPage: lastPage, frame: frame.seen });
   };
 
   // The title page's own newest chapters.
   while (!window.__comixSiteChapters && Date.now() - started < 8000) {
     if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
+    if (gated() && window.__comixAxios) break;
     await sleep(100);
   }
   var site = window.__comixSiteChapters;
@@ -684,6 +713,7 @@ return (async function () {
     }
     return done(chapters, "api", page - 1, lastPage);
   } catch (e) {
+    if (refused(e)) return checkResult();
     var resp2 = e && e.response;
     return JSON.stringify({
       ok: false,
@@ -713,6 +743,7 @@ export async function chapterListViaWebView(
     via: string;
     pages: number;
     lastPage: number;
+    frame?: boolean;
   }>(
     await runProxiedWebView<unknown>(
       pageUrl,
@@ -754,7 +785,7 @@ export async function chapterListViaWebView(
       "chapter list",
       `${mangaId}: ${result.items.length} chapters (${how}) in ${Math.round(
         (Date.now() - started) / 1000,
-      )}s`,
+      )}s` + (result.frame ? ", comix showed its check frame (carried on)" : ""),
     );
   }
   return result.items;
