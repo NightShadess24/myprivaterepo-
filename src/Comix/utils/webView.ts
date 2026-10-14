@@ -127,14 +127,16 @@ function runProxiedWebView<T>(
   pageUrl: string,
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
+  inject?: string,
 ): Promise<T> {
-  return inWebViewQueue(() => runWebViewNow<T>(pageUrl, bootstrap, cookieInterceptor));
+  return inWebViewQueue(() => runWebViewNow<T>(pageUrl, bootstrap, cookieInterceptor, inject));
 }
 
 async function runWebViewNow<T>(
   pageUrl: string,
   bootstrap: string,
   cookieInterceptor: CookieStorageInterceptor,
+  inject = "return window.__comixResult__",
 ): Promise<T> {
   await throwIfChallenged();
   const userAgent = await Application.getDefaultUserAgent();
@@ -146,7 +148,7 @@ async function runWebViewNow<T>(
 
   const raw = await Application.executeInWebView({
     source: { html: $.html(), baseUrl: pageUrl, loadCSS: false, loadImages: false, userAgent },
-    inject: `return window.__comixResult__`,
+    inject,
     storage: { cookies },
   });
 
@@ -482,11 +484,164 @@ const CHAPTER_LIST_HANDLER = `
   }
 `;
 
+// Chapter list through the site's own API client, as in
+// guillaume-favier/general-extensions (0.9/comix-capture): catch the site's
+// `/api/v1` axios instance as it is created (it signs requests and decodes
+// answers itself), then ask it for the chapters 100 at a time, newest first.
+// One or two requests per title instead of paging the site's UI 20 at a time,
+// and the requests are the site's own, made the way its reader makes them.
+const BOOTSTRAP_AXIOS = `
+(function () {
+  window.__comixAxios = null;
+  try {
+    Object.defineProperty(Object.prototype, "interceptors", {
+      configurable: true,
+      get: function () { return this.__pbInterceptors; },
+      set: function (value) {
+        this.__pbInterceptors = value;
+        if (
+          this &&
+          typeof this.get === "function" &&
+          typeof this.post === "function" &&
+          this.defaults &&
+          typeof this.defaults.baseURL === "string" &&
+          this.defaults.baseURL.indexOf("/api/v1") !== -1 &&
+          !window.__comixAxios
+        ) {
+          window.__comixAxios = this;
+        }
+      },
+    });
+  } catch (e) {}
+})();
+`;
+
+const CHAPTER_LIST_INJECT = `
+return (async function () {
+  var mangaId = __MANGA_ID__;
+  var stopBeforeMs = __STOP_BEFORE_MS__;
+  function itemTime(item) {
+    var raw = item.createdAt !== undefined ? item.createdAt : item.created_at;
+    if (typeof raw === "number" && raw > 0) return raw < 1e12 ? raw * 1000 : raw;
+    if (typeof raw === "string") { var p = Date.parse(raw); if (!isNaN(p)) return p; }
+    var text = typeof item.createdAtFormatted === "string" ? item.createdAtFormatted.trim() : "";
+    var m = new RegExp("^(\\\\d+)\\\\s*(mo|mon|month|yr|year|min|sec|hr|hour|day|week|[smhdwy])s?(\\\\s+ago)?$", "i").exec(text);
+    if (!m) return null;
+    var ms = { s: 1e3, sec: 1e3, m: 6e4, min: 6e4, h: 36e5, hr: 36e5, hour: 36e5, d: 864e5, day: 864e5,
+      w: 6048e5, week: 6048e5, mo: 2592e6, mon: 2592e6, month: 2592e6, y: 31536e6, yr: 31536e6, year: 31536e6 }[m[2].toLowerCase()];
+    return ms ? Date.now() - Number(m[1]) * ms : null;
+  }
+  var deadline = Date.now() + 30000;
+  while (!window.__comixAxios && Date.now() < deadline) {
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  var axios = window.__comixAxios;
+  if (!axios) return JSON.stringify({ ok: false, noAxios: true });
+  var chapters = [];
+  var seen = {};
+  var page = 1;
+  var lastPage = 1;
+  var total = null;
+  var partial = false;
+  try {
+    while (page <= lastPage && page <= 200) {
+      var resp = await axios.get("/manga/" + mangaId + "/chapters", {
+        params: { page: page, limit: 100, "order[number]": "desc" },
+      });
+      var data = (resp && resp.data) || {};
+      if (data.result && typeof data.result === "object") data = data.result;
+      var items = Array.isArray(data.items) ? data.items : [];
+      for (var i = 0; i < items.length; i++) {
+        if (!items[i] || seen[items[i].id]) continue;
+        seen[items[i].id] = true;
+        chapters.push(items[i]);
+      }
+      var meta = data.meta || data.pagination || {};
+      lastPage = meta.lastPage || meta.last_page || page;
+      if (typeof meta.total === "number") total = meta.total;
+      if (stopBeforeMs !== null && items.length > 1) {
+        var oldest = itemTime(items[items.length - 1]);
+        if (items[0].number >= items[items.length - 1].number && oldest !== null && oldest < stopBeforeMs) {
+          partial = page < lastPage;
+          break;
+        }
+      }
+      page++;
+      if (page <= lastPage) await new Promise(function (r) { setTimeout(r, 400); });
+    }
+    return JSON.stringify({ ok: true, items: chapters, total: total, partial: partial });
+  } catch (e) {
+    var r = e && e.response;
+    var body = r && r.data;
+    var bodyText = "";
+    try { bodyText = typeof body === "string" ? body : JSON.stringify(body || ""); } catch (x) {}
+    var h = (r && r.headers) || {};
+    var mitigated = (typeof h.get === "function" ? h.get("cf-mitigated") : h["cf-mitigated"]) || "";
+    return JSON.stringify({
+      ok: false,
+      status: r && r.status,
+      error: String((e && e.message) || e),
+      body: String(bodyText).slice(0, 200),
+      mitigated: String(mitigated),
+    });
+  }
+})();
+`;
+
+type ApiChapterList =
+  | { ok: true; items: ChapterItem[]; total: number | null; partial: boolean }
+  | {
+      ok: false;
+      noAxios?: boolean;
+      status?: number;
+      error?: string;
+      body?: string;
+      mitigated?: string;
+    };
+
 // How far before the last update to keep reading, since upload times are often
 // only known as relative text ("3 days ago").
 const SINCE_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
 
 export async function chapterListViaWebView(
+  mangaId: string,
+  cookieInterceptor: CookieStorageInterceptor,
+  sinceDate?: Date,
+): Promise<ChapterItem[]> {
+  const stopBeforeMs = sinceDate ? String(sinceDate.getTime() - SINCE_MARGIN_MS) : "null";
+  const payload = await runProxiedWebView<string>(
+    `${DOMAIN}/title/${mangaId}`,
+    BOOTSTRAP_AXIOS,
+    cookieInterceptor,
+    CHAPTER_LIST_INJECT.replace("__MANGA_ID__", JSON.stringify(mangaId.split("-")[0])).replace(
+      "__STOP_BEFORE_MS__",
+      stopBeforeMs,
+    ),
+  );
+  const result = (typeof payload === "string" ? JSON.parse(payload) : payload) as ApiChapterList;
+  if (result.ok) return result.items;
+  if (result.noAxios) {
+    // The site's client wasn't found (the site changed its bundle): read the
+    // list the old way, by following the site's own pager.
+    logEvent("chapters", `${mangaId}: site API client not found, using the pager`);
+    return chapterListViaPager(mangaId, cookieInterceptor, sinceDate);
+  }
+  const detail = `HTTP ${result.status ?? "?"} ${result.body || result.error || ""}`.trim();
+  if (String(result.mitigated).toLowerCase() === "challenge") {
+    logEvent("challenge", `chapters ${mangaId}: ${detail}`);
+    markCloudflareChallenged();
+    throw await cloudflareChallenge();
+  }
+  if (result.status === 403 || result.status === 429 || result.status === 503) {
+    logEvent("refused", `chapters ${mangaId}: ${detail}`);
+    // As in comix-capture: a refusal from the site gets the bypass banner, so
+    // the reader can pass the check and Paperback retries.
+    throw await cloudflareChallenge();
+  }
+  throw new Error(`Comix chapter list failed for ${mangaId}: ${detail}`);
+}
+
+async function chapterListViaPager(
   mangaId: string,
   cookieInterceptor: CookieStorageInterceptor,
   sinceDate?: Date,
@@ -552,12 +707,11 @@ export async function pageListViaWebView(
 // `/browse` serves an empty shell and loads its list via an encrypted XHR, so
 // run the bundle and capture the decrypted `{result:{items,meta}}` off
 // JSON.parse. `&page=N` in the URL selects the page; one capture per call.
-// `queued` puts the run in the background queue (the library update scan);
-// Discover and search run right away.
+// Goes through the WebView queue like everything else: Discover asks for all
+// its sections at once, and comix challenges bursts of concurrent page loads.
 export async function browseViaWebView(
   browseUrl: string,
   cookieInterceptor: CookieStorageInterceptor,
-  { queued = false }: { queued?: boolean } = {},
 ): Promise<ResultManga> {
   const bootstrap = `
     (function () {
@@ -595,8 +749,11 @@ export async function browseViaWebView(
       }, 20000);
     })();
   `;
-  const run = queued ? runProxiedWebView : runWebViewNow;
-  const result = await run<ResultManga | null>(browseUrl, bootstrap, cookieInterceptor);
+  const result = await runProxiedWebView<ResultManga | null>(
+    browseUrl,
+    bootstrap,
+    cookieInterceptor,
+  );
   if (!result) throw new Error("Comix browseViaWebView: timed out waiting for browse JSON");
   return result;
 }

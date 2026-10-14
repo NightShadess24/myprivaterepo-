@@ -123,7 +123,13 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       "check done",
       `on ${page}: got ${describeCookies(site)}; storage keys: ${storageKeys.join(", ") || "none"}`,
     );
-    storeSiteCookies(this.cookieStorageInterceptor, site, "check");
+    // Keep only Cloudflare's pass from the check screen, as comix-capture does;
+    // the site's own cookies (its `session`) come from the app's own requests.
+    storeSiteCookies(
+      this.cookieStorageInterceptor,
+      site.filter((cookie) => cookie.name === "cf_clearance"),
+      "check",
+    );
     const strayPass = cookies.find(
       (cookie) => cookie.name === "cf_clearance" && !isSiteCookie(cookie.domain),
     );
@@ -407,7 +413,6 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
           content_rating: ALL_CONTENT_RATINGS,
         }),
         this.cookieStorageInterceptor,
-        { queued: true },
       );
       for (const item of result.items) {
         const updatedAt = chapterUpdatedAtMs(item);
