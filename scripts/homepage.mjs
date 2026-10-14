@@ -2,9 +2,9 @@
 // static page that has two themes, picked with the toggle in the corner and
 // remembered per browser:
 //
-//   - Noir (default): dark, shop-style page — slim top bar, filter tabs,
-//     banner links with a gold accent, serif display headings and the plain
-//     list of sources with their tags.
+//   - Noir (default): dark, shop-style page — slim top bar, banner links
+//     with a gold accent, serif display headings, and the plain list of
+//     sources with their tags under a row of filter tabs.
 //   - Classic: the classic Paperback 0.8 repository page — logo, "Add to
 //     Paperback" button, guide, base URL and a plain list of sources.
 //
@@ -219,12 +219,14 @@ ul { margin-top: 0; }
 }
 [data-theme="noir"] .tabs {
   display: flex;
+  justify-content: center;
+  justify-content: safe center;
   gap: 26px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 18px 16px 14px;
-  max-width: 1100px;
+  max-width: 920px;
   margin: 0 auto;
+  padding: 0 0 26px;
 }
 [data-theme="noir"] .tabs::-webkit-scrollbar { display: none; }
 [data-theme="noir"] .tab {
@@ -247,7 +249,7 @@ ul { margin-top: 0; }
 [data-theme="noir"] .tab[aria-pressed="true"] { background-size: 100% 1px; }
 [data-theme="noir"] .tab--brand { font-family: "Cormorant Garamond", "Times New Roman", serif; font-size: 17px; font-weight: 600; }
 
-[data-theme="noir"] main { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+[data-theme="noir"] main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 48px; }
 [data-theme="noir"] .banner {
   display: flex;
   align-items: center;
@@ -307,7 +309,7 @@ ul { margin-top: 0; }
   cursor: pointer;
 }
 [data-theme="noir"] .section-title {
-  margin: 64px 0 34px;
+  margin: 64px 0 26px;
   text-align: center;
   font-family: "Cormorant Garamond", "Times New Roman", serif;
   font-size: clamp(30px, 6vw, 48px);
@@ -331,12 +333,8 @@ ul { margin-top: 0; }
 <body>
 <button class="theme-toggle" type="button" aria-label="Switch theme"></button>
 
-<!-- Noir: top bar, filter tabs, banners -->
+<!-- Noir: top bar, banners, filter tabs above the sources -->
 <div class="topbar noir-only">${escapeHtml(name)}</div>
-<nav class="tabs noir-only" aria-label="Filter sources">
-<button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
-${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${escapeHtml(label)}" aria-pressed="false">${escapeHtml(label)}</button>`).join("\n")}
-</nav>
 
 <main>
 <div class="noir-only">
@@ -348,6 +346,10 @@ ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${
 <div class="baseUrlBar"><code class="js-base-url">${escapeHtml(baseUrl)}</code><button class="copyButton" type="button">Copy URL</button></div>
 </section>
 <h2 class="section-title">AVAILABLE<br>SOURCES</h2>
+<nav class="tabs" aria-label="Filter sources">
+<button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
+${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${escapeHtml(label)}" aria-pressed="false">${escapeHtml(label)}</button>`).join("\n")}
+</nav>
 </div>
 
 <!-- Classic: header, guide, base URL -->
