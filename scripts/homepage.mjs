@@ -8,25 +8,49 @@
 //   - Classic: the classic Paperback 0.8 repository page — logo, "Add to
 //     Paperback" button, guide, base URL and a plain list of sources.
 //
+// The site publishes more than one repository (one per branch, see REPOS).
+// Every page has a link for each; hovering a link shows that repository's
+// sources, clicking it keeps them shown. This branch's repository is built
+// into the page, the others are read from their versioning.json.
+//
 // Runs after `paperback-cli bundle`.
 // Usage: node scripts/homepage.mjs [bundleFolder]
 
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+
+// The repositories on this site, in the order their links are shown.
+const REPOS = [
+  { ref: "0.9/stable", label: "Stable" },
+  { ref: "0.9/testversion", label: "Test Version" },
+];
 
 const folder = process.argv[2] ?? "bundles";
 const versioning = JSON.parse(fs.readFileSync(path.join(folder, "versioning.json"), "utf8"));
 const { name, description } = versioning.repository;
 
-// Where the Bundle and Deploy workflow publishes this folder on GitHub Pages.
-// The page also recomputes it from its own address when it is opened.
-function deployedBaseUrl() {
-  const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "").split("/");
-  const ref = process.env.GITHUB_REF_NAME;
-  if (!owner || !repo || !ref) return "";
-  const host = `${owner.toLowerCase()}.github.io`;
-  return repo.toLowerCase() === host ? `https://${host}/${ref}` : `https://${host}/${repo}/${ref}`;
+function branchName() {
+  if (process.env.GITHUB_REF_NAME) return process.env.GITHUB_REF_NAME;
+  try {
+    return execSync("git branch --show-current", { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
 }
+const current = REPOS.find((repo) => repo.ref === branchName()) ?? REPOS[0];
+
+// Where the Bundle and Deploy workflow publishes the site on GitHub Pages
+// (each repository lives under it at its branch name). The page also works
+// it out from its own address when it is opened.
+function deployedSiteRoot() {
+  const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "").split("/");
+  if (!owner || !repo) return "";
+  const host = `${owner.toLowerCase()}.github.io`;
+  return repo.toLowerCase() === host ? `https://${host}/` : `https://${host}/${repo}/`;
+}
+const siteRoot = deployedSiteRoot();
+const baseUrlOf = (ref) => (siteRoot ? siteRoot + ref : "");
 
 const escapeHtml = (value) =>
   String(value)
@@ -35,8 +59,11 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
-const addRepoLink = (baseUrl) =>
-  `paperback://addRepo?displayName=${encodeURIComponent(name)}&url=${encodeURIComponent(baseUrl)}`;
+// Keeps `</script>` and friends from ending the inline script early.
+const jsonForScript = (value) => JSON.stringify(value).replaceAll("<", "\\u003c");
+
+const addRepoLink = (displayName, baseUrl) =>
+  `paperback://addRepo?displayName=${encodeURIComponent(displayName)}&url=${encodeURIComponent(baseUrl)}`;
 
 const RATING_TAGS = {
   MATURE: { label: "Mature", type: "warning" },
@@ -63,14 +90,41 @@ function sourceItem(source) {
   const filters = tags.map((tag) => tag.label).join("|");
   return `<li class="source" data-tags="${escapeHtml(filters)}" title="${escapeHtml(
     source.description ?? "",
-  )}">${escapeHtml(source.name)}${tags.map(tagHtml).join("")}</li>`;
+  )}">${escapeHtml(source.name)}<span class="version">${escapeHtml(source.version ?? "")}</span>${tags
+    .map(tagHtml)
+    .join("")}</li>`;
 }
 
-const baseUrl = deployedBaseUrl();
-const sources = [...versioning.sources].sort((a, b) => a.name.localeCompare(b.name));
+const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+const sources = sortByName(versioning.sources);
 const filterLabels = [
   ...new Set(sources.flatMap((source) => sourceTags(source).map((t) => t.label))),
 ];
+const footerText = (repoName, count, buildTime) =>
+  `${repoName} · ${count} sources · built ${String(buildTime ?? "").slice(0, 10)}`;
+
+// What the page needs to redraw this repository after showing another one.
+const embedded = {
+  name,
+  description,
+  buildTime: versioning.buildTime,
+  sources: sources.map(({ name, description, version, contentRating, badges }) => ({
+    name,
+    description,
+    version,
+    contentRating,
+    badges,
+  })),
+};
+
+const baseUrl = baseUrlOf(current.ref);
+
+const repoLinks = REPOS.map(
+  (repo) =>
+    `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}"${
+      repo === current ? ' aria-current="true"' : ""
+    }>${escapeHtml(repo.label)}</a>`,
+).join("");
 
 const html = `<!DOCTYPE html>
 <html lang="en" data-theme="noir">
@@ -97,6 +151,8 @@ try {
 .noir-only { display: none; }
 .classic-only { display: revert; }
 ul { margin-top: 0; }
+.version { margin-left: 8px; font-size: 12px; opacity: .55; font-variant-numeric: tabular-nums; }
+.status { margin: 0; padding-left: 40px; }
 
 .theme-toggle {
   position: fixed;
@@ -109,6 +165,10 @@ ul { margin-top: 0; }
   border-radius: 999px;
   padding: 6px 12px;
 }
+
+/* Repository links: hover shows that repository's sources, click keeps them */
+.repo-switch { display: flex; justify-content: center; flex-wrap: wrap; }
+.repo-link { cursor: pointer; white-space: nowrap; }
 
 /* Tags, after Element's tag component (https://element.eleme.io/#/en-US/component/tag) */
 .el-tag {
@@ -173,6 +233,18 @@ ul { margin-top: 0; }
 [data-theme="classic"] #listDiv { line-height: 1.5; }
 [data-theme="classic"] .sources { padding-left: 40px; }
 [data-theme="classic"] .theme-toggle { background: #fff; color: #2c3e50; border: 1px solid #dfe2e5; }
+[data-theme="classic"] .repo-switch { gap: 0; margin: 0 auto 1rem; }
+[data-theme="classic"] .repo-link {
+  padding: .35rem 1rem;
+  border: 1px solid #2e84bf;
+  color: #2e84bf;
+  font-size: .95rem;
+}
+[data-theme="classic"] .repo-link:first-child { border-radius: 4px 0 0 4px; }
+[data-theme="classic"] .repo-link:last-child { border-radius: 0 4px 4px 0; }
+[data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
+[data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
+[data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
 
 /* ---------- Noir (dark shop style) ---------- */
 [data-theme="noir"] {
@@ -217,6 +289,25 @@ ul { margin-top: 0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+[data-theme="noir"] .repo-switch { gap: 0; margin: 22px 0 6px; }
+[data-theme="noir"] .repo-link {
+  padding: 4px 22px 8px;
+  color: var(--muted);
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background-image: linear-gradient(var(--gold), var(--gold));
+  background-size: 0 2px;
+  background-position: 50% 100%;
+  background-repeat: no-repeat;
+  transition: background-size .25s ease, color .2s ease;
+}
+[data-theme="noir"] .repo-link + .repo-link { border-left: 1px solid #55555a; }
+[data-theme="noir"] .repo-link:hover,
+[data-theme="noir"] .repo-link:focus-visible { color: var(--text); background-size: 60% 2px; outline: none; }
+[data-theme="noir"] .repo-link[aria-current="true"] { color: var(--gold); background-size: 60% 2px; }
 [data-theme="noir"] .tabs {
   display: flex;
   justify-content: center;
@@ -320,12 +411,14 @@ ul { margin-top: 0; }
 }
 [data-theme="noir"] #listDiv { max-width: 920px; margin: 0 auto; }
 [data-theme="noir"] .sources { margin: 0; padding-left: 40px; line-height: 1.5; font-size: 16px; }
-[data-theme="noir"] .empty { color: var(--muted); }
+[data-theme="noir"] .empty,
+[data-theme="noir"] .status { color: var(--muted); }
 [data-theme="noir"] footer { padding: 28px 16px; border-top: 1px solid #2c2c30; color: var(--muted); font-size: 12px; text-align: center; }
 
 @media (max-width: 560px) {
   [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
   [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
+  [data-theme="noir"] .repo-link { padding: 4px 14px 8px; font-size: 18px; }
   [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
 }
 </style>
@@ -334,15 +427,29 @@ ul { margin-top: 0; }
 <button class="theme-toggle" type="button" aria-label="Switch theme"></button>
 
 <!-- Noir: top bar, banners, filter tabs above the sources -->
-<div class="topbar noir-only">${escapeHtml(name)}</div>
+<div class="topbar noir-only js-repo-name">${escapeHtml(name)}</div>
 
 <main>
+<!-- Classic: header -->
+<header class="classic-only">
+<img class="icon" src="https://paperback.moe/icons/logo-alt.svg" alt="Repository logo" onerror="this.onerror=null;this.src='https://paperback.moe/pb-logo.svg'">
+<h1 class="js-repo-name">${escapeHtml(name)}</h1>
+<p class="pageDescription">A Paperback extensions repository</p>
+</header>
+
+<!-- Both: one link per repository on this site -->
+<nav class="repo-switch" aria-label="Repositories">${repoLinks}</nav>
+
+<header class="classic-only">
+<a class="addToPaperbackButton js-add-repo" href="${escapeHtml(addRepoLink(name, baseUrl))}">Add to Paperback</a>
+</header>
+
 <div class="noir-only">
-<a class="banner js-add-repo" href="${escapeHtml(addRepoLink(baseUrl))}"><span class="banner__label">Paperback</span><span class="banner__text">Add this repository</span><span class="banner__chevron">›</span></a>
+<a class="banner js-add-repo" href="${escapeHtml(addRepoLink(name, baseUrl))}"><span class="banner__label">Paperback</span><span class="banner__text">Add this repository</span><span class="banner__chevron">›</span></a>
 <a class="banner" href="https://paperback.moe/help/guides/adding-repos/"><span class="banner__label">Guide</span><span class="banner__text">How to add a repository</span><span class="banner__chevron">›</span></a>
 <section class="hero">
-<h1>${escapeHtml(name)}</h1>
-<p>${escapeHtml(description)}</p>
+<h1 class="js-repo-name">${escapeHtml(name)}</h1>
+<p class="js-repo-description">${escapeHtml(description)}</p>
 <div class="baseUrlBar"><code class="js-base-url">${escapeHtml(baseUrl)}</code><button class="copyButton" type="button">Copy URL</button></div>
 </section>
 <h2 class="section-title">AVAILABLE<br>SOURCES</h2>
@@ -352,22 +459,15 @@ ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${
 </nav>
 </div>
 
-<!-- Classic: header, guide, base URL -->
-<header class="classic-only">
-<img class="icon" src="https://paperback.moe/icons/logo-alt.svg" alt="Repository logo" onerror="this.onerror=null;this.src='https://paperback.moe/pb-logo.svg'">
-<h1>${escapeHtml(name)}</h1>
-<p class="pageDescription">A Paperback extensions repository</p>
-<a class="addToPaperbackButton js-add-repo" href="${escapeHtml(addRepoLink(baseUrl))}">Add to Paperback</a>
-</header>
 <div class="content">
 <div class="classic-only">
-<p id="repositoryDescription">${escapeHtml(description)}</p>
+<p id="repositoryDescription" class="js-repo-description">${escapeHtml(description)}</p>
 <blockquote>
 <p>A guide is available to learn everything about extensions repositories.</p>
 <p>Check it <a href="https://paperback.moe/help/guides/adding-repos/">here</a> to learn how to add and use this repository in Paperback.</p>
 </blockquote>
 <blockquote>
-<p><span>On a Paperback installed device, press </span><a class="js-add-repo" href="${escapeHtml(addRepoLink(baseUrl))}">Add to Paperback</a><span> or use the base URL to add this repository to the app.</span></p>
+<p><span>On a Paperback installed device, press </span><a class="js-add-repo" href="${escapeHtml(addRepoLink(name, baseUrl))}">Add to Paperback</a><span> or use the base URL to add this repository to the app.</span></p>
 </blockquote>
 <div class="baseUrl">
 <p class="title">Base URL:</p>
@@ -381,63 +481,227 @@ ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${
 <ul class="sources">
 ${sources.map(sourceItem).join("\n")}
 </ul>
+<p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
 </div>
 </main>
-<footer class="noir-only">${escapeHtml(name)} · ${sources.length} sources · built ${escapeHtml(
-  versioning.buildTime.slice(0, 10),
-)}</footer>
+<footer class="noir-only js-footer">${escapeHtml(footerText(name, sources.length, versioning.buildTime))}</footer>
 
 <script>
 (function () {
+  var REPOS = ${jsonForScript(REPOS)};
+  var CURRENT = ${jsonForScript(current.ref)};
+  var BUILD_SITE_ROOT = ${jsonForScript(siteRoot)};
+  var RATING_TAGS = ${jsonForScript(RATING_TAGS)};
+  var data = {};
+  data[CURRENT] = ${jsonForScript(embedded)};
+
   var root = document.documentElement;
   var themes = { noir: "☀ Classic", classic: "☾ Noir" };
   var toggle = document.querySelector(".theme-toggle");
-  function apply(theme) {
+  function applyTheme(theme) {
     root.dataset.theme = theme;
     toggle.textContent = themes[theme];
     try { localStorage.setItem("repo-theme", theme); } catch (e) {}
   }
-  toggle.addEventListener("click", function () { apply(root.dataset.theme === "noir" ? "classic" : "noir"); });
+  toggle.addEventListener("click", function () {
+    applyTheme(root.dataset.theme === "noir" ? "classic" : "noir");
+    if (root.dataset.theme === "classic") showAll(); // Classic ignores the filter
+  });
   toggle.textContent = themes[root.dataset.theme] || themes.noir;
 
-  // Filter tabs (Noir)
-  var items = document.querySelectorAll(".source");
+  // Each repository lives at <site root><branch>, e.g. …/myprivaterepo-/0.9/stable
+  function siteRoot() {
+    var at = location.pathname.indexOf("/" + CURRENT);
+    if (/^https?:$/.test(location.protocol) && at !== -1) {
+      return location.origin + location.pathname.slice(0, at + 1);
+    }
+    return BUILD_SITE_ROOT;
+  }
+  function baseUrlOf(ref) {
+    var site = siteRoot();
+    return site ? site + ref : "";
+  }
+  function addRepoLink(displayName, ref) {
+    return "paperback://addRepo?displayName=" + encodeURIComponent(displayName) + "&url=" + encodeURIComponent(baseUrlOf(ref));
+  }
+
+  var list = document.querySelector(".sources");
+  var tabs = document.querySelector(".tabs");
   var empty = document.querySelector(".empty");
-  document.querySelectorAll(".tab").forEach(function (tab) {
-    tab.addEventListener("click", function () {
-      var filter = tab.dataset.filter;
-      document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-pressed", String(t === tab)); });
-      var shown = 0;
-      items.forEach(function (item) {
-        var match = !filter || item.dataset.tags.split("|").indexOf(filter) !== -1;
-        item.hidden = !match;
-        if (match) shown++;
+  var status = document.querySelector(".status");
+  var links = Array.prototype.slice.call(document.querySelectorAll(".repo-link"));
+  var selected = CURRENT;
+  var shown = CURRENT;
+  var loading = {};
+
+  links.forEach(function (link) {
+    if (baseUrlOf(link.dataset.ref)) link.href = baseUrlOf(link.dataset.ref) + "/";
+  });
+  function labelOf(ref) {
+    var repo = REPOS.filter(function (r) { return r.ref === ref; })[0];
+    return repo ? repo.label : ref;
+  }
+
+  function load(ref) {
+    if (data[ref] || loading[ref]) return;
+    loading[ref] = true;
+    fetch(baseUrlOf(ref) + "/versioning.json", { cache: "no-cache" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (versioning) {
+        data[ref] = {
+          name: versioning.repository.name,
+          description: versioning.repository.description,
+          buildTime: versioning.buildTime,
+          sources: versioning.sources.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }),
+        };
+      })
+      .catch(function () {
+        data[ref] = { missing: true };
+      })
+      .then(function () {
+        loading[ref] = false;
+        if (shown === ref) show(ref);
       });
-      empty.hidden = shown > 0;
+  }
+
+  function tagsOf(source) {
+    var tags = (source.badges || []).map(function (badge) {
+      return {
+        label: badge.label,
+        style: "background-color:" + badge.backgroundColor + ";border-color:" + badge.backgroundColor + ";color:" + badge.textColor,
+      };
+    });
+    var rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
+    if (rating) tags.push(rating);
+    return tags;
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function setText(selector, text) {
+    document.querySelectorAll(selector).forEach(function (node) { node.textContent = text; });
+  }
+
+  function renderTabs(labels) {
+    tabs.textContent = "";
+    var all = el("button", "tab tab--brand", "All Sources");
+    all.type = "button";
+    all.dataset.filter = "";
+    all.setAttribute("aria-pressed", "true");
+    tabs.appendChild(all);
+    labels.forEach(function (label) {
+      var tab = el("button", "tab", label);
+      tab.type = "button";
+      tab.dataset.filter = label;
+      tab.setAttribute("aria-pressed", "false");
+      tabs.appendChild(tab);
+    });
+  }
+
+  function renderSources(sources) {
+    list.textContent = "";
+    var labels = [];
+    sources.forEach(function (source) {
+      var tags = tagsOf(source);
+      var item = el("li", "source", source.name);
+      item.title = source.description || "";
+      item.dataset.tags = tags.map(function (t) { return t.label; }).join("|");
+      item.appendChild(el("span", "version", source.version || ""));
+      tags.forEach(function (tag) {
+        var span = el("span", "el-tag el-tag--dark el-tag--mini" + (tag.type ? " el-tag--" + tag.type : ""), tag.label);
+        if (tag.style) span.setAttribute("style", tag.style);
+        item.appendChild(span);
+        if (labels.indexOf(tag.label) === -1) labels.push(tag.label);
+      });
+      list.appendChild(item);
+    });
+    renderTabs(labels);
+    empty.hidden = true;
+  }
+
+  function show(ref) {
+    shown = ref;
+    links.forEach(function (link) {
+      if (link.dataset.ref === selected) link.setAttribute("aria-current", "true");
+      else link.removeAttribute("aria-current");
+    });
+    var repo = data[ref];
+    if (!repo || repo.missing) {
+      list.textContent = "";
+      renderTabs([]);
+      empty.hidden = true;
+      status.hidden = false;
+      status.textContent = repo ? "This repository isn't published yet." : "Loading sources…";
+      setText(".js-repo-name", labelOf(ref));
+      setText(".js-repo-description", "");
+      setText(".js-base-url", baseUrlOf(ref));
+      if (!repo) load(ref);
+      return;
+    }
+    status.hidden = true;
+    setText(".js-repo-name", repo.name);
+    setText(".js-repo-description", repo.description);
+    setText(".js-base-url", baseUrlOf(ref));
+    setText(".js-footer", repo.name + " · " + repo.sources.length + " sources · built " + String(repo.buildTime || "").slice(0, 10));
+    document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = addRepoLink(repo.name, ref); });
+    if (ref === selected) document.title = repo.name;
+    renderSources(repo.sources);
+  }
+
+  // Hover (or keyboard focus) shows a repository; leaving goes back to the
+  // chosen one; a click or tap chooses it.
+  var nav = document.querySelector(".repo-switch");
+  links.forEach(function (link) {
+    link.addEventListener("mouseenter", function () { if (shown !== link.dataset.ref) show(link.dataset.ref); });
+    link.addEventListener("focus", function () { if (shown !== link.dataset.ref) show(link.dataset.ref); });
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      selected = link.dataset.ref;
+      show(selected);
     });
   });
-  // Classic theme ignores the filter
-  toggle.addEventListener("click", function () {
-    if (root.dataset.theme === "classic") items.forEach(function (item) { item.hidden = false; });
+  nav.addEventListener("mouseleave", function () { if (shown !== selected) show(selected); });
+  nav.addEventListener("focusout", function (event) {
+    if (!nav.contains(event.relatedTarget) && shown !== selected) show(selected);
   });
 
-  // Base URL from the page's own address
-  var baseUrl = document.querySelector(".js-base-url").textContent.trim();
-  if (/^https?:$/.test(location.protocol)) {
-    baseUrl = location.origin + location.pathname.replace(/\\/(index\\.html)?$/, "");
-    var link = "paperback://addRepo?displayName=" + encodeURIComponent(${JSON.stringify(name)}) +
-      "&url=" + encodeURIComponent(baseUrl);
-    document.querySelectorAll(".js-base-url").forEach(function (el) { el.textContent = baseUrl; });
-    document.querySelectorAll(".js-add-repo").forEach(function (a) { a.href = link; });
+  // Filter tabs (Noir)
+  function showAll() {
+    list.querySelectorAll(".source").forEach(function (item) { item.hidden = false; });
+    empty.hidden = true;
   }
+  tabs.addEventListener("click", function (event) {
+    var tab = event.target.closest(".tab");
+    if (!tab) return;
+    var filter = tab.dataset.filter;
+    tabs.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-pressed", String(t === tab)); });
+    var count = 0;
+    list.querySelectorAll(".source").forEach(function (item) {
+      var match = !filter || item.dataset.tags.split("|").indexOf(filter) !== -1;
+      item.hidden = !match;
+      if (match) count++;
+    });
+    empty.hidden = count > 0;
+  });
 
   var copy = document.querySelector(".copyButton");
   copy.addEventListener("click", function () {
     var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy URL"; }, 1500); };
-    if (navigator.clipboard) navigator.clipboard.writeText(baseUrl).then(done, function () {});
+    if (navigator.clipboard) navigator.clipboard.writeText(baseUrlOf(shown)).then(done, function () {});
   });
+
+  show(CURRENT);
+  REPOS.forEach(function (repo) { if (repo.ref !== CURRENT) load(repo.ref); });
 })();
 </script>
 </body>
@@ -445,4 +709,6 @@ ${sources.map(sourceItem).join("\n")}
 `;
 
 fs.writeFileSync(path.join(folder, "index.html"), html);
-console.log(`Wrote ${path.join(folder, "index.html")} (${sources.length} sources)`);
+console.log(
+  `Wrote ${path.join(folder, "index.html")} (${sources.length} sources, ${current.label})`,
+);

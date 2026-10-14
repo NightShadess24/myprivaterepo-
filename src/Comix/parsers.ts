@@ -14,12 +14,11 @@ import {
   DOMAIN,
   NO_IMAGE,
   type ChapterItem,
-  type ChapterPageItems,
+  type ChapterPages,
   type MangaItem,
   type MangaListItem,
   type ResultManga,
 } from "./models";
-import { rememberAltHosts } from "./network";
 
 // Comix server-renders page state into
 // `<script type="application/json" id="initial-data">` as a React-Query cache:
@@ -100,61 +99,50 @@ export const parseChapters = (sourceManga: SourceManga, items: ChapterItem[]): C
   items.map((chapter) => ({
     chapterId: chapter.id.toString(),
     sourceManga,
-    langCode: chapter.language,
+    langCode: chapter.language || "en",
     chapNum: chapter.number,
-    title: chapter.name,
-    volume: chapter.volume,
+    title: chapter.name || undefined,
+    volume: chapter.volume ?? undefined,
     version: chapter.isOfficial
       ? `★ ${chapter.group?.name ?? "Official"}`
       : (chapter.group?.name ?? "Unknown"),
     sortingIndex: chapter.number,
-    publishDate: parseRelativeDate(chapter.createdAtFormatted),
-    additionalInfo: { vote: chapter.votes.toString(), url: chapter.url },
+    publishDate: parseRelativeDate(chapter.createdAtFormatted ?? ""),
+    additionalInfo: { vote: String(chapter.votes ?? 0), url: chapterPath(chapter.url) },
   }));
+
+// Chapter URLs have come both site-relative and absolute; the reader page is
+// always loaded from DOMAIN, so keep only the path.
+export function chapterPath(url: string): string {
+  const titleAt = url.indexOf("/title/");
+  if (titleAt > 0) return url.slice(titleAt);
+  return url.startsWith("/") ? url : `/${url}`;
+}
 
 export function parseChapterDetails(
   chapterId: string,
   mangaId: string,
-  pages: ChapterPageItems,
+  pages: ChapterPages,
 ): ChapterDetails {
   const base = (pages.baseUrl ?? "").replace(/\/$/, "");
   return {
     id: chapterId,
     mangaId,
-    pages: pages.items.map((img, index) => {
-      let url = img.url.startsWith("http") ? img.url : `${base}/${img.url.replace(/^\//, "")}`;
-      // Same as the site's reader (and the Mihon extension): v3 pages need the
-      // flag, or the server doesn't say how the image is scrambled.
-      if (img.s === 1 && !/[?&]v3(=|&|$)/.test(url)) {
-        url += url.includes("?") ? "&v3" : "?v3";
-      }
-      rememberAltHosts(url, altHostsFor(url, index, pages.alt, pages.node));
-      return url;
+    pages: pages.items.map((img) => {
+      const url = img.url.startsWith("http") ? img.url : `${base}/${img.url.replace(/^\//, "")}`;
+      return img.s === 1 ? withV3Flag(url) : url;
     }),
   };
 }
 
-// Backup hosts in the site reader's retry order: same subdomain label on each
-// alt domain (rotated by page), then the chapter's node on each alt domain.
-function altHostsFor(
-  url: string,
-  index: number,
-  alt: string[] | null | undefined,
-  node: string | null | undefined,
-): string[] {
-  if (!Array.isArray(alt) || alt.length === 0) return [];
-  const host = /^https?:\/\/([^/?#]+)/i.exec(url)?.[1];
-  if (!host) return [];
-  const label = host.split(".")[0]!;
-  const start = index % alt.length;
-  const domains = [...alt.slice(start), ...alt.slice(0, start)].filter(
-    (domain) => typeof domain === "string" && domain.length > 0,
-  );
-  const hosts = [
-    ...domains.map((domain) => `${label}.${domain}`),
-    ...domains.map((domain) => `${node || label}.${domain}`),
-  ];
-  return [...new Set(hosts)].filter((candidate) => candidate !== host);
+// V3 pages are only served with their X-Scramble-* headers when `v3` is in the query.
+function withV3Flag(url: string): string {
+  const hashAt = url.indexOf("#");
+  const path = hashAt === -1 ? url : url.slice(0, hashAt);
+  const hash = hashAt === -1 ? "" : url.slice(hashAt);
+  const query = path.split("?")[1] ?? "";
+  if (query.split("&").some((param) => param.split("=")[0] === "v3")) return url;
+  return `${path}${path.includes("?") ? "&" : "?"}v3${hash}`;
 }
 
 function toContentRating(content: string): ContentRating {
@@ -171,32 +159,43 @@ function toContentRating(content: string): ContentRating {
 
 function parseRelativeDate(value: string): Date {
   const now = new Date();
-  const match = value.match(/^(\d+)\s*(mo|yr|[smhdwy])s?(\s+ago)?$/i);
+  const match = value
+    .trim()
+    .match(/^(\d+)\s*(mo|mon|month|yr|year|min|sec|hr|hour|day|week|[smhdwy])s?(\s+ago)?$/i);
   if (!match) {
     return now;
   }
   const amount = Number(match[1]);
   switch (match[2].toLowerCase()) {
     case "s":
+    case "sec":
       now.setSeconds(now.getSeconds() - amount);
       break;
     case "m":
+    case "min":
       now.setMinutes(now.getMinutes() - amount);
       break;
     case "h":
+    case "hr":
+    case "hour":
       now.setHours(now.getHours() - amount);
       break;
     case "d":
+    case "day":
       now.setDate(now.getDate() - amount);
       break;
     case "w":
+    case "week":
       now.setDate(now.getDate() - amount * 7);
       break;
     case "mo":
+    case "mon":
+    case "month":
       now.setMonth(now.getMonth() - amount);
       break;
     case "yr":
     case "y":
+    case "year":
       now.setFullYear(now.getFullYear() - amount);
       break;
   }

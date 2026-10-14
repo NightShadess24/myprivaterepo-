@@ -4,9 +4,9 @@
 import { ContentRating, SourceIntents, type ExtensionInfo } from "@paperback/types";
 
 export default {
-  name: "Comix Test",
-  description: "Comix.to, the version that gets new fixes first.",
-  version: "1.0.0-alpha.69",
+  name: "Comix",
+  description: "Extension that pulls content from Comix.to.",
+  version: "1.0.0-alpha.70",
   icon: "icon.png",
   language: "en",
   contentRating: ContentRating.EVERYONE,
@@ -22,10 +22,6 @@ export default {
     {
       name: "Catta1997",
       github: "https://github.com/Catta1997",
-    },
-    {
-      name: "Guillaume Favier",
-      github: "https://github.com/Guillaume-favier",
     },
   ],
 } satisfies ExtensionInfo;

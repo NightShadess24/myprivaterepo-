@@ -13,12 +13,9 @@ import {
   SelectRow,
   StepperRow,
   ToggleRow,
-  WebViewRow,
-  type Cookie,
-  type CookieStorageInterceptor,
 } from "@paperback/types";
 
-import { DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
+import { DISCOVERY_SECTIONS, type SectionEntry } from "../models";
 import {
   contentRatings,
   contentTypes,
@@ -34,8 +31,6 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
-import { clearLog, getLog } from "../utils/log";
-import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
   return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
@@ -52,49 +47,8 @@ function saveSetting(form: Form, key: string, value: unknown): void {
 }
 
 export class ComixSettingsForm extends Form {
-  // The cookie store holds the Cloudflare pass (cf_clearance); the user agent
-  // is the app's, which the pass is tied to.
-  constructor(
-    private readonly cookieStore: CookieStorageInterceptor,
-    private readonly userAgent: string,
-  ) {
-    super();
-  }
-
   override getSections() {
-    const pass = this.cookieStore
-      .cookiesForUrl(`${DOMAIN}/`)
-      .find((cookie) => cookie.name === "cf_clearance");
     return [
-      Section(
-        {
-          id: "cloudflare",
-          header: "Cloudflare",
-          footer:
-            "Redo the check to get a fresh Cloudflare pass: complete the check if it appears, wait for comix's home page, then tap Done. If the check doesn't appear, tap Forget first.",
-        },
-        [
-          LabelRow("cloudflare_pass", {
-            title: "Cloudflare Pass",
-            value: pass ? "Saved" : "None",
-            subtitle: pass?.expires ? `Expires ${pass.expires.toLocaleDateString()}` : undefined,
-          }),
-          WebViewRow("cloudflare_check", {
-            title: "Redo Cloudflare Check",
-            request: {
-              url: `${DOMAIN}/`,
-              method: "GET",
-              headers: { "user-agent": this.userAgent },
-            },
-            onComplete: Application.Selector(this as ComixSettingsForm, "handleCheckDone"),
-            onCancel: Application.Selector(this as ComixSettingsForm, "handleCheckCancelled"),
-          }),
-          ButtonRow("cloudflare_forget", {
-            title: "Forget Cloudflare Pass",
-            onSelect: Application.Selector(this as ComixSettingsForm, "forgetPass"),
-          }),
-        ],
-      ),
       Section("settings", [
         NavigationRow("Contents", {
           title: "Contents",
@@ -113,41 +67,6 @@ export class ComixSettingsForm extends Form {
           form: new SectionSettings(),
         }),
       ]),
-      Section(
-        {
-          id: "loading_speed",
-          footer:
-            "How many home page sections (and search pages) load at once. If Cloudflare starts asking for checks on the home page, pick a safer speed. Chapter lists and chapters always load one at a time.",
-        },
-        [
-          SelectRow("loading_speed", {
-            title: "Loading Speed",
-            subtitle: getLoadingSpeed().title,
-            layout: "list",
-            value: [getLoadingSpeed().id],
-            items: LOADING_SPEEDS.map((speed) => ({ id: speed.id, title: speed.title })),
-            minItemCount: 1,
-            maxItemCount: 1,
-            onValueChange: Application.Selector(
-              this as ComixSettingsForm,
-              "handleLoadingSpeedChange",
-            ),
-          }),
-        ],
-      ),
-      Section(
-        {
-          id: "reading_log",
-          footer: "If a chapter won't load, open this right after and send a screenshot.",
-        },
-        [
-          NavigationRow("reading_log", {
-            title: "Reading Log",
-            subtitle: "What happened when chapters were opened",
-            form: new ReadingLogForm(),
-          }),
-        ],
-      ),
     ];
   }
 
@@ -155,71 +74,6 @@ export class ComixSettingsForm extends Form {
     await ensureFilters(true);
     this.reloadForm();
   }
-
-  // Same as the app's own bypass banner: keep the fresh cf_clearance.
-  async handleCheckDone(cookies: Cookie[]) {
-    for (const cookie of cookies) {
-      if (cookie.name == "cf_clearance") this.cookieStore.setCookie(cookie);
-    }
-    this.reloadForm();
-  }
-
-  async handleCheckCancelled() {
-    this.reloadForm();
-  }
-
-  async forgetPass() {
-    this.cookieStore.cookies = this.cookieStore.cookies.filter(
-      (cookie) => cookie.name !== "cf_clearance",
-    );
-    this.reloadForm();
-  }
-
-  async handleLoadingSpeedChange(value: string[]) {
-    if (value[0]) Application.setState(value[0], "loading_speed");
-    this.reloadForm();
-  }
-}
-
-class ReadingLogForm extends Form {
-  override getSections() {
-    const log = getLog();
-    return [
-      Section(
-        { id: "log", header: "Recent events", footer: "Newest first." },
-        log.length === 0
-          ? [
-              LabelRow("log_empty", {
-                title: "Nothing logged yet",
-                subtitle: "Open a chapter first",
-              }),
-            ]
-          : log.map((entry, index) =>
-              LabelRow(`log_${index}`, {
-                title: `${timeOfDay(entry.at)} · ${entry.what}`,
-                subtitle: entry.detail,
-              }),
-            ),
-      ),
-      Section("log_actions", [
-        ButtonRow("log_clear", {
-          title: "Clear Log",
-          onSelect: Application.Selector(this as ReadingLogForm, "clear"),
-        }),
-      ]),
-    ];
-  }
-
-  async clear() {
-    clearLog();
-    this.reloadForm();
-  }
-}
-
-function timeOfDay(at: number): string {
-  const date = new Date(at);
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 class FilterSettings extends Form {

@@ -2,7 +2,6 @@
 /* Copyright © 2026 Inkdex */
 
 import {
-  BasicRateLimiter,
   CloudflareError,
   PaperbackInterceptor,
   URL,
@@ -13,88 +12,16 @@ import {
 import { DOMAIN } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
-import { errorText, logEvent } from "./utils/log";
-import { withTimeout } from "./utils/queue";
-
-// comix.to itself (pages, API), as opposed to its image hosts.
-const isSiteUrl = (url: string): boolean => /^https?:\/\/(www\.)?comix\.to([/:?#]|$)/i.test(url);
-
-// The basic limiter only lets images through unthrottled when their url ends in
-// .webp/.jpg/…; comix's page images (and covers) have no extension, so every
-// page was held to the same 5 requests a second as the site. Pace only comix.to.
-export class SiteRateLimiter extends BasicRateLimiter {
-  override async interceptRequest(request: Request): Promise<Request> {
-    return isSiteUrl(request.url) ? super.interceptRequest(request) : request;
-  }
-}
-
-const header = (headers: Record<string, string> | undefined, name: string): string | undefined => {
-  for (const [key, value] of Object.entries(headers ?? {})) {
-    if (key.toLowerCase() === name) return value;
-  }
-  return undefined;
-};
-
-// Backup image hosts per page (from the chapter's page list), keyed without the
-// query so `?v3` / `&r=` variants match.
-const altHostsByUrl = new Map<string, string[]>();
-const urlKey = (url: string): string => url.split(/[?#]/)[0]!;
-
-export function rememberAltHosts(url: string, hosts: string[]): void {
-  if (hosts.length === 0) return;
-  if (altHostsByUrl.size > 3000) altHostsByUrl.clear();
-  altHostsByUrl.set(urlKey(url), hosts);
-}
-
-// A few image results per chapter go to the Reading Log (all failures do, up
-// to a limit), so the log shows what the image server sent back.
-let imageLogBudget = 0;
-let imagesOk = 0;
-let imagesFailed = 0;
-
-export function startImageLog(): void {
-  imageLogBudget = 6;
-  imagesOk = 0;
-  imagesFailed = 0;
-}
-
-function logImage(detail: string, failed: boolean): void {
-  if (failed) imagesFailed++;
-  else imagesOk++;
-  const first = !failed && imagesOk === 1;
-  if ((failed || first) && imageLogBudget > 0) {
-    imageLogBudget--;
-    if (failed)
-      logEvent("image failed", `${detail} (${imagesFailed} failed, ${imagesOk} ok so far)`);
-    else logEvent("first image", detail);
-  }
-}
-
-const shortUrl = (url: string): string => url.replace(/^https?:\/\//, "").slice(0, 90);
-
-function withParam(url: string, key: string, value: string): string {
-  const [beforeHash] = url.split("#");
-  const re = new RegExp(`([?&])${key}=[^&]*`);
-  if (re.test(beforeHash!)) return beforeHash!.replace(re, `$1${key}=${value}`);
-  return `${beforeHash}${beforeHash!.includes("?") ? "&" : "?"}${key}=${value}`;
-}
-
-function swapHost(url: string, host: string): string {
-  return url.replace(/^(https?:\/\/)[^/?#]+/i, `$1${host}`);
-}
 
 export class ComixInterceptor extends PaperbackInterceptor {
   override async interceptRequest(request: Request): Promise<Request> {
-    const headers: Record<string, string> = { ...request.headers };
-    if (!isSiteUrl(request.url)) {
-      // comix's image hosts refuse requests that carry a Referer/Origin.
-      for (const key of Object.keys(headers)) {
-        const lk = key.toLowerCase();
-        if (lk === "referer" || lk === "origin") delete headers[key];
-      }
-    }
-    headers["user-agent"] = await Application.getDefaultUserAgent();
-    return { ...request, headers };
+    return {
+      ...request,
+      headers: {
+        ...request.headers,
+        "user-agent": await Application.getDefaultUserAgent(),
+      },
+    };
   }
 
   override async interceptResponse(
@@ -102,7 +29,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
     response: Response,
     data: ArrayBuffer,
   ): Promise<ArrayBuffer> {
-    if (header(response.headers, "cf-mitigated") === "challenge") {
+    if (response.headers?.["cf-mitigated"] === "challenge") {
       throw new CloudflareError({
         url: DOMAIN,
         method: "GET",
@@ -112,120 +39,56 @@ export class ComixInterceptor extends PaperbackInterceptor {
       });
     }
 
-    const siteUrl = isSiteUrl(request.url);
-    if (!siteUrl && response.status >= 400) {
-      const recovered = await retryImage(request.url, response.status);
-      if (recovered) return recovered;
-      logImage(`HTTP ${response.status} from ${shortUrl(request.url)}`, true);
-      return data;
-    }
-
-    return await decodeImage(request.url, response, data, siteUrl);
-  }
-}
-
-// Like the site's reader: try a failed image on the backup hosts (no wait, it's
-// another server), or once more on the same host after a second if there are
-// none. Retries carry `r=N`, which also stops them from retrying again themselves.
-async function retryImage(url: string, status: number): Promise<ArrayBuffer | null> {
-  if (/[?&]r=\d+/.test(url)) return null;
-  const altHosts = (altHostsByUrl.get(urlKey(url)) ?? []).slice(0, 3);
-  const tries = altHosts.map((host, i) => withParam(swapHost(url, host), "r", String(i + 1)));
-  if (tries.length === 0 && (status === 404 || status >= 500)) {
-    await Application.sleep(1);
-    tries.push(withParam(url, "r", "1"));
-  }
-
-  for (const next of tries) {
-    try {
-      const [retryResponse, buffer] = await Application.scheduleRequest({
-        url: next,
-        method: "GET",
-      });
-      if (retryResponse.status < 400) {
-        if (imageLogBudget > 0) {
-          imageLogBudget--;
-          logEvent(
-            "image retried",
-            `HTTP ${status} from ${shortUrl(url)}, got it from ${shortUrl(next)}`,
-          );
-        }
-        return buffer;
+    // Page images may be byte-XOR'd (X-Enc-*), tile-shuffled (X-Scramble-*), or
+    // both. Key off headers (an encrypted prefix defeats mime-sniffing) and undo
+    // them in the order the site's reader does: decrypt first, then descramble.
+    let bytes = data;
+    const encParams = readEncHeaders(response.headers);
+    if (encParams) {
+      try {
+        bytes = decryptImage(bytes, encParams);
+      } catch (error) {
+        console.log(
+          `[Comix] image decrypt failed for ${request.url}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return data;
       }
-    } catch {
-      // try the next host
     }
-  }
-  return null;
-}
 
-// Page images can be byte-XOR'd (X-Enc-*), tile-shuffled (X-Scramble-*), or
-// both. Undo the XOR first (the shuffle needs a decodable image), then the
-// tiles — the same order as the Mihon extension.
-async function decodeImage(
-  url: string,
-  response: Response,
-  data: ArrayBuffer,
-  siteUrl: boolean,
-): Promise<ArrayBuffer> {
-  const enc = readEncHeaders(response.headers);
-  const scramble = readScrambleHeaders(response.headers);
-  if (!enc && !scramble) {
-    if (!siteUrl) {
-      const mime = sniffImageMime(new Uint8Array(data));
-      if (mime) logImage(`${mime.replace("image/", "")} from ${shortUrl(url)} (plain)`, false);
+    const scrambleParams = readScrambleHeaders(response.headers);
+    if (scrambleParams) {
+      try {
+        return await descrambleImage(
+          bytes,
+          scrambleParams,
+          sniffImageMime(bytes) ?? response.mimeType ?? "image/webp",
+        );
+      } catch (error) {
+        console.log(
+          `[Comix] descramble failed for ${request.url} (algo=${scrambleParams.algo} seed=${scrambleParams.seed}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return bytes;
+      }
     }
-    return data;
-  }
-  const steps: string[] = [];
-  let bytes = data;
 
-  if (enc) {
-    try {
-      bytes = decryptImage(bytes, enc);
-      steps.push(`enc algo ${enc.algo}`);
-    } catch (error) {
-      logImage(`decrypt failed for ${shortUrl(url)}: ${errorText(error)}`, true);
-      return data;
-    }
-  }
-
-  const mime =
-    sniffImageMime(new Uint8Array(bytes)) ??
-    (response.mimeType?.startsWith("image/") ? response.mimeType : undefined);
-
-  if (scramble) {
-    try {
-      // A picture the app can't decode may never call back, so don't wait forever.
-      bytes = await withTimeout(
-        descrambleImage(bytes, scramble, mime ?? "image/webp"),
-        20,
-        "descramble",
-      );
-      steps.push(`tiles ${scramble.cols}x${scramble.rows} algo ${scramble.algo}`);
-    } catch (error) {
-      logImage(
-        `descramble failed for ${shortUrl(url)} (${mime ?? "unknown type"}): ${errorText(error)}`,
-        true,
-      );
-      return bytes;
-    }
-  }
-
-  if (!mime) {
-    logImage(`not a picture from ${shortUrl(url)} (${steps.join(", ") || "as sent"})`, true);
     return bytes;
   }
-  logImage(
-    `${mime.replace("image/", "")} from ${shortUrl(url)} (${steps.join(", ") || "plain"})`,
-    false,
-  );
-  return bytes;
 }
 
 export async function fetchText(url: string): Promise<string> {
-  const [, buffer] = await Application.scheduleRequest({ url, method: "GET" });
-  return Application.arrayBufferToUTF8String(buffer);
+  const [response, buffer] = await Application.scheduleRequest({ url, method: "GET" });
+  const text = Application.arrayBufferToUTF8String(buffer);
+  // Cloudflare's firewall block page (the site blocks IPs that send bursts).
+  if (response.status === 403 && /you have been blocked/i.test(text)) {
+    throw new Error(
+      "Comix has blocked your network for now (usually after too many requests). Wait a while, then try again.",
+    );
+  }
+  return text;
 }
 
 export function browseUrl(query: Record<string, string | string[]>): string {
