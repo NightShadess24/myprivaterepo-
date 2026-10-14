@@ -4,6 +4,10 @@
 import type { SearchResultItem } from "@paperback/types";
 
 export const DOMAIN = "https://comix.to";
+// comix's own check page ("Verify you're human"). Opened in the check browser
+// it shows the check; once passed, comix sets its pass (the waf_pass cookie)
+// and goes on to its home page.
+export const CHECK_PAGE = `${DOMAIN}/@waf/challenge`;
 export const NO_IMAGE = `${DOMAIN}/images/no-poster.png`;
 
 export type SectionEntry = { id: string; title: string };

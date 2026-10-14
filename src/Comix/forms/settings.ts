@@ -18,8 +18,8 @@ import {
   type CookieStorageInterceptor,
 } from "@paperback/types";
 
-import { DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
-import { keepSiteCookies } from "../utils/cookies";
+import { CHECK_PAGE, DISCOVERY_SECTIONS, DOMAIN, type SectionEntry } from "../models";
+import { COMIX_PASS, keepSiteCookies } from "../utils/cookies";
 import {
   contentRatings,
   contentTypes,
@@ -63,27 +63,44 @@ export class ComixSettingsForm extends Form {
   }
 
   override getSections() {
-    const pass = this.cookieStore
-      .cookiesForUrl(`${DOMAIN}/`)
-      .find((cookie) => cookie.name === "cf_clearance");
+    const saved = this.cookieStore.cookiesForUrl(`${DOMAIN}/`);
+    const pass = saved.find((cookie) => cookie.name === "cf_clearance");
+    const comixPass = saved.find((cookie) => cookie.name === COMIX_PASS);
+    const expiry = (date?: Date) =>
+      date ? `Expires ${date.toLocaleDateString()} ${date.toLocaleTimeString()}` : undefined;
     return [
       Section(
         {
           id: "cloudflare",
-          header: "Cloudflare",
+          header: "Checks",
           footer:
-            "Redo the check to get a fresh pass: complete any check that appears, wait for comix's page, then tap Done. What comix.to leaves there is kept for loading in the background. If things keep failing, tap Forget for a clean start.",
+            "Two checks guard comix.to: Cloudflare's, and comix's own (\"Verify you're human\"). Each pass works for every manga until it runs out. To get a fresh one, open the check, complete it if it shows (comix's often passes by itself), wait for comix's page, then tap Done. If things keep failing, tap Forget for a clean start.",
         },
         [
           LabelRow("cloudflare_pass", {
             title: "Cloudflare Pass",
             value: pass ? "Saved" : "None",
-            subtitle: pass?.expires ? `Expires ${pass.expires.toLocaleDateString()}` : undefined,
+            subtitle: expiry(pass?.expires),
           }),
           WebViewRow("cloudflare_check", {
             title: "Redo Cloudflare Check",
             request: {
               url: `${DOMAIN}/`,
+              method: "GET",
+              headers: { "user-agent": this.userAgent },
+            },
+            onComplete: Application.Selector(this as ComixSettingsForm, "handleCheckDone"),
+            onCancel: Application.Selector(this as ComixSettingsForm, "handleCheckCancelled"),
+          }),
+          LabelRow("comix_pass", {
+            title: "comix Pass",
+            value: comixPass ? "Saved" : "None",
+            subtitle: expiry(comixPass?.expires),
+          }),
+          WebViewRow("comix_check", {
+            title: "Do comix's Check",
+            request: {
+              url: CHECK_PAGE,
               method: "GET",
               headers: { "user-agent": this.userAgent },
             },

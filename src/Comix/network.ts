@@ -10,7 +10,7 @@ import {
   type Response,
 } from "@paperback/types";
 
-import { DOMAIN } from "./models";
+import { CHECK_PAGE, DOMAIN } from "./models";
 import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptImage";
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
 import { errorText, logEvent } from "./utils/log";
@@ -87,6 +87,18 @@ function isCloudflareBlock(status: number, data: ArrayBuffer): boolean {
   }
 }
 
+// comix's own check served as a whole page ("Security check") in place of the
+// page that was asked for.
+const COMIX_CHECK_PAGE = /<title>\s*Security check\s*<\/title>/i;
+
+function isComixCheckPage(data: ArrayBuffer): boolean {
+  try {
+    return COMIX_CHECK_PAGE.test(Application.arrayBufferToUTF8String(data.slice(0, 16 * 1024)));
+  } catch {
+    return false;
+  }
+}
+
 function withParam(url: string, key: string, value: string): string {
   const [beforeHash] = url.split("#");
   const re = new RegExp(`([?&])${key}=[^&]*`);
@@ -139,6 +151,18 @@ export class ComixInterceptor extends PaperbackInterceptor {
           },
         },
         "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
+      );
+    }
+
+    if (siteUrl && !/\/(api|@waf)\//.test(request.url) && isComixCheckPage(data)) {
+      logEvent("comix check", `${shortUrl(request.url)} answered with comix's check page`);
+      throw new CloudflareError(
+        {
+          url: CHECK_PAGE,
+          method: "GET",
+          headers: { "user-agent": await Application.getDefaultUserAgent() },
+        },
+        "comix.to wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
       );
     }
 

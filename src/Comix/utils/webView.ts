@@ -4,7 +4,13 @@
 import { CloudflareError, type CookieStorageInterceptor } from "@paperback/types";
 import * as cheerio from "cheerio";
 
-import { DOMAIN, type ChapterItem, type ChapterPageItems, type ResultManga } from "../models";
+import {
+  CHECK_PAGE,
+  DOMAIN,
+  type ChapterItem,
+  type ChapterPageItems,
+  type ResultManga,
+} from "../models";
 import { fetchText } from "../network";
 import { keepSiteCookies, siteCookies } from "./cookies";
 import { logEvent } from "./log";
@@ -19,16 +25,22 @@ import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
 // bundle rotations.
 
 // How long comix's own check ("Verify you're human", /@waf/challenge) may stay
-// up in a hidden page before we stop and hand it to the user. When it clears by
-// itself it takes a few seconds; when it doesn't, nobody can see it to solve it.
-const CHECK_WAIT_MS = 12000;
+// up in a hidden page before we stop and hand it to the user. A hidden page
+// can't pass it (nobody can see it), so don't keep the reader waiting long.
+const CHECK_WAIT_MS = 6000;
+
+// Like the Mihon extension: comix blocks clients that page chapter lists
+// faster than one request every 3 seconds. Every chapter-list request (the
+// title page's own one included) is kept at least this far from the last one.
+const CHAPTER_REQUEST_GAP_MS = 3000;
 
 // Runs first in every hidden page, before the site's scripts:
 // - notes when comix puts up its own check (a captcha_required answer, a
 //   /@waf/ request or the /@waf/challenge frame) in `window.__comixCheck`
-// - skips requests a reader has no use for (account, comments, error reports,
-//   analytics), answering them with an empty `{}` so the site carries on. Fewer
-//   API calls per page is what keeps comix from treating the app as a bot.
+// - skips the same few requests the Mihon extension leaves out (error
+//   reports, comment threads, uploaded images, and a third-party counter),
+//   answering them with an empty `{}` so the site carries on. Everything else
+//   (the account check included) goes out as on a normal visit.
 const SITE_BOOTSTRAP = `
 (function () {
   var check = (window.__comixCheck = { seen: false, since: 0 });
@@ -48,7 +60,7 @@ const SITE_BOOTSTRAP = `
   function sawCheck() {
     if (!check.seen) { check.seen = true; check.since = Date.now(); }
   }
-  var SKIP = /\\/api\\/v1\\/(user|threads|client-errors|notifications)|\\/comments|\\/assets\\/uploads\\/|\\/cdn-cgi\\/rum|amung\\.us/;
+  var SKIP = /\\/api\\/v1\\/(threads|client-errors)|\\/assets\\/uploads\\/|amung\\.us/;
   function skip(url) { return SKIP.test(String(url || "")); }
 
   function answerEmpty(xhr) {
@@ -177,18 +189,20 @@ async function cloudflareError(pageUrl: string, what: string): Promise<Cloudflar
   );
 }
 
-// The error that opens `pageUrl` in Paperback's check browser, where comix's own
-// check (if it shows) can be passed by hand like on any visit. What that browser
-// ends with is kept (see cloudflareBypassCompleted) and sent with later pages.
-async function checkError(pageUrl: string, what: string): Promise<CloudflareError> {
-  logEvent("comix check", `${what}: comix wanted its check, opening the page to pass it`);
+// comix wants its own check: open its check page in Paperback's check browser.
+// Opening the page that asked for it doesn't work, because comix only puts up
+// its check in hidden pages, so no pass was ever earned there. What the check
+// browser ends with (comix's pass) is kept (see cloudflareBypassCompleted) and
+// sent with every hidden page after that, for every manga.
+export async function checkError(what: string): Promise<CloudflareError> {
+  logEvent("comix check", `${what}: comix wanted its check, opening its check page`);
   return new CloudflareError(
     {
-      url: pageUrl,
+      url: CHECK_PAGE,
       method: "GET",
       headers: { "user-agent": await Application.getDefaultUserAgent() },
     },
-    "comix.to wants a check. Open it, pass the check if one shows, wait for the page, then tap Done.",
+    "comix.to wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
   );
 }
 
@@ -198,13 +212,21 @@ async function checkError(pageUrl: string, what: string): Promise<CloudflareErro
 // `urgent` (opening a chapter) goes ahead of chapter lists still waiting.
 // Every run has a time limit: a WebView that never answers gives an error
 // instead of loading forever, and the queue moves on.
+// `paced` (chapter lists): starts no sooner than CHAPTER_REQUEST_GAP_MS after
+// the last paced page ended, less the second or so the title page takes to
+// make its own chapter request, so a library refresh doesn't fire them back
+// to back.
 interface RunOptions {
   browse?: boolean;
   urgent?: boolean;
+  paced?: boolean;
   inject?: string;
   timeoutSeconds: number;
   what: string;
 }
+
+let lastPacedRunEnded = 0;
+const PAGE_START_MS = 1000;
 
 async function runProxiedWebView<T>(
   pageUrl: string,
@@ -213,12 +235,24 @@ async function runProxiedWebView<T>(
   {
     browse = false,
     urgent = false,
+    paced = false,
     inject = `return window.__comixResult__`,
     timeoutSeconds,
     what,
   }: RunOptions,
 ): Promise<T> {
   const run = async (): Promise<T> => {
+    if (paced) {
+      const wait = lastPacedRunEnded + CHAPTER_REQUEST_GAP_MS - PAGE_START_MS - Date.now();
+      if (wait > 0) await Application.sleep(wait / 1000);
+    }
+    try {
+      return await load();
+    } finally {
+      if (paced) lastPacedRunEnded = Date.now();
+    }
+  };
+  const load = async (): Promise<T> => {
     const userAgent = await Application.getDefaultUserAgent();
     const $ = cheerio.load(await fetchText(pageUrl));
     // Read after the page fetch, so the session it was just given goes along.
@@ -420,7 +454,7 @@ export async function pageListViaWebView(
 
   if (!result.ok) {
     if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter ${chapterPagePath}`);
-    if (result.check) throw await checkError(pageUrl, `chapter ${chapterPagePath}`);
+    if (result.check) throw await checkError(`chapter ${chapterPagePath}`);
     logEvent(
       "page list failed",
       `${chapterPagePath}: ${result.error}` + (result.status ? ` (HTTP ${result.status})` : ""),
@@ -479,29 +513,88 @@ const BOOTSTRAP_AXIOS = `
 })();
 `;
 
-// Pages of 100, newest first, a little apart like a person paging. A library
-// refresh (`maxPages` 1) only needs the newest page: the app merges chapters.
-function buildChapterListInject(mangaId: string, maxPages: number): string {
+// The title page asks for its newest chapters by itself (20, by number) as soon
+// as it starts. Keep the decoded page it gets: a library refresh, and any manga
+// with 20 chapters or fewer, then needs no request of ours at all.
+const SITE_CHAPTERS_BOOTSTRAP = `
+(function () {
+  window.__comixSiteChapters = null;
+  var __comixHandle = function (holder) {
+    try {
+      if (window.__comixSiteChapters) return;
+      var items = holder.items;
+      var meta = holder.meta;
+      if (!meta || typeof meta !== "object" || !Array.isArray(items)) return;
+      if (items.length === 0 && meta.total !== 0) return;
+      var chapters = items.every(function (item) {
+        return item && typeof item.id === "number" && typeof item.number === "number" &&
+          typeof item.url === "string";
+      });
+      if (!chapters) return;
+      window.__comixSiteChapters = { items: items.slice(), meta: meta, at: Date.now() };
+    } catch (e) {}
+  };
+
+  ${CAPTURE_ITEMS}
+})();
+`;
+
+// After the title page's own first page: pages of 100, newest first, each at
+// least CHAPTER_REQUEST_GAP_MS after the one before (the page's own included).
+// A library refresh (`refresh`) only needs the newest page: the app merges
+// chapters.
+function buildChapterListInject(mangaId: string, refresh: boolean): string {
   const id = JSON.stringify(mangaId);
   return `
 return (async function () {
   ${CHECK_HELPERS}
-  var deadline = Date.now() + 15000;
+  var started = Date.now();
+  var GAP = ${CHAPTER_REQUEST_GAP_MS};
+  var done = function (items, via, pages, lastPage) {
+    return JSON.stringify({ ok: true, items: items, via: via, pages: pages, lastPage: lastPage });
+  };
+
+  // The title page's own newest chapters.
+  while (!window.__comixSiteChapters && Date.now() - started < 8000) {
+    if (blocked()) return cloudflareResult();
+    if (stuck()) return checkResult();
+    await sleep(100);
+  }
+  var site = window.__comixSiteChapters;
+  if (site) {
+    var siteMeta = site.meta || {};
+    var whole = (siteMeta.lastPage || 1) <= 1 ||
+      (typeof siteMeta.total === "number" && site.items.length >= siteMeta.total);
+    if (${refresh} || whole) return done(site.items, "page", 0, 1);
+  }
+
+  var deadline = started + 15000;
   while (!window.__comixAxios && Date.now() < deadline) {
     if (blocked()) return cloudflareResult();
     if (stuck()) return checkResult();
     await sleep(100);
   }
   var axios = window.__comixAxios;
-  if (!axios) return JSON.stringify({ ok: false, status: 503, error: "comix's page didn't start (no API client after 15 s)" });
+  if (!axios) {
+    if (check.seen) return checkResult();
+    return JSON.stringify({ ok: false, status: 503, error: "comix's page didn't start (no API client after 15 s)" });
+  }
 
   var path = "/manga/" + ${id} + "/chapters";
+  var maxPages = ${refresh ? 1 : 1000};
   var chapters = [];
   var page = 1;
   var lastPage = 1;
+  // The page's own request was just before its answer arrived.
+  var lastRequest = site ? site.at : Date.now() - GAP + 1000;
   try {
-    while (page <= lastPage && page <= ${maxPages}) {
-      if (page > 1) await sleep(700);
+    while (page <= lastPage && page <= maxPages) {
+      while (Date.now() < lastRequest + GAP) {
+        if (blocked()) return cloudflareResult();
+        if (stuck()) return checkResult();
+        await sleep(100);
+      }
+      lastRequest = Date.now();
       var resp = await orCheck(axios.get(path, { params: { page: page, limit: 100, "order[number]": "desc" } }));
       if (stopper(resp)) return stopper(resp);
       var data = resp.data || {};
@@ -510,7 +603,7 @@ return (async function () {
       lastPage = meta.lastPage || page;
       page = page + 1;
     }
-    return JSON.stringify({ ok: true, items: chapters, pages: page - 1, lastPage: lastPage });
+    return done(chapters, "api", page - 1, lastPage);
   } catch (e) {
     var resp2 = e && e.response;
     return JSON.stringify({
@@ -525,9 +618,9 @@ return (async function () {
 `;
 }
 
-// Load a manga's chapter list by driving the site's own axios instance directly
-// (limit 100 per page), which is far fewer requests than the site's own `?page=`
-// pager (20 per page). `refresh` (a library update) reads only the newest page.
+// Load a manga's chapter list from the title page: what the page loads by
+// itself first, then (only when there's more) the site's own API client, paced.
+// `refresh` (a library update) reads only the newest page.
 export async function chapterListViaWebView(
   mangaId: string,
   cookieInterceptor: CookieStorageInterceptor,
@@ -535,17 +628,28 @@ export async function chapterListViaWebView(
 ): Promise<ChapterItem[]> {
   const pageUrl = `${DOMAIN}/title/${mangaId}`;
   const started = Date.now();
-  const result = parseInjectResult<{ items: ChapterItem[]; pages: number; lastPage: number }>(
-    await runProxiedWebView<unknown>(pageUrl, BOOTSTRAP_AXIOS, cookieInterceptor, {
-      inject: buildChapterListInject(mangaId, refresh ? 1 : 1000),
-      timeoutSeconds: 120,
-      what: "loading the chapter list",
-    }),
+  const result = parseInjectResult<{
+    items: ChapterItem[];
+    via: string;
+    pages: number;
+    lastPage: number;
+  }>(
+    await runProxiedWebView<unknown>(
+      pageUrl,
+      BOOTSTRAP_AXIOS + SITE_CHAPTERS_BOOTSTRAP,
+      cookieInterceptor,
+      {
+        paced: true,
+        inject: buildChapterListInject(mangaId, refresh),
+        timeoutSeconds: 150,
+        what: "loading the chapter list",
+      },
+    ),
   );
 
   if (!result.ok) {
     if (result.cloudflare) throw await cloudflareError(pageUrl, `chapter list of ${mangaId}`);
-    if (result.check) throw await checkError(pageUrl, `chapter list of ${mangaId}`);
+    if (result.check) throw await checkError(`chapter list of ${mangaId}`);
     const status = result.status;
     logEvent(
       "chapter list failed",
@@ -562,9 +666,13 @@ export async function chapterListViaWebView(
   }
 
   if (!refresh) {
+    const how =
+      result.via === "page"
+        ? "from the title page"
+        : `${result.pages} of ${result.lastPage} pages, 3 s apart`;
     logEvent(
       "chapter list",
-      `${mangaId}: ${result.items.length} chapters (${result.pages} of ${result.lastPage} pages) in ${Math.round(
+      `${mangaId}: ${result.items.length} chapters (${how}) in ${Math.round(
         (Date.now() - started) / 1000,
       )}s`,
     );
@@ -635,7 +743,7 @@ export async function browseViaWebView(
     what: "loading the list",
   });
   if (result?.__comixCloudflare) throw await cloudflareError(browseUrl, "list");
-  if (result?.__comixCheck) throw await checkError(browseUrl, "list");
+  if (result?.__comixCheck) throw await checkError("list");
   if (!result) {
     console.log(`[Comix] browse timed out for ${browseUrl}`);
     throw new Error("Comix browseViaWebView: timed out waiting for browse JSON");

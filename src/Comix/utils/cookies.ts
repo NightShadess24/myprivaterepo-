@@ -40,6 +40,13 @@ function normalized(cookie: Cookie): Cookie | null {
   return copy;
 }
 
+// comix's own pass, set when its check ("Verify you're human", /@waf/challenge)
+// is passed. The app forgets cookies without an expiry date when it restarts,
+// so one earned in the check browser is kept for a day (comix asks again
+// sooner if it wants to).
+export const COMIX_PASS = "waf_pass";
+const COMIX_PASS_KEEP_MS = 24 * 60 * 60 * 1000;
+
 // Saves comix.to cookies into the store; returns the names kept.
 // `fromCheckBrowser`: the cookies come from a check the user went through.
 export function keepSiteCookies(
@@ -52,6 +59,9 @@ export function keepSiteCookies(
     const copy = normalized(cookie);
     if (!copy) continue;
     if (!fromCheckBrowser && isCloudflareCookie(copy.name)) continue;
+    if (fromCheckBrowser && copy.name === COMIX_PASS && !copy.expires) {
+      copy.expires = new Date(Date.now() + COMIX_PASS_KEEP_MS);
+    }
     // The same cookie without its expiry date: keep the one that has it.
     if (!copy.expires) {
       const stored = store.cookies.find((existing) => sameCookie(existing, copy));
