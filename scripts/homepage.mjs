@@ -24,6 +24,7 @@ import path from "node:path";
 const REPOS = [
   { ref: "0.9/stable", label: "Stable" },
   { ref: "0.9/testversion", label: "Test Version" },
+  { ref: "0.9/v8tov9", label: "v8 to v9" },
 ];
 
 const folder = process.argv[2] ?? "bundles";
