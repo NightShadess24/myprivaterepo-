@@ -318,7 +318,7 @@ ul { margin-top: 0; }
 </header>
 
 <!-- Both: one link per repository on this site -->
-<nav class="repo-switch" aria-label="Repositories"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" aria-current="true">Test Version</a></nav>
+<nav class="repo-switch" aria-label="Repositories"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" aria-current="true">Test Version</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/v8tov9/" data-ref="0.9/v8tov9">v8 to v9</a></nav>
 
 <header class="classic-only">
 <a class="addToPaperbackButton js-add-repo" href="paperback://addRepo?displayName=NightShadess24%20Extensions%20(0.9%20Test%20Version)&amp;url=https%3A%2F%2Fnightshadess24.github.io%2Fmyprivaterepo-%2F0.9%2Ftestversion">Add to Paperback</a>
@@ -371,12 +371,12 @@ ul { margin-top: 0; }
 
 <script>
 (function () {
-  var REPOS = [{"ref":"0.9/stable","label":"Stable"},{"ref":"0.9/testversion","label":"Test Version"}];
+  var REPOS = [{"ref":"0.9/stable","label":"Stable"},{"ref":"0.9/testversion","label":"Test Version"},{"ref":"0.9/v8tov9","label":"v8 to v9"}];
   var CURRENT = "0.9/testversion";
   var BUILD_SITE_ROOT = "https://nightshadess24.github.io/myprivaterepo-/";
   var RATING_TAGS = {"MATURE":{"label":"Mature","type":"warning"},"ADULT":{"label":"18+","type":"danger"}};
   var data = {};
-  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-14T15:03:44.797Z","sources":[{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.83","contentRating":"SAFE","badges":[]}],"credits":[]};
+  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-14T23:31:10.989Z","sources":[{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.83","contentRating":"SAFE","badges":[]}],"credits":[]};
 
   var root = document.documentElement;
   var themes = { noir: "☀ Classic", classic: "☾ Noir" };
