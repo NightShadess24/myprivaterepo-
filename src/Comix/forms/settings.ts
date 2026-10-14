@@ -20,7 +20,6 @@ import {
 } from "@paperback/types";
 
 import {
-  checkPage,
   DISCOVERY_SECTIONS,
   isComixDomain,
   SITE_ADDRESSES,
@@ -123,7 +122,7 @@ export class ComixSettingsForm extends Form {
           id: "cloudflare",
           header: "Checks",
           footer:
-            "Two checks guard comix: Cloudflare's, and comix's own (\"Verify you're human\"). Do the Checks goes through both: Cloudflare's first when it's needed, then comix's (it often passes by itself), then comix's home page, where you tap Done. comix's pass lasts about 5 minutes, Cloudflare's longer; each works for every manga. If things keep failing, tap Forget for a clean start.",
+            "Redo Cloudflare Check opens comix's home page, so only Cloudflare's check shows (if one is needed); wait for the page, then tap Done. Its pass works for every manga. comix's own check (\"Verify you're human\") only opens by itself, from the banner, when comix refuses something; its pass lasts about 5 minutes. If things keep failing, tap Forget for a clean start.",
         },
         [
           SelectRow("site_address", {
@@ -149,10 +148,10 @@ export class ComixSettingsForm extends Form {
             value: comixPass ? "Saved" : "None",
             subtitle: expiry(comixPass?.expires),
           }),
-          WebViewRow("checks", {
-            title: "Do the Checks",
+          WebViewRow("cloudflare_check", {
+            title: "Redo Cloudflare Check",
             request: {
-              url: checkPage(),
+              url: `${siteUrl()}/`,
               method: "GET",
               headers: { "user-agent": this.userAgent },
             },
