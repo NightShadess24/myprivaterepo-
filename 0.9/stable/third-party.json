@@ -1,0 +1,287 @@
+{
+  "generated": "2026-10-14T10:06:43.061Z",
+  "upstreams": [
+    {
+      "repo": "inkdex/extensions",
+      "label": "Inkdex",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/inkdex",
+      "url": "https://github.com/inkdex/extensions",
+      "added": [
+        "AllPornComic",
+        "AniList",
+        "ArthurScan",
+        "CoffeeManga",
+        "DragonTea",
+        "DrakeScans",
+        "GourmetScans",
+        "Hentai20",
+        "HiperDex",
+        "KunManga",
+        "LHTranslation",
+        "LekManga",
+        "LelManga",
+        "LilyManga",
+        "MadaraDex",
+        "Manga3asq",
+        "MangaBat",
+        "MangaDistrict",
+        "MangaKakalot",
+        "MangaKoma",
+        "MangaNato",
+        "MangaNelo",
+        "MangaOrigines",
+        "MangaReadOrg",
+        "MangaScantrad",
+        "MangaUpdates",
+        "MangaWorld",
+        "MangaWorldAdult",
+        "MangaZin",
+        "ManhuaPlus",
+        "Manhuaus",
+        "ManhwaClub",
+        "ManhwaRaw",
+        "ManhwaTop",
+        "ManhwaX",
+        "RageScans",
+        "Raw1001",
+        "SamuraiScan",
+        "SetsuScans",
+        "SushiScans",
+        "Thunderscans",
+        "ToonGod",
+        "Toonily",
+        "UToon",
+        "WebtoonXYZ",
+        "YaoiScan"
+      ],
+      "skipped": [
+        {
+          "id": "AllManga",
+          "why": "already here"
+        },
+        {
+          "id": "Atsumaru",
+          "why": "already here"
+        },
+        {
+          "id": "Comix",
+          "why": "already here"
+        },
+        {
+          "id": "FlameComics",
+          "why": "already here"
+        },
+        {
+          "id": "HiveToons",
+          "why": "already here"
+        },
+        {
+          "id": "LNori",
+          "why": "already here"
+        },
+        {
+          "id": "MangaDemon",
+          "why": "already here"
+        },
+        {
+          "id": "MangaDex",
+          "why": "already here"
+        },
+        {
+          "id": "MangaDot",
+          "why": "already here"
+        },
+        {
+          "id": "MangaFire",
+          "why": "already here"
+        },
+        {
+          "id": "MangaFox",
+          "why": "already here"
+        },
+        {
+          "id": "MangaKatana",
+          "why": "already here"
+        },
+        {
+          "id": "MangaPlus",
+          "why": "already here"
+        },
+        {
+          "id": "MangaTaro",
+          "why": "already here"
+        },
+        {
+          "id": "Mangago",
+          "why": "already here"
+        },
+        {
+          "id": "Mangapill",
+          "why": "already here"
+        },
+        {
+          "id": "Mgeko",
+          "why": "already here"
+        },
+        {
+          "id": "PunkRecords",
+          "why": "already here"
+        },
+        {
+          "id": "QiScans",
+          "why": "already here"
+        },
+        {
+          "id": "Roliascan",
+          "why": "already here"
+        },
+        {
+          "id": "RoyalRoad",
+          "why": "already here"
+        },
+        {
+          "id": "Webtoon",
+          "why": "already here"
+        },
+        {
+          "id": "WeebCentral",
+          "why": "already here"
+        }
+      ],
+      "commit": "153fb93d140fbc6747436d8dc503052439e2c8b9"
+    },
+    {
+      "repo": "karrot0/KakarotExtension",
+      "label": "Kakarot",
+      "license": "MIT",
+      "licenseFile": "MIT-KakarotExtension.txt",
+      "sourceCode": "https://github.com/karrot0/KakarotExtension",
+      "url": "https://github.com/karrot0/KakarotExtension",
+      "added": [
+        "Batcave",
+        "Elftoon",
+        "GodaComic",
+        "Hentai2read",
+        "Hitomi",
+        "Kenmei",
+        "LeagueOfComicGeeks",
+        "Mangaball",
+        "Mangacloud",
+        "Mangak",
+        "NHentai",
+        "NovelFire",
+        "Projectsuki",
+        "Rawkuma",
+        "ReadAllComics",
+        "ReadComicsOnline",
+        "ScribbleHub",
+        "ZipComic"
+      ],
+      "skipped": [],
+      "commit": "95e23868f39ceb88766969a603b9aef4c9b9d89c"
+    },
+    {
+      "repo": "Catta1997/Sinon-Paperback-Extensions",
+      "label": "Sinon",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Catta1997/Sinon-Paperback-Extensions",
+      "url": "https://github.com/Catta1997/Sinon-Paperback-Extensions",
+      "added": [
+        "BlueSolo",
+        "EHentai",
+        "ExHentai",
+        "FMTeam",
+        "GTOTheGreatSite",
+        "HNIScantrad",
+        "HastaTeam",
+        "HastaTeamDDT",
+        "HentaiHand",
+        "LupiTeam",
+        "NovelBuddy",
+        "NovelsOnline",
+        "OmegaScans",
+        "PhoenixScans",
+        "RokuHentai",
+        "TuttoAnimeManga"
+      ],
+      "skipped": [],
+      "commit": "a7e4fa6464e67f3cf03ccf162d0a1d9a8e739ff0"
+    },
+    {
+      "repo": "kittycatgit/kitty-extensions-0.9",
+      "label": "Kittykat",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/kittycatgit/kitty-extensions-0.9",
+      "url": "https://github.com/kittycatgit/kitty-extensions-0.9",
+      "added": [
+        "DankeFursLesen",
+        "Kavita",
+        "KaynScan",
+        "Manga18Club",
+        "MangaHub",
+        "ManhwaRead",
+        "ManhwaToon",
+        "OniSaga",
+        "ScytheScans",
+        "SilentQuill",
+        "TCBScans",
+        "ToonTop",
+        "ZinManga"
+      ],
+      "skipped": [
+        {
+          "id": "CoffeeManga",
+          "why": "taken from Inkdex"
+        },
+        {
+          "id": "HiperDex",
+          "why": "taken from Inkdex"
+        },
+        {
+          "id": "manga3asq",
+          "why": "taken from Inkdex"
+        }
+      ],
+      "commit": "8a421b9212ae7bee6418a838566629501a91f82a"
+    },
+    {
+      "repo": "itskodama/paperback-extensions",
+      "label": "Kodama",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/itskodama/paperback-extensions",
+      "url": "https://github.com/itskodama/paperback-extensions",
+      "added": [
+        "AsuraScans",
+        "MangaBaka",
+        "NovelArchive"
+      ],
+      "skipped": [
+        {
+          "id": "LNORI",
+          "why": "already here"
+        }
+      ],
+      "commit": "3557bf8d657065e825a734f22cfbeebe12bceeab"
+    },
+    {
+      "repo": "LucifersCircle/pirate.vodka-extensions",
+      "label": "Pirate Vodka",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/LucifersCircle/pirate.vodka-extensions",
+      "url": "https://github.com/LucifersCircle/pirate.vodka-extensions",
+      "added": [
+        "Hijala",
+        "Kagane",
+        "VortexScans"
+      ],
+      "skipped": [],
+      "commit": "3d7c271e9bffe347dcb3890a3711aa41aee16afa"
+    }
+  ]
+}
