@@ -14,11 +14,12 @@
 
 import { CloudflareError } from "@paperback/types";
 
-import type { ChapterItem, ChapterPageItems } from "../models";
+import type { ChapterItem, ChapterPageItems, MangaItem, ResultManga } from "../models";
 import { checkPage, siteUrl } from "../models";
 import { fastDecryptComixPayload } from "../signed/ComixFastDecrypt";
 import { fastGenerateHash } from "../signed/ComixFastSigner";
 import { logEvent } from "./log";
+import { appUserAgent } from "./userAgent";
 
 export class SigningOutdated extends Error {}
 export class CaptchaRequired extends Error {}
@@ -143,8 +144,60 @@ export async function signedCheckError(what: string, reason: string): Promise<Cl
     {
       url: checkPage(),
       method: "GET",
-      headers: { "user-agent": await Application.getDefaultUserAgent() },
+      headers: { "user-agent": await appUserAgent() },
     },
     "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
   );
+}
+
+function toResultManga(result: unknown): ResultManga {
+  const record = result as {
+    items?: unknown;
+    meta?: Record<string, unknown>;
+    pagination?: Record<string, unknown>;
+  };
+  const items = Array.isArray(result) ? result : Array.isArray(record?.items) ? record.items : null;
+  if (!items) throw new SigningOutdated("no list in the answer");
+  const meta = record?.meta ?? record?.pagination;
+  const hasNext =
+    typeof meta?.hasNext === "boolean"
+      ? meta.hasNext
+      : typeof meta?.lastPage === "number" && typeof meta?.page === "number"
+        ? meta.page < meta.lastPage
+        : items.length > 0;
+  return { items: items as MangaItem[], meta: { hasNext } };
+}
+
+// A browse/search list: the same query the site's /browse page sends to the
+// API, 20 a page. Keywords use + for spaces, like the site (comix ranks
+// %20 differently).
+export async function fetchMangaList(
+  query: Record<string, string | string[]>,
+): Promise<ResultManga> {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(query)) {
+    for (const item of Array.isArray(value) ? value : [value]) {
+      const encoded =
+        key === "keyword"
+          ? encodeURIComponent(item).replace(/%20/g, "+")
+          : encodeURIComponent(item);
+      parts.push(`${key}=${encoded}`);
+    }
+  }
+  if (!("limit" in query)) parts.push("limit=20");
+  return toResultManga(await fetchApi<unknown>(`/manga?${parts.join("&")}`));
+}
+
+// comix's own top lists (no paging): "trending" or "follows" over `days`.
+export async function fetchTopManga(
+  type: "trending" | "follows",
+  days: string,
+  contentRating: string,
+): Promise<ResultManga> {
+  const list = toResultManga(
+    await fetchApi<unknown>(
+      `/manga/top?type=${type}&days=${days}&limit=50&content_rating=${encodeURIComponent(contentRating)}`,
+    ),
+  );
+  return { items: list.items, meta: { hasNext: false } };
 }

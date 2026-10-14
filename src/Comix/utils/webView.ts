@@ -15,6 +15,7 @@ import { fetchText } from "../network";
 import { describeCookies, keepSiteCookies, pageCookieScript, siteCookies } from "./cookies";
 import { logEvent } from "./log";
 import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
+import { appUserAgent } from "./userAgent";
 
 // comix signs its API requests and encrypts `{e:"..."}` responses inside its own
 // secure bundle, so we never reimplement the rotating cipher: we capture the
@@ -277,7 +278,7 @@ async function cloudflareError(pageUrl: string, what: string): Promise<Cloudflar
     {
       url: pageUrl,
       method: "GET",
-      headers: { "user-agent": await Application.getDefaultUserAgent() },
+      headers: { "user-agent": await appUserAgent() },
     },
     "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
   );
@@ -298,7 +299,7 @@ export interface CheckWhy {
 }
 
 export async function checkError(what: string, why?: CheckWhy | null): Promise<CloudflareError> {
-  const appAgent = await Application.getDefaultUserAgent();
+  const appAgent = await appUserAgent();
   const agent = !why?.ua
     ? "unknown"
     : why.ua === appAgent
@@ -317,7 +318,7 @@ export async function checkError(what: string, why?: CheckWhy | null): Promise<C
     {
       url: checkPage(),
       method: "GET",
-      headers: { "user-agent": await Application.getDefaultUserAgent() },
+      headers: { "user-agent": await appUserAgent() },
     },
     "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
   );
@@ -373,7 +374,7 @@ async function runProxiedWebView<T>(
     }
   };
   const load = async (): Promise<T> => {
-    const userAgent = await Application.getDefaultUserAgent();
+    const userAgent = await appUserAgent();
     const $ = cheerio.load(await fetchText(pageUrl));
     // Read after the page fetch, so the session it was just given goes along.
     const cookies = siteCookies(cookieInterceptor);
@@ -609,7 +610,7 @@ export async function pageListViaWebView(
       throw new CloudflareError({
         url: pageUrl,
         method: "GET",
-        headers: { "user-agent": await Application.getDefaultUserAgent() },
+        headers: { "user-agent": await appUserAgent() },
       });
     }
     throw new Error(`Comix: couldn't get this chapter's pages (${result.error})`);
@@ -874,7 +875,7 @@ export async function chapterListViaWebView(
       throw new CloudflareError({
         url: pageUrl,
         method: "GET",
-        headers: { "user-agent": await Application.getDefaultUserAgent() },
+        headers: { "user-agent": await appUserAgent() },
       });
     }
     throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);

@@ -53,10 +53,42 @@ import {
 } from "../utils/groupFilter";
 import { clearLog, getLog, logEvent } from "../utils/log";
 import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
+import {
+  getCustomUserAgent,
+  getUserAgentPresetId,
+  USER_AGENT_DEFAULT,
+  USER_AGENT_PRESETS,
+} from "../utils/userAgent";
 import { CHAPTER_LIST_SPEEDS, getChapterListSpeed } from "../utils/webView";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
-  return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
+  const saved = Application.getState("sections") as SectionEntry[] | undefined;
+  if (!saved) return DISCOVERY_SECTIONS;
+  // Sections added since the order was saved come first (unless removed);
+  // titles are always the current ones.
+  const deleted = new Set(getDeletedSections().map((section) => section.id));
+  const known = new Set(saved.map((section) => section.id));
+  const added = DISCOVERY_SECTIONS.filter((s) => !known.has(s.id) && !deleted.has(s.id));
+  return [
+    ...added,
+    ...saved.map((section) => DISCOVERY_SECTIONS.find((d) => d.id === section.id) ?? section),
+  ];
+}
+
+// Settings → Trending Timeframe (the 0.8 ComixTo extension's): the window for
+// comix's top lists ("Most Recent Popular", "Most Follows · New Comics").
+export const TRENDING_TIMEFRAMES = [
+  { id: "1", title: "1 day" },
+  { id: "7", title: "7 days" },
+  { id: "30", title: "1 month" },
+  { id: "90", title: "3 months" },
+  { id: "180", title: "6 months" },
+  { id: "365", title: "1 year" },
+];
+
+export function getTrendingDays(): string {
+  const id = Application.getState("trending_days") as string | undefined;
+  return TRENDING_TIMEFRAMES.some((t) => t.id === id) ? id! : "30";
 }
 
 function getDeletedSections(): SectionEntry[] {
@@ -160,7 +192,49 @@ export class ComixSettingsForm extends Form {
           subtitle: "Home Sections Settings",
           form: new SectionSettings(),
         }),
+        SelectRow("trending_days", {
+          title: "Trending Timeframe",
+          subtitle: TRENDING_TIMEFRAMES.find((t) => t.id === getTrendingDays())?.title,
+          layout: "list",
+          value: [getTrendingDays()],
+          items: TRENDING_TIMEFRAMES,
+          minItemCount: 1,
+          maxItemCount: 1,
+          onValueChange: Application.Selector(
+            this as ComixSettingsForm,
+            "handleTrendingDaysChange",
+          ),
+        }),
       ]),
+      Section(
+        {
+          id: "user_agent",
+          footer:
+            "The browser identity sent to comix, by the hidden pages and by the check browser. comix only accepts its pass with the identity it was issued to, so after changing this, do the checks again. A custom value wins over the preset; leave both empty for Paperback's own.",
+        },
+        [
+          SelectRow("user_agent_preset", {
+            title: "User-Agent",
+            subtitle: [USER_AGENT_DEFAULT, ...USER_AGENT_PRESETS].find(
+              (p) => p.id === getUserAgentPresetId(),
+            )?.title,
+            layout: "list",
+            value: [getUserAgentPresetId()],
+            items: [USER_AGENT_DEFAULT, ...USER_AGENT_PRESETS].map((p) => ({
+              id: p.id,
+              title: p.title,
+            })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(this as ComixSettingsForm, "handleUserAgentPreset"),
+          }),
+          InputRow("custom_user_agent", {
+            title: "Custom User-Agent",
+            value: getCustomUserAgent(),
+            onValueChange: Application.Selector(this as ComixSettingsForm, "handleCustomUserAgent"),
+          }),
+        ],
+      ),
       Section(
         {
           id: "loading_speed",
@@ -297,6 +371,23 @@ export class ComixSettingsForm extends Form {
     );
     logEvent("check browser", "forgot all comix cookies");
     this.reloadForm();
+  }
+
+  async handleTrendingDaysChange(value: string[]) {
+    if (value[0]) saveSetting(this, "trending_days", value[0]);
+  }
+
+  async handleUserAgentPreset(value: string[]) {
+    Application.setState(
+      value[0] && value[0] !== USER_AGENT_DEFAULT.id ? value[0] : undefined,
+      "user_agent_preset",
+    );
+    logEvent("check browser", `user-agent is now ${value[0] ?? "default"}; do the checks again`);
+    this.reloadForm();
+  }
+
+  async handleCustomUserAgent(value: string) {
+    Application.setState(value.trim() || undefined, "custom_user_agent");
   }
 
   async handleFastLoadingChange(value: boolean) {

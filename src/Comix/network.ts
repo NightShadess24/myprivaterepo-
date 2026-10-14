@@ -15,6 +15,7 @@ import { decryptImage, readEncHeaders, sniffImageMime } from "./utils/decryptIma
 import { descrambleImage, readScrambleHeaders } from "./utils/descramble";
 import { errorText, logEvent } from "./utils/log";
 import { withTimeout } from "./utils/queue";
+import { appUserAgent } from "./utils/userAgent";
 
 // comix.to itself (pages, API), as opposed to its image hosts.
 const isSiteUrl = (url: string): boolean =>
@@ -121,7 +122,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
         if (lk === "referer" || lk === "origin") delete headers[key];
       }
     }
-    headers["user-agent"] = await Application.getDefaultUserAgent();
+    headers["user-agent"] = await appUserAgent();
     return { ...request, headers };
   }
 
@@ -148,7 +149,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
           url: isPage ? request.url : `${siteUrl()}/`,
           method: "GET",
           headers: {
-            "user-agent": await Application.getDefaultUserAgent(),
+            "user-agent": await appUserAgent(),
           },
         },
         "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
@@ -161,7 +162,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
         {
           url: checkPage(),
           method: "GET",
-          headers: { "user-agent": await Application.getDefaultUserAgent() },
+          headers: { "user-agent": await appUserAgent() },
         },
         "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
       );

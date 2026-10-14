@@ -21,7 +21,7 @@ export const siteUrl = (): string => `https://${siteHost()}`;
 // comix's own check page ("Verify you're human"). Opened in the check browser
 // it shows the check; once passed, comix sets its pass (the waf_pass cookie)
 // and goes on to its home page.
-export const checkPage = (): string => `${siteUrl()}/@waf/challenge`;
+export const checkPage = (): string => `${siteUrl()}/@waf/challenge?return=%2F`;
 export const NO_IMAGE = "https://comix.to/images/no-poster.png";
 
 // comix.to or comix.ws (or www.), with or without a leading dot.
@@ -31,8 +31,10 @@ export const isComixDomain = (domain: string): boolean =>
 export type SectionEntry = { id: string; title: string };
 
 export const DISCOVERY_SECTIONS: SectionEntry[] = [
+  { id: "trending_top", title: "Most Recent Popular" },
+  { id: "follows_top", title: "Most Follows · New Comics" },
   { id: "popular", title: "Popular" },
-  { id: "follow", title: "Most Follows New Comics" },
+  { id: "follow", title: "Most Followed" },
   { id: "recent", title: "Recent Comics" },
   { id: "trending_manga", title: "Trending Manga" },
   { id: "trending_wt", title: "Trending WebToons" },
