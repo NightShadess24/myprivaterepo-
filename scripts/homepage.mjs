@@ -644,8 +644,8 @@ ul { margin-top: 0; }
 .fact { white-space: nowrap; }
 /* What a source has: shows on hover (mouse) or tap; a hover one lets the
    mouse through to the next source. */
-.sources.has-stats .source { position: relative; cursor: pointer; border-radius: 4px; }
-.sources.has-stats .source:focus-visible { outline: 1px solid var(--gold, #c9a45c); outline-offset: 2px; }
+.sources .source { position: relative; cursor: pointer; border-radius: 4px; }
+.sources .source:focus-visible { outline: 1px solid var(--gold, #c9a45c); outline-offset: 2px; }
 .about {
   position: absolute;
   left: 0;
@@ -770,7 +770,7 @@ ${sources.map(sourceItem).join("\n")}
 </ul>
 <p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
-<p class="stats-note"${pageStats ? "" : " hidden"}><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source); the numbers are the checks it passed in the last week. Hover over a source, or tap it, for what it has. Titles are counted from the site's sitemap (the list of pages it publishes for search engines), so they're approximate. Age is how long ago the site's address was registered. What a site mostly has comes from a sample of its titles looked up on <a href="https://anilist.co">AniList</a>. Paperback doesn't publish how many people use each source, so popularity is the website's own rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular. Sources that stop working (the site is gone, or they fail every check for three days) are left out until a daily check finds them working again.</p>
+<p class="stats-note"${pageStats ? "" : " hidden"}><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source). Hover over a source, or tap it, for what it has, its version and its checks. Titles are counted from the site's sitemap (the list of pages it publishes for search engines), so they're approximate. Age is how long ago the site's address was registered. What a site mostly has comes from a sample of its titles looked up on <a href="https://anilist.co">AniList</a>. Paperback doesn't publish how many people use each source, so popularity is the website's own rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular. Sources that stop working (the site is gone, or they fail every check for three days) are left out until a daily check finds them working again.</p>
 </div>
 <section class="credits js-credits"${credits.length ? "" : " hidden"}>${creditsHtml(credits)}</section>
 <nav class="others-switch" aria-label="Other repositories">${otherLinks}</nav>
@@ -1036,7 +1036,8 @@ ${sources.map(sourceItem).join("\n")}
     var box = el("div", "about");
     box.setAttribute("role", "note");
     var summary = kindSummary(about.kind);
-    box.appendChild(el("div", "about__kind" + (summary ? "" : " about__kind--unknown"), summary || "What it has isn't known yet (its site couldn't be sampled)."));
+    if (health) box.appendChild(el("div", "about__kind" + (summary ? "" : " about__kind--unknown"), summary || "What it has isn't known yet (its site couldn't be sampled)."));
+    else box.appendChild(el("div", "about__kind", source.name));
     if (source.description) box.appendChild(el("div", "about__desc", source.description));
     var facts = el("ul");
     if (about.titles) facts.appendChild(el("li", "", "About " + about.titles.toLocaleString("en") + " titles (from the site's sitemap)"));
@@ -1046,6 +1047,7 @@ ${sources.map(sourceItem).join("\n")}
       facts.appendChild(el("li", "", "Site address registered " + MONTHS[date.getUTCMonth()] + " " + date.getUTCFullYear() + " (" + age.long + ")"));
     }
     if (info.rank) facts.appendChild(el("li", "", "#" + info.rank.toLocaleString("en") + " most visited website in the world"));
+    if (source.version) facts.appendChild(el("li", "", "Version " + source.version));
     if (health) facts.appendChild(el("li", "", health));
     if (facts.childNodes.length) box.appendChild(facts);
     return box;
@@ -1097,7 +1099,6 @@ ${sources.map(sourceItem).join("\n")}
       var dot = el("span", "health" + (info.last ? " health--" + info.last.r : ""));
       if (stats) item.appendChild(dot);
       item.appendChild(document.createTextNode(source.name));
-      if (!stats) item.title = source.description || "";
       var extra = [];
       if (info.recommended) extra.push({ label: "★ Recommended", cls: "tag--recommended" });
       if (info.tier) extra.push({ label: info.tier, cls: "tag--popular" });
@@ -1108,11 +1109,6 @@ ${sources.map(sourceItem).join("\n")}
       item.dataset.recommended = info.recommended ? "1" : "";
       item.dataset.titles = info.about.titles || "";
       item.dataset.since = info.about.since || "";
-      item.appendChild(el("span", "version", source.version || ""));
-      if (info.checked) {
-        var worked = el("span", "worked", info.worked + "/" + info.checked);
-        item.appendChild(worked);
-      }
       // The numbers: titles, the site's age and its rank
       var facts = [];
       if (info.about.titles) facts.push(shortNumber(info.about.titles) + " titles");
@@ -1138,11 +1134,10 @@ ${sources.map(sourceItem).join("\n")}
         item.appendChild(span);
         if (labels.indexOf(tag.label) === -1) labels.push(tag.label);
       });
-      if (stats) {
-        item.appendChild(aboutBox(source, info, healthTitle(info)));
-        item.tabIndex = 0;
-        item.setAttribute("aria-expanded", "false");
-      }
+      // Version and checks are in here, with what the site has
+      item.appendChild(aboutBox(source, info, stats ? healthTitle(info) : ""));
+      item.tabIndex = 0;
+      item.setAttribute("aria-expanded", "false");
       list.appendChild(item);
     });
     var order = ["★ Recommended", "Very popular", "Popular"];
