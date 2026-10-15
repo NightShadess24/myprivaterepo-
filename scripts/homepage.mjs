@@ -770,7 +770,7 @@ ${sources.map(sourceItem).join("\n")}
 </ul>
 <p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
-<p class="stats-note"${pageStats ? "" : " hidden"}><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source). Hover over a source, or tap it, for what it has, its version and its checks. Titles are counted from the site's sitemap (the list of pages it publishes for search engines), so they're approximate. Age is how long ago the site's address was registered. What a site mostly has comes from a sample of its titles looked up on <a href="https://anilist.co">AniList</a>. Paperback doesn't publish how many people use each source, so popularity is the website's own rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular. Sources that stop working (the site is gone, or they fail every check for three days) are left out until a daily check finds them working again.</p>
+<p class="stats-note"${pageStats ? "" : " hidden"}><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source). Hover over a source, or tap it, for what it has, its version and its checks. In the sort bar, tap a sort again for the opposite order (a third tap turns it off), and pick several to find the sources that do best on all of them. Titles are counted from the site's sitemap (the list of pages it publishes for search engines), so they're approximate. Age is how long ago the site's address was registered. What a site mostly has comes from a sample of its titles looked up on <a href="https://anilist.co">AniList</a>. Paperback doesn't publish how many people use each source, so popularity is the website's own rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular. Sources that stop working (the site is gone, or they fail every check for three days) are left out until a daily check finds them working again.</p>
 </div>
 <section class="credits js-credits"${credits.length ? "" : " hidden"}>${creditsHtml(credits)}</section>
 <nav class="others-switch" aria-label="Other repositories">${otherLinks}</nav>
@@ -1150,45 +1150,93 @@ ${sources.map(sourceItem).join("\n")}
     applySort();
   }
 
-  // Sort bar (remembered per browser)
-  var sortMode = "name";
-  try { sortMode = localStorage.getItem("repo-sort") || "name"; } catch (e) {}
+  // Sort bar (remembered per browser). Tapping a sort again flips it
+  // (Newest ⇄ Oldest); a third tap turns it off. Several sorts together
+  // rank each source on each and put the best overall first. A–Z is the
+  // order when nothing else is on (tap it again for Z–A); tapping it while
+  // others are on goes back to A–Z.
+  var SORTS = {
+    popular: { label: ["Popular", "Least popular"], value: function (d) { return d.rank ? -Number(d.rank) : null; } },
+    stable: { label: ["Stable", "Least stable"], value: function (d) { return d.score ? Number(d.score) : null; } },
+    recommended: { label: ["Recommended", "Not recommended"], value: function (d) { return d.recommended ? 1 : 0; } },
+    titles: { label: ["Most titles", "Fewest titles"], value: function (d) { return d.titles ? Number(d.titles) : null; } },
+    newest: { label: ["Newest", "Oldest"], value: function (d) { return d.since ? Date.parse(d.since) : null; } },
+  };
+  var sortState = { reverseName: false, on: [] };
+  try {
+    var savedSort = JSON.parse(localStorage.getItem("repo-sort-2") || "null");
+    if (savedSort && Array.isArray(savedSort.on)) {
+      sortState.reverseName = !!savedSort.reverseName;
+      sortState.on = savedSort.on.filter(function (s) { return s && SORTS[s.key]; });
+    }
+  } catch (e) {}
   var sortButtons = Array.prototype.slice.call(document.querySelectorAll(".sortbar button"));
-  function sortKey(item) {
-    var rank = item.dataset.rank ? Number(item.dataset.rank) : Infinity;
-    var score = item.dataset.score ? Number(item.dataset.score) : -1;
-    var rec = item.dataset.recommended ? 0 : 1;
-    var titles = item.dataset.titles ? Number(item.dataset.titles) : -1;
-    // Newest first; sites of unknown age last
-    var since = item.dataset.since ? -Date.parse(item.dataset.since) : Infinity;
-    switch (sortMode) {
-      case "popular": return [rank, item.dataset.name];
-      case "stable": return [-score, rank, item.dataset.name];
-      case "recommended": return [rec, -score, rank, item.dataset.name];
-      case "titles": return [-titles, rank, item.dataset.name];
-      case "newest": return [since, item.dataset.name];
-      default: return [item.dataset.name];
-    }
+  function activeSort(key) {
+    return sortState.on.filter(function (s) { return s.key === key; })[0];
   }
-  function compareKeys(a, b) {
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] < b[i]) return -1;
-      if (a[i] > b[i]) return 1;
+  function updateSortButtons() {
+    sortButtons.forEach(function (button) {
+      var key = button.dataset.sort;
+      if (key === "name") {
+        button.textContent = sortState.reverseName ? "Z–A" : "A–Z";
+        button.setAttribute("aria-pressed", String(!sortState.on.length));
+        return;
+      }
+      var active = activeSort(key);
+      button.textContent = SORTS[key].label[active && active.flipped ? 1 : 0];
+      button.setAttribute("aria-pressed", String(!!active));
+      button.title = active ? (active.flipped ? "Tap to turn this sort off" : "Tap for the opposite order") : "Tap to sort by this; pick several to combine them";
+    });
+  }
+  // Each sort ranks the sources from 0 (best) to 1 (worst); sources it
+  // knows nothing about come after all of those.
+  var MISSING = 1.25;
+  function ranksFor(sort, items) {
+    var known = items
+      .map(function (item, i) { return { i: i, v: SORTS[sort.key].value(item.dataset) }; })
+      .filter(function (entry) { return entry.v !== null && !isNaN(entry.v); });
+    known.sort(function (a, b) { return sort.flipped ? a.v - b.v : b.v - a.v; });
+    var ranks = items.map(function () { return MISSING; });
+    var n = known.length;
+    for (var start = 0; start < n; ) {
+      var stop = start;
+      while (stop + 1 < n && known[stop + 1].v === known[start].v) stop++;
+      var place = n > 1 ? (start + stop) / 2 / (n - 1) : 0;
+      for (var k = start; k <= stop; k++) ranks[known[k].i] = place;
+      start = stop + 1;
     }
-    return 0;
+    return ranks;
   }
   function applySort() {
-    sortButtons.forEach(function (button) { button.setAttribute("aria-pressed", String(button.dataset.sort === sortMode)); });
+    updateSortButtons();
     var items = Array.prototype.slice.call(list.querySelectorAll(".source"));
+    var perSort = sortState.on.map(function (sort) { return ranksFor(sort, items); });
+    var byName = function (a, b) {
+      var order = a.item.dataset.name < b.item.dataset.name ? -1 : a.item.dataset.name > b.item.dataset.name ? 1 : 0;
+      return sortState.reverseName && !perSort.length ? -order : order;
+    };
     items
-      .map(function (item) { return { item: item, key: sortKey(item) }; })
-      .sort(function (a, b) { return compareKeys(a.key, b.key); })
+      .map(function (item, i) {
+        var total = 0;
+        perSort.forEach(function (ranks) { total += ranks[i]; });
+        return { item: item, score: perSort.length ? total / perSort.length : 0 };
+      })
+      .sort(function (a, b) { return a.score - b.score || byName(a, b); })
       .forEach(function (entry) { list.appendChild(entry.item); });
   }
   sortButtons.forEach(function (button) {
     button.addEventListener("click", function () {
-      sortMode = button.dataset.sort;
-      try { localStorage.setItem("repo-sort", sortMode); } catch (e) {}
+      var key = button.dataset.sort;
+      if (key === "name") {
+        if (sortState.on.length) sortState = { reverseName: false, on: [] };
+        else sortState.reverseName = !sortState.reverseName;
+      } else {
+        var active = activeSort(key);
+        if (!active) sortState.on.push({ key: key, flipped: false });
+        else if (!active.flipped) active.flipped = true;
+        else sortState.on = sortState.on.filter(function (s) { return s !== active; });
+      }
+      try { localStorage.setItem("repo-sort-2", JSON.stringify(sortState)); } catch (e) {}
       applySort();
     });
   });
