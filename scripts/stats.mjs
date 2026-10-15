@@ -118,15 +118,39 @@ async function loadExtension(id, entry) {
     setTimeout,
     clearTimeout,
     URL,
+    // The app gives sources Web Crypto too.
+    crypto: globalThis.crypto,
   });
   const code = fs.readFileSync(file, "utf8");
   if (temp) fs.rmSync(temp, { recursive: true, force: true });
   return vm.runInContext(`${code}\n;source`, context, { timeout: 30_000 })[id];
 }
 
+// Why a request never got an answer (Node reports all of these as "fetch failed").
+function networkProblem(error) {
+  const cause = error?.cause ?? error;
+  const code = String(cause?.code ?? cause?.cause?.code ?? "");
+  const detail = String(cause?.message ?? "");
+  if (/ENOTFOUND|EAI_AGAIN/.test(code) || /ENOTFOUND|getaddrinfo/.test(detail))
+    return "the site's address doesn't exist any more";
+  if (/CERT|SSL|TLS/i.test(code) || /certificate|ssl|tls/i.test(detail))
+    return "the site's security certificate is broken";
+  if (
+    /ECONNREFUSED|ECONNRESET|UND_ERR_SOCKET|EPIPE/.test(code) ||
+    /other side closed|refused|reset/i.test(detail)
+  )
+    return "the site refused the connection";
+  if (/TIMEOUT|ETIMEDOUT/i.test(code) || /timeout|aborted/i.test(detail))
+    return "the site didn't answer";
+  return code ? `couldn't reach the site (${code})` : "couldn't reach the site";
+}
+
 function classify(error) {
   const message = String(error?.message ?? error);
   if (error?.skip) return { r: "skip", why: message };
+  if (/fetch failed/i.test(message)) return { r: "fail", why: networkProblem(error) };
+  if (error?.name === "TimeoutError" || /aborted due to timeout/i.test(message))
+    return { r: "fail", why: "the site didn't answer" };
   if (/not implemented/i.test(message))
     return { r: "skip", why: "needs the app (hidden web page)" };
   if (
@@ -147,6 +171,9 @@ async function check(id, entry) {
   if (SERVER_CLIENTS.test(id)) return { r: "skip", why: "needs your own server" };
   try {
     const ext = await withTimeout(loadExtension(id, entry), STEP_SECONDS, "loading");
+    // Trackers and the like say they have chapters but don't.
+    if (typeof ext.getMangaDetails !== "function" || typeof ext.getChapters !== "function")
+      return { r: "skip", why: "not a manga source" };
     await withTimeout(Promise.resolve(ext.initialise?.()), STEP_SECONDS, "starting");
     let items = [];
     if (typeof ext.getDiscoverSections === "function") {
