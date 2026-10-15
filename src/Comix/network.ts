@@ -152,7 +152,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
             "user-agent": await appUserAgent(),
           },
         },
-        "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
+        "Cloudflare's check (not comix's). Open it, complete the check, wait for comix's page, then tap Done.",
       );
     }
 
@@ -164,7 +164,7 @@ export class ComixInterceptor extends PaperbackInterceptor {
           method: "GET",
           headers: { "user-agent": await appUserAgent() },
         },
-        "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
+        "This time it's comix itself, not Cloudflare, asking to check you're human (comix's pass lasts about 5 minutes). Open it, complete the check if one shows, wait for comix's home page, then tap Done.",
       );
     }
 

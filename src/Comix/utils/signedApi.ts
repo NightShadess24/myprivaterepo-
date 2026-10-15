@@ -146,7 +146,7 @@ export async function signedCheckError(what: string, reason: string): Promise<Cl
       method: "GET",
       headers: { "user-agent": await appUserAgent() },
     },
-    "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
+    "This time it's comix itself, not Cloudflare, asking to check you're human (comix's pass lasts about 5 minutes). Open it, complete the check if one shows, wait for comix's home page, then tap Done.",
   );
 }
 

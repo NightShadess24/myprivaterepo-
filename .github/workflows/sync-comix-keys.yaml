@@ -1,0 +1,78 @@
+name: Sync Comix Keys
+
+# Every 6 hours: when the Paperback 0.8 ComixTo extension
+# (acepilot147/pb-extensions, branch 0.8) has new Fast Loading keys, copy them
+# into Comix on each repository branch, check it still builds, bump its
+# version and republish that repository. See scripts/sync-comix-keys.mjs.
+# (Scheduled workflows run from the default branch, so this file lives there.)
+on:
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-comix-keys
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync ${{ matrix.branch }}
+    runs-on: ubuntu-latest
+    strategy:
+      # One branch at a time: both deploy to the same gh-pages branch.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        branch: ["0.9/stable", "0.9/testversion"]
+    steps:
+      - name: Checkout ${{ matrix.branch }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.branch }}
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Fetch the 0.8 ComixTo extension
+        run: git clone --quiet --depth 1 --branch 0.8 https://github.com/acepilot147/pb-extensions.git "$RUNNER_TEMP/upstream"
+      - name: Compare keys
+        id: sync
+        run: node scripts/sync-comix-keys.mjs "$RUNNER_TEMP/upstream"
+      - name: Install Dependencies
+        if: steps.sync.outputs.changed == 'true'
+        run: npm ci
+      - name: Format and type-check
+        if: steps.sync.outputs.changed == 'true'
+        run: |
+          npx oxfmt src/Comix/signed
+          npm run tsc
+      - name: Commit
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.sync.outputs.version }}
+          UPSTREAM: ${{ steps.sync.outputs.upstream }}
+          BRANCH: ${{ matrix.branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/Comix/signed src/Comix/pbconfig.ts
+          git commit -m "chore(Comix): new Fast Loading keys from the 0.8 ComixTo extension ($VERSION)" -m "Upstream: $UPSTREAM"
+          git push origin "HEAD:$BRANCH"
+      # A push made by this workflow doesn't start "Bundle and Deploy", so
+      # publish here.
+      - name: Bundle Extensions
+        if: steps.sync.outputs.changed == 'true'
+        run: npm run bundle
+      - name: Deploy to GitHub Pages
+        if: steps.sync.outputs.changed == 'true'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: bundles
+          destination_dir: ${{ matrix.branch }}
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
