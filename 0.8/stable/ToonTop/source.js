@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["ToonTopInfo"] = {"version":"4.0.1","name":"ToonTop","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from toontop.io.","contentRating":"MATURE","websiteBaseURL":"https://toontop.io","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["ToonTopInfo"] = {"version":"4.0.2","name":"ToonTop","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from toontop.io.","contentRating":"MATURE","websiteBaseURL":"https://toontop.io","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["ToonTop"] = __pbV9.makeSourceClass(__load, {"id":"ToonTop","name":"ToonTop","website":"https://toontop.io","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

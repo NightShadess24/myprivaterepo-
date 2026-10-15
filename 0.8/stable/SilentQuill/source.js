@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["SilentQuillInfo"] = {"version":"1.0.1","name":"SilentQuill","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from silentquill.net.","contentRating":"MATURE","websiteBaseURL":"https://silentquill.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["SilentQuillInfo"] = {"version":"1.0.2","name":"SilentQuill","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from silentquill.net.","contentRating":"MATURE","websiteBaseURL":"https://silentquill.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["SilentQuill"] = __pbV9.makeSourceClass(__load, {"id":"SilentQuill","name":"SilentQuill","website":"https://silentquill.net","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

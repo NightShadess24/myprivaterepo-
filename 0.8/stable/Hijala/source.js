@@ -19,7 +19,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["HijalaInfo"] = {"version":"0.0.1-alpha.401","name":"Hijala","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"https://pirate.vodka","description":"Extension that pulls content from en-hijala.com.","contentRating":"MATURE","websiteBaseURL":"https://en-hijala.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["HijalaInfo"] = {"version":"0.0.1-alpha.402","name":"Hijala","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"https://pirate.vodka","description":"Extension that pulls content from en-hijala.com.","contentRating":"MATURE","websiteBaseURL":"https://en-hijala.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["Hijala"] = __pbV9.makeSourceClass(__load, {"id":"Hijala","name":"Hijala","website":"https://en-hijala.com","contentRating":"MATURE","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

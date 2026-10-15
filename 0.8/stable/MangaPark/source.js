@@ -276,7 +276,7 @@ chai/index.js:
 ;return source;
 };
 var exported = {};
-exported["MangaParkInfo"] = {"version":"0.0.3101","name":"MangaPark","icon":"icon.png","author":"Kinso","authorWebsite":"https://github.com/xdKinso","description":"Extension that pulls content from mangapark.net.","contentRating":"EVERYONE","websiteBaseURL":"https://mangapark.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37,"language":"multi"};
+exported["MangaParkInfo"] = {"version":"0.0.3102","name":"MangaPark","icon":"icon.png","author":"Kinso","authorWebsite":"https://github.com/xdKinso","description":"Extension that pulls content from mangapark.net.","contentRating":"EVERYONE","websiteBaseURL":"https://mangapark.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37,"language":"multi"};
 exported["MangaPark"] = __pbV9.makeSourceClass(__load, {"id":"MangaPark","name":"MangaPark","website":"https://mangapark.net","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":false,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

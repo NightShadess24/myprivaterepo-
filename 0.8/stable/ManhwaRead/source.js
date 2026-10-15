@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["ManhwaReadInfo"] = {"version":"7.0.1","name":"ManhwaRead","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from manhwaread.com.","contentRating":"MATURE","websiteBaseURL":"https://manhwaread.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["ManhwaReadInfo"] = {"version":"7.0.2","name":"ManhwaRead","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from manhwaread.com.","contentRating":"MATURE","websiteBaseURL":"https://manhwaread.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["ManhwaRead"] = __pbV9.makeSourceClass(__load, {"id":"ManhwaRead","name":"ManhwaRead","website":"https://manhwaread.com","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

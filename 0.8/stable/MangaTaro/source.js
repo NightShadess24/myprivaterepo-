@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["MangaTaroInfo"] = {"version":"1.0.0-alpha.301","name":"MangaTaro","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"","description":"Extension that pulls content from mangataro.org.","contentRating":"EVERYONE","websiteBaseURL":"https://mangataro.org","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["MangaTaroInfo"] = {"version":"1.0.0-alpha.302","name":"MangaTaro","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"","description":"Extension that pulls content from mangataro.org.","contentRating":"EVERYONE","websiteBaseURL":"https://mangataro.org","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["MangaTaro"] = __pbV9.makeSourceClass(__load, {"id":"MangaTaro","name":"MangaTaro","website":"https://mangataro.org","contentRating":"SAFE","discover":true,"settings":false,"cloudflare":true,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

@@ -15,7 +15,7 @@ P: komga-demo`},[f(`username`,{title:`Username`,value:this.credentials.username,
 ;return source;
 };
 var exported = {};
-exported["Komga_2Info"] = {"version":"3.1","name":"Komga_2","icon":"icon.png","author":"Faizan Durrani, Lemon","authorWebsite":"FaizanDurrani","description":"Komga client extension for Paperback","contentRating":"EVERYONE","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"Self hosted","type":"default"}],"intents":37};
+exported["Komga_2Info"] = {"version":"3.2","name":"Komga_2","icon":"icon.png","author":"Faizan Durrani, Lemon","authorWebsite":"FaizanDurrani","description":"Komga client extension for Paperback","contentRating":"EVERYONE","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"Self hosted","type":"default"}],"intents":37};
 exported["Komga_2"] = __pbV9.makeSourceClass(__load, {"id":"Komga_2","name":"Komga_2","website":"","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":false,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

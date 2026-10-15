@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["QiScansInfo"] = {"version":"1.0.0-alpha.1501","name":"QiScans","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"","description":"Extension that pulls content from qimanhwa.com.","contentRating":"EVERYONE","websiteBaseURL":"https://qimanhwa.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["QiScansInfo"] = {"version":"1.0.0-alpha.1502","name":"QiScans","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"","description":"Extension that pulls content from qimanhwa.com.","contentRating":"EVERYONE","websiteBaseURL":"https://qimanhwa.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["QiScans"] = __pbV9.makeSourceClass(__load, {"id":"QiScans","name":"QiScans","website":"https://qimanhwa.com","contentRating":"SAFE","discover":true,"settings":false,"cloudflare":true,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

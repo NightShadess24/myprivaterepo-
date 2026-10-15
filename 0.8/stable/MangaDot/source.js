@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["MangaDotInfo"] = {"version":"1.0.0-alpha.601","name":"MangaDot","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from MangaDot.net","contentRating":"EVERYONE","websiteBaseURL":"https://mangadot.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["MangaDotInfo"] = {"version":"1.0.0-alpha.602","name":"MangaDot","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from MangaDot.net","contentRating":"EVERYONE","websiteBaseURL":"https://mangadot.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["MangaDot"] = __pbV9.makeSourceClass(__load, {"id":"MangaDot","name":"MangaDot","website":"https://mangadot.net","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

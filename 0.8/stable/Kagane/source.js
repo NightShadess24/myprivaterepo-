@@ -286,7 +286,7 @@ pornographic: All content including explicit sexual material.`},[this.contentLan
 ;return source;
 };
 var exported = {};
-exported["KaganeInfo"] = {"version":"0.0.1-alpha.801","name":"Kagane","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"","description":"Extension that pulls content from kagane.org.","contentRating":"EVERYONE","websiteBaseURL":"https://kagane.org","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["KaganeInfo"] = {"version":"0.0.1-alpha.802","name":"Kagane","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"","description":"Extension that pulls content from kagane.org.","contentRating":"EVERYONE","websiteBaseURL":"https://kagane.org","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["Kagane"] = __pbV9.makeSourceClass(__load, {"id":"Kagane","name":"Kagane","website":"https://kagane.org","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":true,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

@@ -19,7 +19,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["RoliascanInfo"] = {"version":"1.0.0-alpha.101","name":"Roliascan","icon":"icon.png","author":"Saw_6","authorWebsite":"","description":"Extension that pulls content from roliascan.com.","contentRating":"MATURE","websiteBaseURL":"https://roliascan.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["RoliascanInfo"] = {"version":"1.0.0-alpha.102","name":"Roliascan","icon":"icon.png","author":"Saw_6","authorWebsite":"","description":"Extension that pulls content from roliascan.com.","contentRating":"MATURE","websiteBaseURL":"https://roliascan.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["Roliascan"] = __pbV9.makeSourceClass(__load, {"id":"Roliascan","name":"Roliascan","website":"https://roliascan.com","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

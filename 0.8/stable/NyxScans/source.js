@@ -25,7 +25,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["NyxScansInfo"] = {"version":"1.0.101","name":"Nyx Scans","icon":"icon.png","author":"Felii","authorWebsite":"https://github.com/feliivk","description":"Read webtoons from Nyx Scans (nyxscans.com)","contentRating":"MATURE","websiteBaseURL":"https://nyxscans.com","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"Webtoon","type":"default"}],"intents":37,"language":"en"};
+exported["NyxScansInfo"] = {"version":"1.0.102","name":"Nyx Scans","icon":"icon.png","author":"Felii","authorWebsite":"https://github.com/feliivk","description":"Read webtoons from Nyx Scans (nyxscans.com)","contentRating":"MATURE","websiteBaseURL":"https://nyxscans.com","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"Webtoon","type":"default"}],"intents":37,"language":"en"};
 exported["NyxScans"] = __pbV9.makeSourceClass(__load, {"id":"NyxScans","name":"Nyx Scans","website":"https://nyxscans.com","contentRating":"MATURE","discover":true,"settings":true,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

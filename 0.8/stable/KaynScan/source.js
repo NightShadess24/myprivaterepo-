@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["KaynScanInfo"] = {"version":"14.0.1","name":"Kayn Scan","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from kaynscans.com.","contentRating":"MATURE","websiteBaseURL":"https://kaynscans.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["KaynScanInfo"] = {"version":"14.0.2","name":"Kayn Scan","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from kaynscans.com.","contentRating":"MATURE","websiteBaseURL":"https://kaynscans.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["KaynScan"] = __pbV9.makeSourceClass(__load, {"id":"KaynScan","name":"Kayn Scan","website":"https://kaynscans.com","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["HNIScantradInfo"] = {"version":"1.0.401","name":"HNI-scantrad","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls manga from HNI-scantrad.","contentRating":"EVERYONE","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":5,"language":"en"};
+exported["HNIScantradInfo"] = {"version":"1.0.402","name":"HNI-scantrad","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls manga from HNI-scantrad.","contentRating":"EVERYONE","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":5,"language":"en"};
 exported["HNIScantrad"] = __pbV9.makeSourceClass(__load, {"id":"HNIScantrad","name":"HNI-scantrad","website":"","contentRating":"SAFE","discover":true,"settings":false,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

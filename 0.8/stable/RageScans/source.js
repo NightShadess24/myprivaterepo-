@@ -19,7 +19,7 @@ CHANGING THIS OPTION WILL ERASE YOUR READING PROGRESS FOR THIS SOURCE!`})]),re(`
 ;return source;
 };
 var exported = {};
-exported["RageScansInfo"] = {"version":"1.0.0-alpha.201","name":"Rage Scans","icon":"icon.png","author":"nyzzik","authorWebsite":"https://github.com/nyzzik","description":"Extension that pulls content from ragescans.com.","contentRating":"EVERYONE","websiteBaseURL":"https://ragescans.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["RageScansInfo"] = {"version":"1.0.0-alpha.202","name":"Rage Scans","icon":"icon.png","author":"nyzzik","authorWebsite":"https://github.com/nyzzik","description":"Extension that pulls content from ragescans.com.","contentRating":"EVERYONE","websiteBaseURL":"https://ragescans.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["RageScans"] = __pbV9.makeSourceClass(__load, {"id":"RageScans","name":"Rage Scans","website":"https://ragescans.com","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":true,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

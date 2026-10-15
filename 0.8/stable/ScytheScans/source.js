@@ -19,7 +19,7 @@ CHANGING THIS OPTION WILL ERASE YOUR READING PROGRESS FOR THIS SOURCE!`})]),re(`
 ;return source;
 };
 var exported = {};
-exported["ScytheScansInfo"] = {"version":"11.0.1","name":"ScytheScans","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from scythescans.com.","contentRating":"MATURE","websiteBaseURL":"https://scythescans.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["ScytheScansInfo"] = {"version":"11.0.2","name":"ScytheScans","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from scythescans.com.","contentRating":"MATURE","websiteBaseURL":"https://scythescans.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["ScytheScans"] = __pbV9.makeSourceClass(__load, {"id":"ScytheScans","name":"ScytheScans","website":"https://scythescans.com","contentRating":"MATURE","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

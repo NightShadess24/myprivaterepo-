@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["TCBScansInfo"] = {"version":"1.0.1","name":"TCB Scans","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from tcbonepiecechapters.com.","contentRating":"EVERYONE","websiteBaseURL":"https://tcbonepiecechapters.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["TCBScansInfo"] = {"version":"1.0.2","name":"TCB Scans","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from tcbonepiecechapters.com.","contentRating":"EVERYONE","websiteBaseURL":"https://tcbonepiecechapters.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["TCBScans"] = __pbV9.makeSourceClass(__load, {"id":"TCBScans","name":"TCB Scans","website":"https://tcbonepiecechapters.com","contentRating":"SAFE","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

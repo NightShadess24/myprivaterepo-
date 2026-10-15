@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["MangaNeloInfo"] = {"version":"1.0.0-alpha.1101","name":"MangaNelo","icon":"icon.png","author":"Saw_6","authorWebsite":"","description":"Extension that pulls content from nelomanga.net.","contentRating":"EVERYONE","websiteBaseURL":"https://nelomanga.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["MangaNeloInfo"] = {"version":"1.0.0-alpha.1102","name":"MangaNelo","icon":"icon.png","author":"Saw_6","authorWebsite":"","description":"Extension that pulls content from nelomanga.net.","contentRating":"EVERYONE","websiteBaseURL":"https://nelomanga.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["MangaNelo"] = __pbV9.makeSourceClass(__load, {"id":"MangaNelo","name":"MangaNelo","website":"https://nelomanga.net","contentRating":"SAFE","discover":true,"settings":false,"cloudflare":true,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

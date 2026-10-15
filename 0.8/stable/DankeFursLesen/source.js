@@ -12,7 +12,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["DankeFursLesenInfo"] = {"version":"3.0.1","name":"DankeFursLesen","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from danke.moe.","contentRating":"MATURE","websiteBaseURL":"https://danke.moe","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":5,"language":"en"};
+exported["DankeFursLesenInfo"] = {"version":"3.0.2","name":"DankeFursLesen","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from danke.moe.","contentRating":"MATURE","websiteBaseURL":"https://danke.moe","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":5,"language":"en"};
 exported["DankeFursLesen"] = __pbV9.makeSourceClass(__load, {"id":"DankeFursLesen","name":"DankeFursLesen","website":"https://danke.moe","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);
