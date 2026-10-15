@@ -23,8 +23,14 @@ import {
 } from "@paperback/types";
 
 import { ComixAdvancedSearchForm } from "./forms/search";
-import { ComixSettingsForm, getDiscoverySectionsOrder } from "./forms/settings";
-import { siteUrl, type Metadata, type SearchMetadata } from "./models";
+import { ComixSettingsForm, getDiscoverySectionsOrder, getTrendingDays } from "./forms/settings";
+import {
+  siteUrl,
+  type ChapterPageItems,
+  type Metadata,
+  type ResultManga,
+  type SearchMetadata,
+} from "./models";
 import { browseUrl, ComixInterceptor, fetchText, SiteRateLimiter, startImageLog } from "./network";
 import { parseChapterDetails, parseChapters, parseMangaDetails, parseMangaList } from "./parsers";
 import type ComixConfig from "./pbconfig";
@@ -45,8 +51,20 @@ import {
   pickTags,
   useYearFilter,
 } from "./utils/filters";
+import { filterChapters } from "./utils/groupFilter";
 import { errorText, logEvent } from "./utils/log";
-import { browseViaWebView, pageListViaWebView } from "./utils/webView";
+import {
+  CaptchaRequired,
+  fetchChapterPages,
+  fetchMangaList,
+  fetchTopManga,
+  markSigningOutdated,
+  signedApiEnabled,
+  signedCheckError,
+  SigningOutdated,
+} from "./utils/signedApi";
+import { appUserAgent } from "./utils/userAgent";
+import { browseViaWebView, logPageList, pageListViaWebView } from "./utils/webView";
 
 class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
   private globalRateLimiter = new SiteRateLimiter("rateLimiter", {
@@ -104,7 +122,7 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     });
     logEvent(
       "check browser",
-      `${request.url.replace(/^https?:\/\//, "")}: kept ${
+      `${request.url.replace(/^https?:\/\//, "").split("?")[0]}: kept ${
         kept.length
           ? describeCookies(cookies.filter((cookie) => kept.includes(cookie.name)))
           : "nothing"
@@ -114,10 +132,7 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
 
   async getSettingsForm(): Promise<Form> {
     await ensureFilters();
-    return new ComixSettingsForm(
-      this.cookieStorageInterceptor,
-      await Application.getDefaultUserAgent(),
-    );
+    return new ComixSettingsForm(this.cookieStorageInterceptor, await appUserAgent());
   }
 
   async getDiscoverSections(): Promise<DiscoverSection[]> {
@@ -125,10 +140,20 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       horizontal ? DiscoverSectionType.simpleCarousel : DiscoverSectionType.chapterUpdates;
     const yearSuffix = useYearFilter() ? ` of ${getYear()}` : "";
     const sections: Record<string, DiscoverSection> = {
+      trending_top: {
+        id: "trending_top",
+        title: "Most Recent Popular",
+        type: DiscoverSectionType.featured,
+      },
+      follows_top: {
+        id: "follows_top",
+        title: "Most Follows · New Comics",
+        type: DiscoverSectionType.prominentCarousel,
+      },
       popular: { id: "popular", title: "Popular", type: DiscoverSectionType.featured },
       follow: {
         id: "follow",
-        title: "Most Follows New Comics",
+        title: "Most Followed",
         type: DiscoverSectionType.prominentCarousel,
       },
       recent: {
@@ -215,9 +240,28 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       };
     }
     const page = metadata?.page ?? 1;
-    const query = this.browseQuery(section.id, page);
-    if (!query) return { items: [] };
-    const result = await browseViaWebView(browseUrl(query), this.cookieStorageInterceptor);
+    let result: ResultManga;
+    if (section.id === "trending_top" || section.id === "follows_top") {
+      // comix's own top lists: one page, through Fast Loading only (the hidden
+      // page has no equivalent).
+      if (page > 1 || !signedApiEnabled()) return { items: [] };
+      try {
+        result = await fetchTopManga(
+          section.id === "trending_top" ? "trending" : "follows",
+          getTrendingDays(),
+          maxContentRating(),
+        );
+      } catch (error) {
+        if (error instanceof CaptchaRequired) throw await signedCheckError("list", error.message);
+        if (error instanceof SigningOutdated) markSigningOutdated(error.message);
+        else logEvent("fast loading failed", `${section.id}: ${errorText(error)}`);
+        return { items: [] };
+      }
+    } else {
+      const query = this.browseQuery(section.id, page);
+      if (!query) return { items: [] };
+      result = await this.browse(query);
+    }
     const items = parseMangaList(result).map((item): DiscoverSectionItem => {
       const { publishDate, subtitle, supertitle, summary, infoItems, metadata: _, ...base } = item;
       switch (section.type) {
@@ -271,10 +315,25 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
     for (const [key, values] of Object.entries(tagQueries)) {
       if (values.length > 0) query[key] = values;
     }
-    const result = await browseViaWebView(browseUrl(query), this.cookieStorageInterceptor);
+    const result = await this.browse(query);
     const items = parseMangaList(result).map(({ publishDate: _, ...item }) => item);
     const hasNext = result.meta?.hasNext ?? items.length > 0;
     return { items, metadata: hasNext ? { page: page + 1 } : undefined };
+  }
+
+  // A browse or search list: Fast Loading (one signed API call) when it's on
+  // and working, else comix's /browse page in a hidden browser.
+  private async browse(query: Record<string, string | string[]>): Promise<ResultManga> {
+    if (signedApiEnabled()) {
+      try {
+        return await fetchMangaList(query);
+      } catch (error) {
+        if (error instanceof CaptchaRequired) throw await signedCheckError("list", error.message);
+        if (error instanceof SigningOutdated) markSigningOutdated(error.message);
+        else logEvent("fast loading failed", `list: ${errorText(error)}; trying the slower method`);
+      }
+    }
+    return browseViaWebView(browseUrl(query), this.cookieStorageInterceptor);
   }
 
   async getAdvancedSearchForm(
@@ -333,7 +392,7 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       this.cookieStorageInterceptor,
       sinceDate !== undefined,
     );
-    return parseChapters(sourceManga, items);
+    return parseChapters(sourceManga, filterChapters(items));
   }
 
   async getChapterDetails(chapter: Chapter): Promise<ChapterDetails> {
@@ -345,9 +404,22 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       titleIndex !== -1
         ? (raw as string).slice(titleIndex)
         : `/title/${chapter.sourceManga.mangaId}/${chapter.chapterId}-chapter-${chapter.chapNum}`;
-    let pages;
+    let pages: ChapterPageItems | undefined;
+    if (signedApiEnabled()) {
+      try {
+        pages = await fetchChapterPages(chapter.chapterId);
+        logPageList(pages, "fast loading");
+      } catch (error) {
+        if (error instanceof CaptchaRequired) {
+          throw await signedCheckError(`chapter ${url}`, error.message);
+        }
+        if (error instanceof SigningOutdated) markSigningOutdated(error.message);
+        else
+          logEvent("fast loading failed", `${url}: ${errorText(error)}; trying the slower method`);
+      }
+    }
     try {
-      pages = await pageListViaWebView(url, chapter.chapterId, this.cookieStorageInterceptor);
+      pages ??= await pageListViaWebView(url, chapter.chapterId, this.cookieStorageInterceptor);
     } catch (error) {
       if (!(error instanceof CloudflareError))
         logEvent("chapter failed", `${url}: ${errorText(error)}`);
@@ -359,3 +431,10 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
 }
 
 export const Comix = new ComixExtension();
+
+// The most permissive content rating chosen (comix's top lists take one).
+function maxContentRating(): string {
+  const order = ["safe", "suggestive", "erotica", "pornographic"];
+  const chosen = getContentRating().filter((rating) => order.includes(rating));
+  return chosen.sort((a, b) => order.indexOf(a) - order.indexOf(b)).pop() ?? "suggestive";
+}

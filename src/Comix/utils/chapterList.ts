@@ -3,6 +3,7 @@
 
 import type { CookieStorageInterceptor } from "@paperback/types";
 
+import type { ChapterItem } from "../models";
 import {
   loadChapters,
   mergeChapters,
@@ -11,7 +12,15 @@ import {
   type StoredChapter,
 } from "./chapterCache";
 import { errorText, logEvent } from "./log";
-import { chapterGapMs, chapterListViaWebView } from "./webView";
+import {
+  CaptchaRequired,
+  fetchChapterPage,
+  markSigningOutdated,
+  signedApiEnabled,
+  signedCheckError,
+  SigningOutdated,
+} from "./signedApi";
+import { chapterGapMs, chapterListViaWebView, type ChapterListResult } from "./webView";
 
 // comix only lets chapter lists be read 20 at a time, a few seconds apart, so a
 // long list (600+ entries) takes minutes. Instead:
@@ -66,7 +75,7 @@ export async function getChapterItems(
   const resumeFrom = !complete && cached?.nextPage ? Math.max(2, cached.nextPage - 1) : null;
   const resume = waitForAll && resumeFrom !== null;
   const quick = refresh || (cached !== null && !complete && !resume);
-  const result = await chapterListViaWebView(mangaId, store, {
+  const result = await listChapters(mangaId, store, {
     refresh: quick,
     known: complete ? cached.items.map((item) => item.id) : [],
     startPage: resume ? resumeFrom : null,
@@ -126,9 +135,11 @@ export async function getChapterItems(
         ? "newest page, the rest remembered"
         : result.reachedKnown
           ? `${fresh.length} read, the rest remembered`
-          : result.via === "page" && result.pages <= 1
-            ? "from the title page"
-            : `${result.pages} of ${result.lastPage} pages of 20, ${chapterGapMs() / 1000} s apart`;
+          : result.via === "signed"
+            ? `fast loading, ${result.requests} request${result.requests === 1 ? "" : "s"}`
+            : result.via === "page" && result.pages <= 1
+              ? "from the title page"
+              : `${result.pages} of ${result.lastPage} pages of 20, ${chapterGapMs() / 1000} s apart`;
     logEvent(
       "chapter list",
       `${mangaId}: ${items.length} chapters (${how}) in ${seconds(started)}s${frame}`,
@@ -151,7 +162,7 @@ function continueInBackground(
     try {
       let next: number | null = fromPage;
       for (let chunk = 0; next !== null && chunk < MAX_CHUNKS; chunk++) {
-        const result = await chapterListViaWebView(mangaId, store, {
+        const result = await listChapters(mangaId, store, {
           refresh: false,
           known: [],
           startPage: next,
@@ -186,4 +197,95 @@ function continueInBackground(
       continuing.delete(mangaId);
     }
   })();
+}
+
+type ListOptions = Parameters<typeof chapterListViaWebView>[2];
+
+// Fast Loading (signed API calls) when it's on and working, else the title
+// page in a hidden browser. Same results either way, in pages of 20.
+async function listChapters(
+  mangaId: string,
+  store: CookieStorageInterceptor,
+  opts: ListOptions,
+): Promise<ChapterListResult> {
+  if (signedApiEnabled()) {
+    try {
+      return await chapterListSigned(mangaId, opts);
+    } catch (error) {
+      if (error instanceof CaptchaRequired) {
+        throw await signedCheckError(`chapter list of ${mangaId}`, error.message);
+      }
+      if (!(error instanceof SigningOutdated)) throw error;
+      markSigningOutdated(error.message);
+    }
+  }
+  return chapterListViaWebView(mangaId, store, opts);
+}
+
+let lastSignedRequest = 0;
+// comix refused a page of 100 past the first: pages of 20 from then on.
+let bigPagesRefused = false;
+
+// The chapter list through the API: pages of 100 where it can (5 pages of 20
+// in one request), else 20, spaced by Chapter List Speed. Positions and
+// `nextPage` are counted in pages of 20, like the hidden-page method, so
+// remembered lists carry over between the two.
+async function chapterListSigned(mangaId: string, opts: ListOptions): Promise<ChapterListResult> {
+  const known = new Set(opts.known);
+  const stopAt = Date.now() + opts.budgetMs;
+  const items: ChapterItem[] = [];
+  let total: number | null = null;
+  let unit = opts.startPage ?? 1;
+  let lastPage = unit;
+  let requests = 0;
+  const result = (extra: Partial<ChapterListResult>): ChapterListResult => ({
+    items,
+    via: "signed",
+    pages: unit - 1,
+    lastPage,
+    total,
+    nextPage: unit <= lastPage ? unit : null,
+    requests,
+    ...extra,
+  });
+
+  for (;;) {
+    if (requests > 0 && unit > lastPage) return result({ nextPage: null });
+    if (requests > 0 && opts.refresh) return result({});
+    if (requests > 0 && Date.now() > stopAt) return result({});
+    const big = !bigPagesRefused && (unit - 1) % 5 === 0 && (opts.startPage === null || unit > 1);
+    const limit = big ? 100 : 20;
+    const page = big ? (unit - 1) / 5 + 1 : unit;
+    const wait = lastSignedRequest + chapterGapMs() - Date.now();
+    if (wait > 0) await Application.sleep(wait / 1000);
+    lastSignedRequest = Date.now();
+    requests++;
+    let answer;
+    try {
+      answer = await fetchChapterPage(mangaId, page, limit);
+    } catch (error) {
+      if (error instanceof CaptchaRequired && big && page > 1) {
+        bigPagesRefused = true;
+        logEvent("chapter list", `${mangaId}: comix refused a page of 100; going on 20 at a time`);
+        continue;
+      }
+      if (items.length > 0 && !(error instanceof SigningOutdated)) {
+        const reason =
+          error instanceof CaptchaRequired ? "comix wanted its check" : errorText(error);
+        return result({ stopped: { page: unit, reason } });
+      }
+      throw error;
+    }
+    const pageItems = answer?.items ?? [];
+    items.push(...pageItems);
+    const meta = answer?.meta ?? {};
+    if (typeof meta.total === "number") total = meta.total;
+    lastPage =
+      total !== null
+        ? Math.max(1, Math.ceil(total / 20))
+        : Math.max(unit, (meta.lastPage ?? page) * (big ? 5 : 1));
+    unit += big ? 5 : 1;
+    if (pageItems.some((item) => known.has(item.id))) return result({ reachedKnown: true });
+    if (pageItems.length === 0) return result({ nextPage: null });
+  }
 }

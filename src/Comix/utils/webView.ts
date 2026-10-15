@@ -15,6 +15,7 @@ import { fetchText } from "../network";
 import { describeCookies, keepSiteCookies, pageCookieScript, siteCookies } from "./cookies";
 import { logEvent } from "./log";
 import { scheduleBrowse, scheduleComix, withTimeout } from "./queue";
+import { appUserAgent } from "./userAgent";
 
 // comix signs its API requests and encrypts `{e:"..."}` responses inside its own
 // secure bundle, so we never reimplement the rotating cipher: we capture the
@@ -277,7 +278,7 @@ async function cloudflareError(pageUrl: string, what: string): Promise<Cloudflar
     {
       url: pageUrl,
       method: "GET",
-      headers: { "user-agent": await Application.getDefaultUserAgent() },
+      headers: { "user-agent": await appUserAgent() },
     },
     "Cloudflare wants a check. Open it, complete the check, wait for comix's page, then tap Done.",
   );
@@ -298,7 +299,7 @@ export interface CheckWhy {
 }
 
 export async function checkError(what: string, why?: CheckWhy | null): Promise<CloudflareError> {
-  const appAgent = await Application.getDefaultUserAgent();
+  const appAgent = await appUserAgent();
   const agent = !why?.ua
     ? "unknown"
     : why.ua === appAgent
@@ -317,7 +318,7 @@ export async function checkError(what: string, why?: CheckWhy | null): Promise<C
     {
       url: checkPage(),
       method: "GET",
-      headers: { "user-agent": await Application.getDefaultUserAgent() },
+      headers: { "user-agent": await appUserAgent() },
     },
     "comix wants its own check. Open it, complete the check (it may pass by itself), wait for comix's home page, then tap Done.",
   );
@@ -373,7 +374,7 @@ async function runProxiedWebView<T>(
     }
   };
   const load = async (): Promise<T> => {
-    const userAgent = await Application.getDefaultUserAgent();
+    const userAgent = await appUserAgent();
     const $ = cheerio.load(await fetchText(pageUrl));
     // Read after the page fetch, so the session it was just given goes along.
     const cookies = siteCookies(cookieInterceptor);
@@ -564,6 +565,19 @@ function parseInjectResult<T>(raw: unknown): InjectResult<T> {
   return JSON.parse(raw) as InjectResult<T>;
 }
 
+// The Reading Log line for a chapter's page list.
+export function logPageList(pages: ChapterPageItems, via: string, frame?: boolean): void {
+  const v3 = pages.items.filter((item) => item.s === 1).length;
+  logEvent(
+    "page list",
+    `${pages.items.length} pages via ${via}` +
+      (v3 ? `, ${v3} v3` : "") +
+      (pages.alt?.length ? `, ${pages.alt.length} backup hosts` : "") +
+      (frame ? ", comix showed its check frame (carried on)" : "") +
+      `, first: ${(pages.items[0]?.url ?? "").replace(/^https?:\/\//, "").slice(0, 70)}`,
+  );
+}
+
 // Capture a chapter's decoded pages object (from the reader, or the API).
 export async function pageListViaWebView(
   chapterPagePath: string,
@@ -596,22 +610,14 @@ export async function pageListViaWebView(
       throw new CloudflareError({
         url: pageUrl,
         method: "GET",
-        headers: { "user-agent": await Application.getDefaultUserAgent() },
+        headers: { "user-agent": await appUserAgent() },
       });
     }
     throw new Error(`Comix: couldn't get this chapter's pages (${result.error})`);
   }
 
   const pages = JSON.parse(result.holder) as ChapterPageItems;
-  const v3 = pages.items.filter((item) => item.s === 1).length;
-  logEvent(
-    "page list",
-    `${pages.items.length} pages via ${result.via}` +
-      (v3 ? `, ${v3} v3` : "") +
-      (pages.alt?.length ? `, ${pages.alt.length} backup hosts` : "") +
-      (result.frame ? ", comix showed its check frame (carried on)" : "") +
-      `, first: ${(pages.items[0]?.url ?? "").replace(/^https?:\/\//, "").slice(0, 70)}`,
-  );
+  logPageList(pages, result.via, result.frame);
   return pages;
 }
 
@@ -829,6 +835,7 @@ export interface ChapterListResult {
   reachedKnown?: boolean;
   stopped?: { page: number; reason: string };
   frame?: boolean;
+  requests?: number;
 }
 
 // One run of the title page (see buildChapterListInject). Errors (Cloudflare,
@@ -868,7 +875,7 @@ export async function chapterListViaWebView(
       throw new CloudflareError({
         url: pageUrl,
         method: "GET",
-        headers: { "user-agent": await Application.getDefaultUserAgent() },
+        headers: { "user-agent": await appUserAgent() },
       });
     }
     throw new Error(`Comix chapter list failed for ${mangaId}: ${result.error}`);

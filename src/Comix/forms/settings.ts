@@ -2,6 +2,7 @@
 /* Copyright © 2026 Inkdex */
 
 import {
+  InputRow,
   ButtonRow,
   closureSelector,
   EditSection,
@@ -43,12 +44,50 @@ import {
   horizontalTrendingSections,
   useYearFilter,
 } from "../utils/filters";
+import {
+  getGroupFilter,
+  GROUP_FILTER_MODES,
+  groupNames,
+  setGroupFilter,
+} from "../utils/groupFilter";
 import { clearLog, getLog, logEvent } from "../utils/log";
 import { getLoadingSpeed, LOADING_SPEEDS } from "../utils/queue";
+import {
+  getCustomUserAgent,
+  getUserAgentPresetId,
+  USER_AGENT_DEFAULT,
+  USER_AGENT_PRESETS,
+} from "../utils/userAgent";
 import { CHAPTER_LIST_SPEEDS, getChapterListSpeed } from "../utils/webView";
 
 export function getDiscoverySectionsOrder(): SectionEntry[] {
-  return (Application.getState("sections") as SectionEntry[] | undefined) ?? DISCOVERY_SECTIONS;
+  const saved = Application.getState("sections") as SectionEntry[] | undefined;
+  if (!saved) return DISCOVERY_SECTIONS;
+  // Sections added since the order was saved come first (unless removed);
+  // titles are always the current ones.
+  const deleted = new Set(getDeletedSections().map((section) => section.id));
+  const known = new Set(saved.map((section) => section.id));
+  const added = DISCOVERY_SECTIONS.filter((s) => !known.has(s.id) && !deleted.has(s.id));
+  return [
+    ...added,
+    ...saved.map((section) => DISCOVERY_SECTIONS.find((d) => d.id === section.id) ?? section),
+  ];
+}
+
+// Settings → Trending Timeframe (the 0.8 ComixTo extension's): the window for
+// comix's top lists ("Most Recent Popular", "Most Follows · New Comics").
+export const TRENDING_TIMEFRAMES = [
+  { id: "1", title: "1 day" },
+  { id: "7", title: "7 days" },
+  { id: "30", title: "1 month" },
+  { id: "90", title: "3 months" },
+  { id: "180", title: "6 months" },
+  { id: "365", title: "1 year" },
+];
+
+export function getTrendingDays(): string {
+  const id = Application.getState("trending_days") as string | undefined;
+  return TRENDING_TIMEFRAMES.some((t) => t.id === id) ? id! : "30";
 }
 
 function getDeletedSections(): SectionEntry[] {
@@ -142,7 +181,49 @@ export class ComixSettingsForm extends Form {
           subtitle: "Home Sections Settings",
           form: new SectionSettings(),
         }),
+        SelectRow("trending_days", {
+          title: "Trending Timeframe",
+          subtitle: TRENDING_TIMEFRAMES.find((t) => t.id === getTrendingDays())?.title,
+          layout: "list",
+          value: [getTrendingDays()],
+          items: TRENDING_TIMEFRAMES,
+          minItemCount: 1,
+          maxItemCount: 1,
+          onValueChange: Application.Selector(
+            this as ComixSettingsForm,
+            "handleTrendingDaysChange",
+          ),
+        }),
       ]),
+      Section(
+        {
+          id: "user_agent",
+          footer:
+            "The browser identity sent to comix, by the hidden pages and by the check browser. comix only accepts its pass with the identity it was issued to, so after changing this, do the checks again. A custom value wins over the preset; leave both empty for Paperback's own.",
+        },
+        [
+          SelectRow("user_agent_preset", {
+            title: "User-Agent",
+            subtitle: [USER_AGENT_DEFAULT, ...USER_AGENT_PRESETS].find(
+              (p) => p.id === getUserAgentPresetId(),
+            )?.title,
+            layout: "list",
+            value: [getUserAgentPresetId()],
+            items: [USER_AGENT_DEFAULT, ...USER_AGENT_PRESETS].map((p) => ({
+              id: p.id,
+              title: p.title,
+            })),
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(this as ComixSettingsForm, "handleUserAgentPreset"),
+          }),
+          InputRow("custom_user_agent", {
+            title: "Custom User-Agent",
+            value: getCustomUserAgent(),
+            onValueChange: Application.Selector(this as ComixSettingsForm, "handleCustomUserAgent"),
+          }),
+        ],
+      ),
       Section(
         {
           id: "loading_speed",
@@ -162,6 +243,37 @@ export class ComixSettingsForm extends Form {
               this as ComixSettingsForm,
               "handleLoadingSpeedChange",
             ),
+          }),
+        ],
+      ),
+      Section(
+        {
+          id: "fast_loading",
+          footer:
+            "Asks comix's API directly, signed the way comix's own page does it, with the 0.8 ComixTo extension's keys (acepilot147, v1.9.29 of 14 Oct 2026). No hidden page has to load, so chapter lists and chapters come in seconds. When comix changes its keys, the extension goes back to the slower method by itself and the Reading Log says so.",
+        },
+        [
+          ToggleRow("signed_api", {
+            title: "Fast Loading",
+            value: Application.getState("signed_api") !== false,
+            onValueChange: Application.Selector(
+              this as ComixSettingsForm,
+              "handleFastLoadingChange",
+            ),
+          }),
+        ],
+      ),
+      Section(
+        {
+          id: "scanlation_groups",
+          footer:
+            "Hide some groups' uploads, show only certain groups, or keep one upload per chapter. Applies the next time a chapter list loads (pull down on it).",
+        },
+        [
+          NavigationRow("scanlation_groups", {
+            title: "Scanlation Groups",
+            subtitle: groupFilterSummary(),
+            form: new GroupFilterForm(),
           }),
         ],
       ),
@@ -247,6 +359,28 @@ export class ComixSettingsForm extends Form {
       (cookie) => !isComixDomain(cookie.domain),
     );
     logEvent("check browser", "forgot all comix cookies");
+    this.reloadForm();
+  }
+
+  async handleTrendingDaysChange(value: string[]) {
+    if (value[0]) saveSetting(this, "trending_days", value[0]);
+  }
+
+  async handleUserAgentPreset(value: string[]) {
+    Application.setState(
+      value[0] && value[0] !== USER_AGENT_DEFAULT.id ? value[0] : undefined,
+      "user_agent_preset",
+    );
+    logEvent("check browser", `user-agent is now ${value[0] ?? "default"}; do the checks again`);
+    this.reloadForm();
+  }
+
+  async handleCustomUserAgent(value: string) {
+    Application.setState(value.trim() || undefined, "custom_user_agent");
+  }
+
+  async handleFastLoadingChange(value: boolean) {
+    Application.setState(value, "signed_api");
     this.reloadForm();
   }
 
@@ -581,5 +715,100 @@ class SectionOrderForm extends Form {
       deleted.filter((item) => item.id !== id),
       "deleted_sections",
     );
+  }
+}
+
+function groupFilterSummary(): string {
+  const filter = getGroupFilter();
+  const parts: string[] = [];
+  const names = groupNames(filter.groups);
+  if (filter.on && names.length > 0) {
+    parts.push(
+      `${filter.mode === "only" ? "Only" : "Hiding"} ${names.length} group${names.length === 1 ? "" : "s"}`,
+    );
+  }
+  if (filter.onePerChapter) parts.push("one per chapter");
+  return parts.length > 0 ? parts.join(", ") : "Off";
+}
+
+// From the Paperback 0.8 ComixTo extension (acepilot147, GPL-3.0): see
+// utils/groupFilter.ts.
+class GroupFilterForm extends Form {
+  override getSections() {
+    const filter = getGroupFilter();
+    return [
+      Section(
+        {
+          id: "group_filter",
+          footer:
+            "Group names separated by commas, e.g. Asura Scans, Flame Comics. Case, accents and punctuation don't matter. With Exact names off, part of a name is enough.",
+        },
+        [
+          ToggleRow("group_filter_on", {
+            title: "Filter by group",
+            value: filter.on,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleOn"),
+          }),
+          SelectRow("group_filter_mode", {
+            title: "Mode",
+            subtitle: GROUP_FILTER_MODES.find((mode) => mode.id === filter.mode)?.title,
+            layout: "list",
+            value: [filter.mode],
+            items: GROUP_FILTER_MODES,
+            minItemCount: 1,
+            maxItemCount: 1,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleMode"),
+          }),
+          ToggleRow("group_filter_exact", {
+            title: "Exact names",
+            value: filter.exact,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleExact"),
+          }),
+          InputRow("group_filter_groups", {
+            title: "Groups",
+            value: filter.groups,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleGroups"),
+          }),
+        ],
+      ),
+      Section(
+        {
+          id: "one_per_chapter",
+          footer:
+            "comix lists every upload of a chapter (each group and language). This keeps one per chapter and language: the official one if there is one, else the most voted, else the newest.",
+        },
+        [
+          ToggleRow("group_filter_one_per_chapter", {
+            title: "One entry per chapter",
+            value: filter.onePerChapter,
+            onValueChange: Application.Selector(this as GroupFilterForm, "handleOnePerChapter"),
+          }),
+        ],
+      ),
+    ];
+  }
+
+  async handleOn(value: boolean) {
+    setGroupFilter("on", value);
+    this.reloadForm();
+  }
+
+  async handleMode(value: string[]) {
+    if (value[0]) setGroupFilter("mode", value[0]);
+    this.reloadForm();
+  }
+
+  async handleExact(value: boolean) {
+    setGroupFilter("exact", value);
+    this.reloadForm();
+  }
+
+  async handleGroups(value: string) {
+    setGroupFilter("groups", value);
+  }
+
+  async handleOnePerChapter(value: boolean) {
+    setGroupFilter("onePerChapter", value);
+    this.reloadForm();
   }
 }
