@@ -309,7 +309,8 @@ const versionTabs = VERSIONS.map(
 const html = `<!DOCTYPE html>
 <html lang="en" data-theme="noir">
 <head>
-<meta name="robots" content="noindex">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="referrer" content="no-referrer">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="https://paperback.moe/pb-logo.svg">
