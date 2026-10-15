@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-15T12:43:33.564Z",
+  "generated": "2026-10-15T13:12:30.886Z",
   "appVersion": "0.8",
   "languages": {},
   "hosts": {
@@ -79,35 +79,6 @@
     "MangakakalotGG": "mangakakalot.gg",
     "Manganato": "manganato.gg",
     "Natomanga": "natomanga.com",
-    "Read7DeadlySins": "read7deadlysins.com",
-    "ReadAttackOnTitan": "readsnk.com",
-    "ReadBerserk": "readberserk.com",
-    "ReadBlackClover": "readblackclover.com",
-    "ReadBleach": "readbleachmanga.com",
-    "ReadBlueLock": "bluelockread.com",
-    "ReadChainsawMan": "readchainsawman.com",
-    "ReadDemonSlayer": "demonslayermanga.com",
-    "ReadDrStone": "readdrstone.com",
-    "ReadDragonBall": "dbsmanga.com",
-    "ReadFairyTail": "readfairytail.com",
-    "ReadHaikyuu": "readhaikyuu.com",
-    "ReadHunterxHunter": "readhxh.com",
-    "ReadJoJos": "readjojos.com",
-    "ReadJujutsuKaisen": "readjujutsukaisen.com",
-    "ReadKagurabachi": "readkagurabachimanga.com",
-    "ReadKaguyaSama": "readkaguyasama.com",
-    "ReadKingdom": "readkingdom.com",
-    "ReadMyHeroAcademia": "readmha.com",
-    "ReadNarutoBoruto": "readnaruto.com",
-    "ReadNoblesse": "readnoblesse.com",
-    "ReadOnePiece": "readonepiece.com",
-    "ReadOnePunchMan": "readopm.com",
-    "ReadSoloLeveling": "readsololeveling.org",
-    "ReadThePromisedNeverland": "readneverland.com",
-    "ReadTokyoGhoul": "tokyoghoulre.com",
-    "ReadTokyoRevengers": "readtokyorevengers.net",
-    "ReadTowerOfGod": "readtowerofgod.com",
-    "ReadVinlandSaga": "readvinlandsaga.com",
     "BoxManhwa": "boxmanhwa.com",
     "MangaCute": "mangacute.com",
     "MangaFab": "mangafab.com",
@@ -832,39 +803,126 @@
       "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
       "url": "https://github.com/TheNetsky/extensions-generic-0.8",
       "appVersion": "0.8",
-      "added": [
-        "Read7DeadlySins",
-        "ReadAttackOnTitan",
-        "ReadBerserk",
-        "ReadBlackClover",
-        "ReadBleach",
-        "ReadBlueLock",
-        "ReadChainsawMan",
-        "ReadDemonSlayer",
-        "ReadDrStone",
-        "ReadDragonBall",
-        "ReadFairyTail",
-        "ReadHaikyuu",
-        "ReadHunterxHunter",
-        "ReadJoJos",
-        "ReadJujutsuKaisen",
-        "ReadKagurabachi",
-        "ReadKaguyaSama",
-        "ReadKingdom",
-        "ReadMyHeroAcademia",
-        "ReadNarutoBoruto",
-        "ReadNoblesse",
-        "ReadOnePiece",
-        "ReadOnePunchMan",
-        "ReadSoloLeveling",
-        "ReadThePromisedNeverland",
-        "ReadTokyoGhoul",
-        "ReadTokyoRevengers",
-        "ReadTowerOfGod",
-        "ReadVinlandSaga"
-      ],
+      "added": [],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "Read7DeadlySins",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadAttackOnTitan",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadBerserk",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadBlackClover",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadBleach",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadBlueLock",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadChainsawMan",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadDemonSlayer",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadDrStone",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadDragonBall",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadFairyTail",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadHaikyuu",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadHunterxHunter",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadJoJos",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadJujutsuKaisen",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadKagurabachi",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadKaguyaSama",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadKingdom",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadMyHeroAcademia",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadNarutoBoruto",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadNoblesse",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadOnePiece",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadOnePunchMan",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadSoloLeveling",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadThePromisedNeverland",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadTokyoGhoul",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadTokyoRevengers",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadTowerOfGod",
+          "why": "a site for a single series"
+        },
+        {
+          "id": "ReadVinlandSaga",
+          "why": "a site for a single series"
+        }
+      ],
       "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
     },
     {
