@@ -392,6 +392,8 @@ const BRANCHES = [
   "0.8/stable",
   "0.8/languages",
   "0.8/nsfw",
+  "0.9/trackers",
+  "0.8/trackers",
 ];
 
 async function otherBranchesSites() {

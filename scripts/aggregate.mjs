@@ -29,7 +29,7 @@
 // the deploy still goes out.
 //
 // Usage: node scripts/aggregate.mjs [bundleFolder] [--version 0.8|0.9]
-//          [--flavor stable|languages|nsfw]
+//          [--flavor stable|languages|nsfw|trackers]
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -63,18 +63,39 @@ function branchName() {
 }
 const version =
   versionFlag >= 0 ? args[versionFlag + 1] : branchName().startsWith("0.8/") ? "0.8" : "0.9";
-// stable, languages or nsfw (anything else: every source).
+// stable, languages, nsfw or trackers (anything else: every source).
 const flavor = flavorFlag >= 0 ? args[flavorFlag + 1] : (branchName().split("/")[1] ?? "");
 const isAdult = (entry) => String(entry?.contentRating ?? "").toUpperCase() === "ADULT";
-// Which of the three repositories a source goes in.
+// A tracker (AniList, MyAnimeList, …): keeps reading progress in sync and has
+// no chapters of its own. 0.9 sources list their capabilities (a list, or one
+// number of flags), 0.8 ones their intents: 1 is chapters, 2 is tracking.
+function isTracker(entry) {
+  const flags = Array.isArray(entry?.capabilities)
+    ? entry.capabilities.reduce((all, flag) => all | Number(flag), 0)
+    : Number(entry?.capabilities ?? entry?.intents);
+  if (Number.isFinite(flags) && flags > 0) return (flags & 2) !== 0 && (flags & 1) === 0;
+  return [
+    ...(entry?.badges ?? []).map((b) => b?.label),
+    ...(entry?.tags ?? []).map((t) => t?.text),
+  ].some((label) => /\btracker\b/i.test(String(label ?? "")));
+}
+// Which of the four repositories a source goes in.
 const placeOf = (entry, language) =>
-  isAdult(entry) ? "nsfw" : isEnglish(language) ? "stable" : "languages";
+  isTracker(entry)
+    ? "trackers"
+    : isAdult(entry)
+      ? "nsfw"
+      : isEnglish(language)
+        ? "stable"
+        : "languages";
 const belongsHere = (entry, language) =>
-  !["stable", "languages", "nsfw"].includes(flavor) || placeOf(entry, language) === flavor;
+  !["stable", "languages", "nsfw", "trackers"].includes(flavor) ||
+  placeOf(entry, language) === flavor;
 const PLACES = {
   stable: "in the Stable repository",
   languages: "not English (in the Languages repository)",
   nsfw: "18+ (in the NSFW repository)",
+  trackers: "a tracker (in the Trackers repository)",
 };
 
 const configPath = path.join(import.meta.dirname, "aggregate.config.json");

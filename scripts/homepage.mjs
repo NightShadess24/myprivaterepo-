@@ -27,9 +27,11 @@ const REPOS = [
   { ref: "0.9/nsfw", label: "NSFW", version: "0.9", place: "top" },
   { ref: "0.9/testversion", label: "Test Version", version: "0.9", place: "secret" },
   { ref: "0.9/languages", label: "Others", version: "0.9", place: "bottom" },
+  { ref: "0.9/trackers", label: "Trackers", version: "0.9", place: "bottom" },
   { ref: "0.8/stable", label: "SFW", version: "0.8", place: "top" },
   { ref: "0.8/nsfw", label: "NSFW", version: "0.8", place: "top" },
   { ref: "0.8/languages", label: "Others", version: "0.8", place: "bottom" },
+  { ref: "0.8/trackers", label: "Trackers", version: "0.8", place: "bottom" },
 ];
 // The app versions, in the order their tabs are shown.
 const VERSIONS = [

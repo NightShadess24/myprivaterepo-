@@ -1,14 +1,16 @@
 # Sources from other repositories
 
-This site has three repositories for each app version (the homepage has a
+This site has four repositories for each app version (the homepage has a
 v9 / v8 tab for each version):
 
 - `stable` (shown as SFW): English (and multi-language) sources for everyone or mature readers
 - `languages` (shown as Others): sources in other languages (Indonesian, Spanish, French, …)
 - `nsfw`: sources rated 18+, in any language
+- `trackers`: trackers (AniList, MangaUpdates, MyAnimeList, …), which keep
+  reading progress in sync and have no chapters of their own
 
-Each source goes in one of them, by its own content rating and language
-(`scripts/languages.mjs`).
+Each source goes in one of them: trackers by what they do, the others by their
+own content rating and language (`scripts/languages.mjs`).
 
 `scripts/aggregate.mjs` brings in the sources of other public Paperback
 repositories when they are built (on every push and once a day):
@@ -25,6 +27,9 @@ A source counts as already present when its id or name matches one that is, or
 it reads the same website; earlier repositories win. Left out of the ports:
 novel sites on 0.8 (0.8 can't show text chapters), 0.9 sources that need a
 hidden web page (`executeInWebView`, which 0.8 doesn't have), and trackers.
+MyAnimeList on 0.9 is made in this repository instead (`src/MyAnimeList`),
+adapted from Paperback's 0.8 MyAnimeList tracker (Paperback-iOS/extensions,
+GPL-3.0).
 
 The lists, with each repository's license, are in
 `scripts/aggregate.config.json`; the homepage credits each source and links to

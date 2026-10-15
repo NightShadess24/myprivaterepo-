@@ -366,7 +366,7 @@
   "repositories": {
     "0.9/stable": {
       "name": "NightShadess24 Extensions (0.9 SFW)",
-      "description": "Paperback 0.9 extensions in English, safe for work (mature included): Inkdex's General Extensions with a fixed Comix source, plus the sources of other open-source 0.9 repositories and the 0.8-only sources ported to 0.9 (credited below). 18+ sources are in NSFW, other languages in Others."
+      "description": "Paperback 0.9 extensions in English, safe for work (mature included): Inkdex's General Extensions with a fixed Comix source, plus the sources of other open-source 0.9 repositories and the 0.8-only sources ported to 0.9 (credited below). 18+ sources are in NSFW, other languages in Others, trackers in Trackers."
     },
     "0.9/languages": {
       "name": "NightShadess24 Extensions (0.9 Others)",
@@ -376,9 +376,13 @@
       "name": "NightShadess24 Extensions (0.9 NSFW)",
       "description": "Paperback 0.9 extensions rated 18+: from Inkdex's General Extensions and other open-source 0.9 repositories, plus 18+ sources only made for 0.8, ported to 0.9 (credited below)."
     },
+    "0.9/trackers": {
+      "name": "NightShadess24 Extensions (0.9 Trackers)",
+      "description": "Paperback 0.9 trackers: keep your reading progress in sync with AniList, MangaUpdates, MyAnimeList and others. From open-source 0.9 repositories, plus trackers only made for 0.8, ported to 0.9 (credited below)."
+    },
     "0.8/stable": {
       "name": "NightShadess24 Extensions (0.8 SFW)",
-      "description": "Paperback 0.8 extensions in English, safe for work (mature included): the sources of open-source 0.8 repositories, plus the sources only made for 0.9, ported to 0.8 (credited below). 18+ sources are in NSFW, other languages in Others."
+      "description": "Paperback 0.8 extensions in English, safe for work (mature included): the sources of open-source 0.8 repositories, plus the sources only made for 0.9, ported to 0.8 (credited below). 18+ sources are in NSFW, other languages in Others, trackers in Trackers."
     },
     "0.8/languages": {
       "name": "NightShadess24 Extensions (0.8 Others)",
@@ -387,6 +391,10 @@
     "0.8/nsfw": {
       "name": "NightShadess24 Extensions (0.8 NSFW)",
       "description": "Paperback 0.8 extensions rated 18+: from open-source 0.8 repositories, plus 18+ sources only made for 0.9, ported to 0.8 (credited below)."
+    },
+    "0.8/trackers": {
+      "name": "NightShadess24 Extensions (0.8 Trackers)",
+      "description": "Paperback 0.8 trackers: keep your reading progress in sync with AniList, MangaUpdates, MyAnimeList and others. From open-source 0.8 repositories (credited below)."
     }
   },
   "leaveOut": {
@@ -425,7 +433,9 @@
   },
   "replacedByOwn": {
     "$comment": "Sources made in this repository (src/) whose copies in other repositories are left out: those sites changed and only the version here reads them now",
-    "ids": ["DrakeScans"]
+    "ids": [
+      "DrakeScans"
+    ]
   },
   "ratingOverrides": {
     "$comment": "Content ratings decided here: these sources' repositories rate them 18+ though they're mostly not, so they stay in the SFW repositories (rated Mature)",

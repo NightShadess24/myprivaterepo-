@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - "[0-9]+.[0-9]+/*"
-  # Daily rebuild of the stable, languages and NSFW repositories of both app
+  # Daily rebuild of the stable, languages, NSFW and trackers repositories of both app
   # versions (0.9/stable is the default branch), so sources brought in from
   # other repositories (scripts/aggregate.mjs) pick up their updates.
   schedule:
@@ -27,7 +27,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        ref: ${{ fromJSON(github.event_name == 'push' && format('["{0}"]', github.ref_name) || '["0.9/stable","0.9/languages","0.9/nsfw","0.8/stable","0.8/languages","0.8/nsfw"]') }}
+        ref: ${{ fromJSON(github.event_name == 'push' && format('["{0}"]', github.ref_name) || '["0.9/stable","0.9/languages","0.9/nsfw","0.9/trackers","0.8/stable","0.8/languages","0.8/nsfw","0.8/trackers"]') }}
     env:
       # The branch being built (a scheduled run builds more than one).
       BUILD_REF: ${{ matrix.ref }}
