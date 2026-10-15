@@ -1,1 +1,0 @@
-{"name":"ReadBerserk","description":"Extension that pulls manga from https://readberserk.com","version":"1.1.302","icon":"icon.png","language":"en","contentRating":"MATURE","capabilities":[1,64,4,16],"badges":[{"label":"0.8 port","textColor":"#ffffff","backgroundColor":"#6b7280"}],"developers":[{"name":"EmZedH","website":"http://github.com/EmZedH"}],"id":"ReadBerserk"}
