@@ -333,6 +333,42 @@ ul { margin-top: 0; }
 .health--cf { background: #e6a23c; }
 .health--fail { background: #f56c6c; }
 .worked { margin-left: 6px; font-size: 12px; opacity: .6; font-variant-numeric: tabular-nums; }
+.facts { margin-left: 8px; font-size: 12px; opacity: .6; font-variant-numeric: tabular-nums; }
+.facts::before { content: "· "; }
+.fact { white-space: nowrap; }
+/* What a source has: shows on hover (mouse) or tap; a hover one lets the
+   mouse through to the next source. */
+.sources.has-stats .source { position: relative; cursor: pointer; border-radius: 4px; }
+.sources.has-stats .source:focus-visible { outline: 1px solid var(--gold, #c9a45c); outline-offset: 2px; }
+.about {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  width: min(460px, calc(100vw - 32px));
+  padding: 12px 14px;
+  background: #26262a;
+  border: 1px solid #45454b;
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+  color: #f2f2f2;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: auto;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s, visibility 0s linear .12s;
+}
+.source.open > .about { visibility: visible; opacity: 1; pointer-events: auto; transition: opacity .12s; }
+@media (hover: hover) and (pointer: fine) {
+  .source:hover > .about { visibility: visible; opacity: 1; transition: opacity .12s .35s, visibility 0s .35s; }
+}
+.about__kind { font-size: 15px; font-weight: 600; color: #c9a45c; }
+.about__kind--unknown { color: #a3a3aa; font-weight: 500; font-size: 13px; }
+.about__desc { margin-top: 2px; color: #a3a3aa; }
+.about ul { margin: 8px 0 0; padding-left: 18px; }
+.about li { margin: 2px 0; }
 .el-tag.tag--recommended { background-color: #c9a45c; border-color: #c9a45c; color: #1b1b1d; font-weight: 700; }
 .el-tag.tag--popular { background-color: #3a3a40; border-color: #3a3a40; color: #f2f2f2; }
 .stats-note { margin: 22px 0 0; font-size: 12px; line-height: 1.6; opacity: .6; }
@@ -401,7 +437,7 @@ ul { margin-top: 0; }
 <button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
 
 </nav>
-<nav class="sortbar" aria-label="Sort sources" hidden><span class="sortbar__label">Sort</span><button type="button" data-sort="name" aria-pressed="true">A–Z</button><button type="button" data-sort="popular" aria-pressed="false">Popular</button><button type="button" data-sort="stable" aria-pressed="false">Stable</button><button type="button" data-sort="recommended" aria-pressed="false">Recommended</button></nav>
+<nav class="sortbar" aria-label="Sort sources" hidden><span class="sortbar__label">Sort</span><button type="button" data-sort="name" aria-pressed="true">A–Z</button><button type="button" data-sort="popular" aria-pressed="false">Popular</button><button type="button" data-sort="stable" aria-pressed="false">Stable</button><button type="button" data-sort="recommended" aria-pressed="false">Recommended</button><button type="button" data-sort="titles" aria-pressed="false">Most titles</button><button type="button" data-sort="newest" aria-pressed="false">Newest</button></nav>
 </div>
 
 <div class="content">
@@ -428,7 +464,7 @@ ul { margin-top: 0; }
 </ul>
 <p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
-<p class="stats-note" hidden><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source); the numbers are the checks it passed in the last week. Popularity is the website's rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular.</p>
+<p class="stats-note" hidden><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source); the numbers are the checks it passed in the last week. Hover over a source, or tap it, for what it has. Titles are counted from the site's sitemap (the list of pages it publishes for search engines), so they're approximate. Age is how long ago the site's address was registered. What a site mostly has comes from a sample of its titles looked up on <a href="https://anilist.co">AniList</a>. Paperback doesn't publish how many people use each source, so popularity is the website's own rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular.</p>
 </div>
 <section class="credits js-credits" hidden></section>
 <nav class="others-switch" aria-label="Other repositories"><span class="repo-group" data-version="0.9"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/languages/" data-ref="0.9/languages" data-version="0.9" data-place="bottom">Others</a></span><span class="repo-group" data-version="0.8" hidden><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.8/languages/" data-ref="0.8/languages" data-version="0.8" data-place="bottom">Others</a></span></nav>
@@ -445,7 +481,7 @@ ul { margin-top: 0; }
   var BUILD_SITE_ROOT = "https://nightshadess24.github.io/myprivaterepo-/";
   var RATING_TAGS = {"MATURE":{"label":"Mature","type":"warning"},"ADULT":{"label":"18+","type":"danger"}};
   var data = {};
-  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-15T11:42:39.362Z","sources":[{"id":"Comix","name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.91","contentRating":"SAFE","badges":[]}],"credits":[],"stats":null};
+  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-15T12:46:27.327Z","sources":[{"id":"Comix","name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.91","contentRating":"SAFE","badges":[]}],"credits":[],"stats":null};
 
   // Each repository lives at <site root><branch>, e.g. …/myprivaterepo-/0.9/stable
   function siteRoot() {
@@ -648,8 +684,92 @@ ul { margin-top: 0; }
       rank: rank,
       tier: tier ? tier[1] : "",
       recommended: !!(stats && (stats.recommended || []).indexOf(id) !== -1),
+      about: (stats && stats.about && stats.about[id]) || {},
     };
   }
+
+  // What a source's website has (scripts/site-info.mjs)
+  var KIND_NAME = { manga: "manga", manhwa: "manhwa", manhua: "manhua", comic: "Western comics", novel: "novels" };
+  var KIND_NOTE = { manga: "Japanese comics", manhwa: "Korean comics", manhua: "Chinese comics" };
+  function listOf(words) {
+    return words.length < 2 ? words.join("") : words.slice(0, -1).join(", ") + " and " + words[words.length - 1];
+  }
+  function kindSummary(kind) {
+    var kinds = Object.keys(kind || {}).filter(function (k) { return KIND_NAME[k] && kind[k] > 0; });
+    if (!kinds.length) return "";
+    var total = kinds.reduce(function (sum, k) { return sum + kind[k]; }, 0);
+    kinds.sort(function (a, b) { return kind[b] - kind[a]; });
+    var top = kinds[0];
+    if (kind[top] / total >= 0.7) {
+      if (top === "novel") return "Novels (text, not comics)";
+      if (top === "comic") return "Mostly Western comics";
+      return "Mostly " + top + " (" + KIND_NOTE[top] + ")";
+    }
+    var main = kinds.filter(function (k) { return kind[k] / total >= 0.2; });
+    var text = listOf(main.map(function (k) { return KIND_NAME[k]; })) + (main.length < kinds.length ? ", and some others" : "");
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+  function shortNumber(n) {
+    if (n < 1000) return String(n);
+    if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+    if (n < 1000000) return Math.round(n / 1000) + "k";
+    return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+  }
+  function ageOf(since) {
+    var start = Date.parse(since);
+    if (!start) return null;
+    var months = Math.floor((Date.now() - start) / (30.44 * 86400000));
+    if (months < 1) return { short: "new", long: "less than a month ago" };
+    if (months < 12) return { short: months + " mo old", long: months + (months === 1 ? " month ago" : " months ago") };
+    var years = Math.floor(months / 12);
+    return { short: years + (years === 1 ? " yr old" : " yrs old"), long: years + (years === 1 ? " year ago" : " years ago") };
+  }
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function aboutBox(source, info, health) {
+    var about = info.about;
+    var box = el("div", "about");
+    box.setAttribute("role", "note");
+    var summary = kindSummary(about.kind);
+    box.appendChild(el("div", "about__kind" + (summary ? "" : " about__kind--unknown"), summary || "What it has isn't known yet (its site couldn't be sampled)."));
+    if (source.description) box.appendChild(el("div", "about__desc", source.description));
+    var facts = el("ul");
+    if (about.titles) facts.appendChild(el("li", "", "About " + about.titles.toLocaleString("en") + " titles (from the site's sitemap)"));
+    var age = about.since && ageOf(about.since);
+    if (age) {
+      var date = new Date(about.since);
+      facts.appendChild(el("li", "", "Site address registered " + MONTHS[date.getUTCMonth()] + " " + date.getUTCFullYear() + " (" + age.long + ")"));
+    }
+    if (info.rank) facts.appendChild(el("li", "", "#" + info.rank.toLocaleString("en") + " most visited website in the world"));
+    if (health) facts.appendChild(el("li", "", health));
+    if (facts.childNodes.length) box.appendChild(facts);
+    return box;
+  }
+  function closeAbout(except) {
+    list.querySelectorAll(".source.open").forEach(function (item) {
+      if (item !== except) {
+        item.classList.remove("open");
+        item.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+  list.addEventListener("click", function (event) {
+    var item = event.target.closest(".source");
+    if (!item || !item.querySelector(".about") || event.target.closest(".about")) return;
+    closeAbout(item);
+    var open = item.classList.toggle("open");
+    item.setAttribute("aria-expanded", String(open));
+  });
+  list.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") return closeAbout(null);
+    if (event.key !== "Enter" && event.key !== " ") return;
+    var item = event.target.closest(".source");
+    if (!item || event.target !== item) return;
+    event.preventDefault();
+    item.click();
+  });
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest(".sources")) closeAbout(null);
+  });
   function healthTitle(info) {
     if (!info.last) return "Not checked yet";
     var when = info.last.d ? " (" + info.last.d + ")" : "";
@@ -669,10 +789,9 @@ ul { margin-top: 0; }
       var info = statsOf(stats, source.id);
       var item = el("li", "source");
       var dot = el("span", "health" + (info.last ? " health--" + info.last.r : ""));
-      dot.title = healthTitle(info);
       if (stats) item.appendChild(dot);
       item.appendChild(document.createTextNode(source.name));
-      item.title = (source.description || "") + "\n" + dot.title + (info.rank ? "\nWebsite rank: #" + info.rank.toLocaleString("en") : "");
+      if (!stats) item.title = source.description || "";
       var extra = [];
       if (info.recommended) extra.push({ label: "★ Recommended", cls: "tag--recommended" });
       if (info.tier) extra.push({ label: info.tier, cls: "tag--popular" });
@@ -681,11 +800,26 @@ ul { margin-top: 0; }
       item.dataset.rank = info.rank || "";
       item.dataset.score = info.checked ? String(info.worked / info.checked + info.checked / 1000) : "";
       item.dataset.recommended = info.recommended ? "1" : "";
+      item.dataset.titles = info.about.titles || "";
+      item.dataset.since = info.about.since || "";
       item.appendChild(el("span", "version", source.version || ""));
       if (info.checked) {
         var worked = el("span", "worked", info.worked + "/" + info.checked);
-        worked.title = dot.title;
         item.appendChild(worked);
+      }
+      // The numbers: titles, the site's age and its rank
+      var facts = [];
+      if (info.about.titles) facts.push(shortNumber(info.about.titles) + " titles");
+      var age = info.about.since && ageOf(info.about.since);
+      if (age) facts.push(age.short);
+      if (info.rank) facts.push("#" + shortNumber(info.rank) + " site");
+      if (facts.length) {
+        var factsBox = el("span", "facts");
+        facts.forEach(function (fact, i) {
+          if (i) factsBox.appendChild(document.createTextNode(" · "));
+          factsBox.appendChild(el("span", "fact", fact));
+        });
+        item.appendChild(factsBox);
       }
       if (source.origin) item.appendChild(el("span", "origin", source.origin));
       extra.forEach(function (tag) {
@@ -698,6 +832,11 @@ ul { margin-top: 0; }
         item.appendChild(span);
         if (labels.indexOf(tag.label) === -1) labels.push(tag.label);
       });
+      if (stats) {
+        item.appendChild(aboutBox(source, info, healthTitle(info)));
+        item.tabIndex = 0;
+        item.setAttribute("aria-expanded", "false");
+      }
       list.appendChild(item);
     });
     var order = ["★ Recommended", "Very popular", "Popular"];
@@ -718,10 +857,15 @@ ul { margin-top: 0; }
     var rank = item.dataset.rank ? Number(item.dataset.rank) : Infinity;
     var score = item.dataset.score ? Number(item.dataset.score) : -1;
     var rec = item.dataset.recommended ? 0 : 1;
+    var titles = item.dataset.titles ? Number(item.dataset.titles) : -1;
+    // Newest first; sites of unknown age last
+    var since = item.dataset.since ? -Date.parse(item.dataset.since) : Infinity;
     switch (sortMode) {
       case "popular": return [rank, item.dataset.name];
       case "stable": return [-score, rank, item.dataset.name];
       case "recommended": return [rec, -score, rank, item.dataset.name];
+      case "titles": return [-titles, rank, item.dataset.name];
+      case "newest": return [since, item.dataset.name];
       default: return [item.dataset.name];
     }
   }
