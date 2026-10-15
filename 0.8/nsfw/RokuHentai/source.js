@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["RokuHentaiInfo"] = {"version":"1.0.0-alpha.701","name":"RokuHentai","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from RokuHentai.com","contentRating":"ADULT","websiteBaseURL":"https://rokuhentai.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":17};
+exported["RokuHentaiInfo"] = {"version":"1.0.0-alpha.702","name":"RokuHentai","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from RokuHentai.com","contentRating":"ADULT","websiteBaseURL":"https://rokuhentai.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":17};
 exported["RokuHentai"] = __pbV9.makeSourceClass(__load, {"id":"RokuHentai","name":"RokuHentai","website":"https://rokuhentai.com","contentRating":"ADULT","discover":false,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

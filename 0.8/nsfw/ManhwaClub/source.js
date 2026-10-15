@@ -19,7 +19,7 @@ CHANGING THIS OPTION WILL ERASE YOUR READING PROGRESS FOR THIS SOURCE!`}),oe(`hq
 ;return source;
 };
 var exported = {};
-exported["ManhwaClubInfo"] = {"version":"1.0.0-alpha.301","name":"ManhwaClub","icon":"icon.png","author":"Inkdex","authorWebsite":"https://inkdex.github.io","description":"Extension that pulls content from manhwaclub.net.","contentRating":"ADULT","websiteBaseURL":"https://manhwaclub.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["ManhwaClubInfo"] = {"version":"1.0.0-alpha.302","name":"ManhwaClub","icon":"icon.png","author":"Inkdex","authorWebsite":"https://inkdex.github.io","description":"Extension that pulls content from manhwaclub.net.","contentRating":"ADULT","websiteBaseURL":"https://manhwaclub.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["ManhwaClub"] = __pbV9.makeSourceClass(__load, {"id":"ManhwaClub","name":"ManhwaClub","website":"https://manhwaclub.net","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

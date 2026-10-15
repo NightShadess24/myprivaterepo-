@@ -20,7 +20,7 @@ Artist: `+_(e.artist):``}\nDate: ${this.parseDate(e.date)}`}async parseMangaDeta
 ;return source;
 };
 var exported = {};
-exported["ExHentaiInfo"] = {"version":"1.3.1","name":"ExHentai","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from ExHentai.org\nRequire a login to work","contentRating":"ADULT","websiteBaseURL":"https://exhentai.org","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37};
+exported["ExHentaiInfo"] = {"version":"1.3.2","name":"ExHentai","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from ExHentai.org\nRequire a login to work","contentRating":"ADULT","websiteBaseURL":"https://exhentai.org","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37};
 exported["ExHentai"] = __pbV9.makeSourceClass(__load, {"id":"ExHentai","name":"ExHentai","website":"https://exhentai.org","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

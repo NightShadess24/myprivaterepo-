@@ -19,7 +19,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["MangaSushiInfo"] = {"version":"0.0.1-alpha.701","name":"Mangasushi","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"https://pirate.vodka","description":"Native Mangasushi catalog, search and reader. NSFW exclusion is on by default; unclassified titles are hidden.","contentRating":"ADULT","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["MangaSushiInfo"] = {"version":"0.0.1-alpha.702","name":"Mangasushi","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"https://pirate.vodka","description":"Native Mangasushi catalog, search and reader. NSFW exclusion is on by default; unclassified titles are hidden.","contentRating":"ADULT","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["MangaSushi"] = __pbV9.makeSourceClass(__load, {"id":"MangaSushi","name":"Mangasushi","website":"","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

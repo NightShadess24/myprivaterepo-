@@ -19,7 +19,7 @@ Crashes occur due to memory issues. Enabling "Downsample Pages" in the reader ma
 ;return source;
 };
 var exported = {};
-exported["HitomiInfo"] = {"version":"1.6.701","name":"Hitomi","icon":"icon.png","author":"pisshammy","authorWebsite":"$1/goon pls am poor\nzelle: pisshammy@gmail.com\ncashapp: $0hammy0","description":"Extension that pulls content from hitomi.la","contentRating":"ADULT","websiteBaseURL":"https://hitomi.la","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"multi"};
+exported["HitomiInfo"] = {"version":"1.6.702","name":"Hitomi","icon":"icon.png","author":"pisshammy","authorWebsite":"$1/goon pls am poor\nzelle: pisshammy@gmail.com\ncashapp: $0hammy0","description":"Extension that pulls content from hitomi.la","contentRating":"ADULT","websiteBaseURL":"https://hitomi.la","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"multi"};
 exported["Hitomi"] = __pbV9.makeSourceClass(__load, {"id":"Hitomi","name":"Hitomi","website":"https://hitomi.la","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":true,"filters":true});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

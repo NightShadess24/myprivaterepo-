@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["Manga18ClubInfo"] = {"version":"4.0.1","name":"Manga18Club","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from manga18.club.","contentRating":"ADULT","websiteBaseURL":"https://manga18.club","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
+exported["Manga18ClubInfo"] = {"version":"4.0.2","name":"Manga18Club","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from manga18.club.","contentRating":"ADULT","websiteBaseURL":"https://manga18.club","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":21,"language":"en"};
 exported["Manga18Club"] = __pbV9.makeSourceClass(__load, {"id":"Manga18Club","name":"Manga18Club","website":"https://manga18.club","contentRating":"ADULT","discover":true,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

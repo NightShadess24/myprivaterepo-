@@ -19,7 +19,7 @@ CHANGING THIS OPTION WILL ERASE YOUR READING PROGRESS FOR THIS SOURCE!`}),oe(`hq
 ;return source;
 };
 var exported = {};
-exported["ManhwaToonInfo"] = {"version":"3.0.1","name":"ManhwaToon","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from manhwatoon.me.","contentRating":"ADULT","websiteBaseURL":"https://manhwatoon.me","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["ManhwaToonInfo"] = {"version":"3.0.2","name":"ManhwaToon","icon":"icon.png","author":"kittycatgit","authorWebsite":"https://github.com/kittycatgit","description":"Extension that pulls content from manhwatoon.me.","contentRating":"ADULT","websiteBaseURL":"https://manhwatoon.me","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["ManhwaToon"] = __pbV9.makeSourceClass(__load, {"id":"ManhwaToon","name":"ManhwaToon","website":"https://manhwatoon.me","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

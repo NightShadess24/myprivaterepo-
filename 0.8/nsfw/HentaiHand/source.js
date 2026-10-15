@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["HentaiHandInfo"] = {"version":"1.0.0-alpha.601","name":"HentaiHand","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from HentaiHand","contentRating":"ADULT","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":17,"language":"en"};
+exported["HentaiHandInfo"] = {"version":"1.0.0-alpha.602","name":"HentaiHand","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from HentaiHand","contentRating":"ADULT","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":17,"language":"en"};
 exported["HentaiHand"] = __pbV9.makeSourceClass(__load, {"id":"HentaiHand","name":"HentaiHand","website":"","contentRating":"ADULT","discover":false,"settings":false,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

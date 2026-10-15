@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["MangaWorldAdultInfo"] = {"version":"1.0.0-alpha.501","name":"MangaWorldAdult","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from www.mangaworldadult.net.","contentRating":"ADULT","websiteBaseURL":"https://mangaworldadult.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37,"language":"it"};
+exported["MangaWorldAdultInfo"] = {"version":"1.0.0-alpha.502","name":"MangaWorldAdult","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls content from www.mangaworldadult.net.","contentRating":"ADULT","websiteBaseURL":"https://mangaworldadult.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37,"language":"it"};
 exported["MangaWorldAdult"] = __pbV9.makeSourceClass(__load, {"id":"MangaWorldAdult","name":"MangaWorldAdult","website":"https://mangaworldadult.net","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

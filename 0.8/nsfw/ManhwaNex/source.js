@@ -19,7 +19,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["ManhwaNexInfo"] = {"version":"0.0.1-alpha.401","name":"ManhwaNex","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"https://pirate.vodka","description":"Native ManhwaNex catalog, search and reader. NSFW exclusion is on by default; unclassified titles are hidden.","contentRating":"ADULT","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
+exported["ManhwaNexInfo"] = {"version":"0.0.1-alpha.402","name":"ManhwaNex","icon":"icon.png","author":"Lucifers Circle","authorWebsite":"https://pirate.vodka","description":"Native ManhwaNex catalog, search and reader. NSFW exclusion is on by default; unclassified titles are hidden.","contentRating":"ADULT","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"en"};
 exported["ManhwaNex"] = __pbV9.makeSourceClass(__load, {"id":"ManhwaNex","name":"ManhwaNex","website":"","contentRating":"ADULT","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);
