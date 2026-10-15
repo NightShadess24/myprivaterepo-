@@ -1,12 +1,8 @@
 // Replaces the toolchain's generated homepage (`bundles/index.html`) with a
-// static page that has two themes, picked with the toggle in the corner and
-// remembered per browser:
-//
-//   - Noir (default): dark, shop-style page — slim top bar, banner links
-//     with a gold accent, serif display headings, and the plain list of
-//     sources with their tags under a row of filter tabs.
-//   - Classic: the classic Paperback 0.8 repository page — logo, "Add to
-//     Paperback" button, guide, base URL and a plain list of sources.
+// static page in the Noir look: dark, shop-style page — slim top bar, banner
+// links with a gold accent, serif display headings, and the plain list of
+// sources with their tags under a row of filter tabs. (The Classic styles
+// below are no longer reachable: the page always opens in Noir.)
 //
 // The site publishes more than one repository (one per branch, see REPOS),
 // for two app versions: tabs pick Paperback 0.9 ("v9") or 0.8 ("v8"), then a
@@ -296,12 +292,6 @@ const html = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="https://paperback.moe/pb-logo.svg">
 <title>${escapeHtml(name)}</title>
-<script>
-try {
-  var saved = localStorage.getItem("repo-theme");
-  if (saved === "classic" || saved === "noir") document.documentElement.dataset.theme = saved;
-} catch (e) {}
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
@@ -322,18 +312,6 @@ ul { margin-top: 0; }
 .credits h3 { font-size: 14px; margin: 0 0 .4rem; }
 .credits ul { padding-left: 20px; margin: 0 0 .4rem; }
 .credits p { margin: 0; opacity: .7; }
-
-.theme-toggle {
-  position: fixed;
-  top: 12px;
-  right: 14px;
-  z-index: 20;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 999px;
-  padding: 6px 12px;
-}
 
 /* Repository links: hover shows that repository's sources, click keeps them */
 .repo-switch { display: flex; justify-content: center; flex-wrap: wrap; }
@@ -411,7 +389,6 @@ ul { margin-top: 0; }
 [data-theme="classic"] .baseUrl p { margin-left: 16px; }
 [data-theme="classic"] #listDiv { line-height: 1.5; }
 [data-theme="classic"] .sources { padding-left: 40px; }
-[data-theme="classic"] .theme-toggle { background: #fff; color: #2c3e50; border: 1px solid #dfe2e5; }
 [data-theme="classic"] .repo-switch { gap: 0; margin: 0 auto 1rem; }
 [data-theme="classic"] .repo-link {
   padding: .35rem 1rem;
@@ -464,8 +441,6 @@ ul { margin-top: 0; }
 [data-theme="noir"] .classic-only,
 [data-theme="noir"] [hidden] { display: none !important; }
 [data-theme="noir"] a { color: var(--blue); text-decoration: none; }
-[data-theme="noir"] .theme-toggle { background: transparent; color: var(--text); border: 1px solid #4a4a50; top: 9px; }
-[data-theme="noir"] .theme-toggle:hover { border-color: var(--text); }
 
 [data-theme="noir"] .topbar {
   position: sticky;
@@ -475,7 +450,7 @@ ul { margin-top: 0; }
   line-height: 52px;
   text-align: center;
   background: var(--bg);
-  padding: 0 104px; /* room for the theme toggle */
+  padding: 0 16px;
   border-bottom: 1px solid #2c2c30;
   font-family: "Cormorant Garamond", "Times New Roman", serif;
   font-size: 18px;
@@ -653,7 +628,6 @@ ul { margin-top: 0; }
 </style>
 </head>
 <body>
-<button class="theme-toggle" type="button" aria-label="Switch theme"></button>
 
 <!-- Noir: top bar, banners, filter tabs above the sources -->
 <div class="topbar noir-only js-repo-name">${escapeHtml(name)}</div>
@@ -730,21 +704,6 @@ ${sources.map(sourceItem).join("\n")}
   var RATING_TAGS = ${jsonForScript(RATING_TAGS)};
   var data = {};
   data[CURRENT] = ${jsonForScript(embedded)};
-
-  var root = document.documentElement;
-  var themes = { noir: "☀ Classic", classic: "☾ Noir" };
-  var toggle = document.querySelector(".theme-toggle");
-  function applyTheme(theme) {
-    root.dataset.theme = theme;
-    toggle.textContent = themes[theme];
-    try { localStorage.setItem("repo-theme", theme); } catch (e) {}
-  }
-  toggle.addEventListener("click", function () {
-    applyTheme(root.dataset.theme === "noir" ? "classic" : "noir");
-    if (typeof markRows === "function") markRows();
-    if (root.dataset.theme === "classic") showAll(); // Classic ignores the filter
-  });
-  toggle.textContent = themes[root.dataset.theme] || themes.noir;
 
   // Each repository lives at <site root><branch>, e.g. …/myprivaterepo-/0.9/stable
   function siteRoot() {
