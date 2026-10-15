@@ -1,7 +1,14 @@
 # Sources from other repositories
 
-This site has two repositories: `0.9/stable` for Paperback 0.9 and `0.8/stable`
-for Paperback 0.8 (the homepage has a v9 / v8 tab for each).
+This site has three repositories for each app version (the homepage has a
+v9 / v8 tab for each version):
+
+- `stable`: English (and multi-language) sources for everyone or mature readers
+- `languages`: sources in other languages (Indonesian, Spanish, French, …)
+- `nsfw`: sources rated 18+, in any language
+
+Each source goes in one of them, by its own content rating and language
+(`scripts/languages.mjs`).
 
 `scripts/aggregate.mjs` brings in the sources of other public Paperback
 repositories when they are built (on every push and once a day):

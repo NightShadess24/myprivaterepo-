@@ -14,6 +14,12 @@
 //     2. adds every source of the 0.9 repositories in `upstreams` that isn't
 //        here yet, ported to 0.8
 //
+// Each app version has three repositories, by each source's own content
+// rating and language (scripts/languages.mjs):
+//   stable     English (or multi-language) sources for everyone or mature readers
+//   languages  sources in other languages, for everyone or mature readers
+//   nsfw       sources rated 18+, in any language
+//
 // Repositories are listed in scripts/aggregate.config.json; only ones under an
 // open-source license that allows it are. A source counts as already here when
 // its id or name matches one that is (ignoring case and punctuation) or it
@@ -23,17 +29,22 @@
 // the deploy still goes out.
 //
 // Usage: node scripts/aggregate.mjs [bundleFolder] [--version 0.8|0.9]
+//          [--flavor stable|languages|nsfw]
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { portToV8, portToV9 } from "./crossport.mjs";
+import { portToV8, portToV9, read08Info } from "./crossport.mjs";
+import { domainLanguage, isEnglish, languageCode } from "./languages.mjs";
 
 const args = process.argv.slice(2);
 const versionFlag = args.indexOf("--version");
-const folder = args.find((arg, i) => !arg.startsWith("--") && i !== versionFlag + 1) ?? "bundles";
+const flavorFlag = args.indexOf("--flavor");
+const folder =
+  args.find((arg, i) => !arg.startsWith("--") && i !== versionFlag + 1 && i !== flavorFlag + 1) ??
+  "bundles";
 
 function branchName() {
   if (process.env.BUILD_REF) return process.env.BUILD_REF;
@@ -46,6 +57,19 @@ function branchName() {
 }
 const version =
   versionFlag >= 0 ? args[versionFlag + 1] : branchName().startsWith("0.8/") ? "0.8" : "0.9";
+// stable, languages or nsfw (anything else: every source).
+const flavor = flavorFlag >= 0 ? args[flavorFlag + 1] : (branchName().split("/")[1] ?? "");
+const isAdult = (entry) => String(entry?.contentRating ?? "").toUpperCase() === "ADULT";
+// Which of the three repositories a source goes in.
+const placeOf = (entry, language) =>
+  isAdult(entry) ? "nsfw" : isEnglish(language) ? "stable" : "languages";
+const belongsHere = (entry, language) =>
+  !["stable", "languages", "nsfw"].includes(flavor) || placeOf(entry, language) === flavor;
+const PLACES = {
+  stable: "in the Stable repository",
+  languages: "not English (in the Languages repository)",
+  nsfw: "18+ (in the NSFW repository)",
+};
 
 const configPath = path.join(import.meta.dirname, "aggregate.config.json");
 const licensesDir = path.join(import.meta.dirname, "..", "third-party", "licenses");
@@ -237,6 +261,7 @@ function recordFor(upstream, kind) {
 const records = [];
 const catalog = new Catalog();
 const taken = new Set();
+const languages = {};
 let versioning;
 
 const native = version === "0.8" ? config.upstreams08 : config.upstreams;
@@ -244,29 +269,122 @@ const foreign = version === "0.8" ? config.upstreams : config.upstreams08;
 const nativeFile = version === "0.8" ? "source.js" : "index.js";
 const describeNative = version === "0.8" ? describe08 : describe09;
 const describeForeign = version === "0.8" ? describe09 : describe08;
+const otherVersion = version === "0.8" ? "0.9" : "0.8";
 
+// Every repository's list first: 0.8 sources take their language from the
+// same site's 0.9 source when there is one.
+const nativeLists = [];
+for (const upstream of native ?? []) {
+  const record = recordFor(upstream, version);
+  nativeLists.push({ upstream, record, list: await sourcesOf(upstream, record) });
+}
+const foreignLists = [];
+for (const upstream of foreign ?? []) {
+  const record = recordFor(upstream, otherVersion);
+  foreignLists.push({ upstream, record, list: await sourcesOf(upstream, record) });
+}
+records.push(...nativeLists.map((x) => x.record), ...foreignLists.map((x) => x.record));
+
+if (version === "0.9") versioning = JSON.parse(fs.readFileSync(versioningPath, "utf8"));
+const lists09 = version === "0.9" ? nativeLists : foreignLists;
+const lists08 = version === "0.8" ? nativeLists : foreignLists;
+const overrides = config.languageOverrides ?? {};
+
+// What a 0.8 source itself says: its SourceInfo, else a language tag.
+const said08 = new Map();
+function said08Of(entry, dir) {
+  if (!said08.has(entry.id)) {
+    let code = languageCode(read08Info(dir, entry.id)?.language);
+    for (const tag of entry.tags ?? []) {
+      if (code) break;
+      code = languageCode(tag?.text);
+    }
+    said08.set(entry.id, code);
+  }
+  return said08.get(entry.id);
+}
+
+// The same site's language as the other app version's source has it.
+function hintMap(items, describe, said) {
+  const map = new Map();
+  for (const { entry, dir } of items) {
+    const code = said(entry, dir);
+    if (!code) continue;
+    const about = describe(entry);
+    if (!map.has(`id:${norm(about.id)}`)) map.set(`id:${norm(about.id)}`, code);
+    if (about.host && !map.has(`host:${about.host}`)) map.set(`host:${about.host}`, code);
+  }
+  return map;
+}
+const hints09 = hintMap(
+  [...(versioning?.sources ?? []).map((entry) => ({ entry })), ...lists09.flatMap((x) => x.list)],
+  describe09,
+  (info) => languageCode(info.language),
+);
+const hints08 = hintMap(
+  lists08.flatMap((x) => x.list),
+  describe08,
+  said08Of,
+);
+const hint = (map, about) =>
+  map.get(`id:${norm(about.id)}`) ?? (about.host ? map.get(`host:${about.host}`) : undefined);
+
+// A language other than English, said by either version's source, wins over
+// "en" (often just left at the template's default).
+function language09(info) {
+  if (overrides[info.id]) return overrides[info.id];
+  const own = languageCode(info.language);
+  if (own && !isEnglish(own)) return own;
+  const about = describe09(info);
+  const other = hint(hints08, about);
+  if (other && !isEnglish(other)) return other;
+  return own || domainLanguage(about.host) || "en";
+}
+function language08(entry, dir) {
+  if (overrides[entry.id]) return overrides[entry.id];
+  const own = said08Of(entry, dir);
+  if (own && !isEnglish(own)) return own;
+  const about = describe08(entry);
+  const other = hint(hints09, about);
+  if (other && !isEnglish(other)) return other;
+  return own || other || domainLanguage(about.host) || "en";
+}
+const languageNative = version === "0.8" ? language08 : language09;
+const languageForeign = version === "0.8" ? language09 : language08;
+
+const repository =
+  config.repositories?.[`${version}/${flavor}`] ?? config.repositories?.[`${version}/stable`];
+const leftOut = [];
 if (version === "0.8") {
   fs.rmSync(folder, { recursive: true, force: true });
   fs.mkdirSync(folder, { recursive: true });
   versioning = {
     buildTime: new Date(),
     builtWith: { toolchain: "0.8.7", types: "0.8.7" },
-    repository: config.repository08,
+    repository,
     sources: [],
   };
 } else {
-  versioning = JSON.parse(fs.readFileSync(versioningPath, "utf8"));
+  if (repository) versioning.repository = repository;
+  const kept = [];
   for (const source of versioning.sources) {
     catalog.add(describe09(source), "here");
     taken.add(source.id.toLowerCase());
+    const language = language09(source);
+    if (belongsHere(source, language)) {
+      kept.push(source);
+      if (!isEnglish(language)) languages[source.id] = language;
+    } else {
+      fs.rmSync(path.join(folder, source.id), { recursive: true, force: true });
+      leftOut.push(`${source.id} (${PLACES[placeOf(source, language)]})`);
+    }
   }
+  versioning.sources = kept;
 }
 
 // 1. Sources made for this app version, copied as they are.
-for (const upstream of native ?? []) {
-  const record = recordFor(upstream, version);
-  records.push(record);
-  for (const { id, entry, dir } of await sourcesOf(upstream, record)) {
+for (const { upstream, record, list } of nativeLists) {
+  for (const { id, entry, dir } of list) {
     if (!SAFE_ID.test(id)) {
       record.skipped.push({ id, why: "unusual id" });
       continue;
@@ -280,24 +398,28 @@ for (const upstream of native ?? []) {
       record.skipped.push({ id, why: "no bundle" });
       continue;
     }
-    fs.cpSync(dir, path.join(folder, id), { recursive: true });
-    versioning.sources.push(entry);
+    // Counts as here even when it goes in another of the three repositories.
     taken.add(id.toLowerCase());
     catalog.add(describeNative(entry), upstream.label);
+    const language = languageNative(entry, dir);
+    if (!belongsHere(entry, language)) {
+      record.skipped.push({ id, why: PLACES[placeOf(entry, language)] });
+      continue;
+    }
+    fs.cpSync(dir, path.join(folder, id), { recursive: true });
+    versioning.sources.push(entry);
+    if (!isEnglish(language)) languages[id] = language;
     record.added.push(id);
   }
   console.log(
     `[aggregate] ${record.repo}@${String(record.commit ?? "").slice(0, 7)}: +${record.added.length}` +
-      (record.skipped.length ? `, skipped ${record.skipped.map((s) => s.id).join(", ")}` : ""),
+      (record.skipped.length ? `, skipped ${record.skipped.length}` : ""),
   );
 }
 
 // 2. Sources only the other app version has, ported.
-const otherVersion = version === "0.8" ? "0.9" : "0.8";
-for (const upstream of foreign ?? []) {
-  const record = recordFor(upstream, otherVersion);
-  records.push(record);
-  for (const { id, entry, dir } of await sourcesOf(upstream, record)) {
+for (const { upstream, record, list } of foreignLists) {
+  for (const { id, entry, dir } of list) {
     if (!SAFE_ID.test(id)) {
       record.skipped.push({ id, why: "unusual id" });
       continue;
@@ -310,6 +432,13 @@ for (const upstream of foreign ?? []) {
       record.skipped.push({ id, why: owner === "here" ? "already here" : `already from ${owner}` });
       continue;
     }
+    taken.add(id.toLowerCase());
+    catalog.add(about, upstream.label);
+    const language = languageForeign(entry, dir);
+    if (!belongsHere(entry, language)) {
+      record.skipped.push({ id, why: PLACES[placeOf(entry, language)] });
+      continue;
+    }
     const port =
       version === "0.8"
         ? await portToV8({
@@ -319,14 +448,13 @@ for (const upstream of foreign ?? []) {
             outDir: folder,
             website: about.host ? `https://${about.host}` : "",
           })
-        : await portToV9({ id, dir, entry, outDir: folder });
+        : await portToV9({ id, dir, entry: { ...entry, language }, outDir: folder });
     if (port.skipped) {
       record.skipped.push({ id, why: port.skipped });
       continue;
     }
     versioning.sources.push(version === "0.8" ? port.entry : port.info);
-    taken.add(id.toLowerCase());
-    catalog.add(about, upstream.label);
+    if (!isEnglish(language)) languages[id] = language;
     record.ported.push(id);
   }
   console.log(
@@ -340,7 +468,7 @@ fs.cpSync(licensesDir, path.join(folder, "licenses"), { recursive: true });
 fs.writeFileSync(
   path.join(folder, "third-party.json"),
   JSON.stringify(
-    { generated: new Date().toISOString(), appVersion: version, upstreams: records },
+    { generated: new Date().toISOString(), appVersion: version, languages, upstreams: records },
     null,
     2,
   ),
@@ -349,6 +477,7 @@ fs.rmSync(work, { recursive: true, force: true });
 
 const added = records.reduce((sum, r) => sum + r.added.length, 0);
 const ported = records.reduce((sum, r) => sum + r.ported.length, 0);
+if (leftOut.length) console.log(`[aggregate] own sources left out: ${leftOut.join(", ")}`);
 console.log(
-  `[aggregate] ${version}: ${versioning.sources.length} sources (${added} from other repositories, ${ported} ported from ${otherVersion})`,
+  `[aggregate] ${version}${flavor ? ` ${flavor}` : ""}: ${versioning.sources.length} sources (${added} from other repositories, ${ported} ported from ${otherVersion})`,
 );

@@ -385,3 +385,32 @@ export async function portToV8({ id, dir, info, outDir, website = "" }) {
     },
   };
 }
+
+// ── Reading a 0.8 source's SourceInfo ───────────────────────────────────
+
+// The 0.8 versioning.json leaves out some SourceInfo fields (language);
+// this loads the bundle (without running the source) to read them.
+export function read08Info(dir, id) {
+  try {
+    const stubApp = new Proxy(
+      {},
+      {
+        get: (_target, name) =>
+          typeof name === "string" && name.startsWith("create")
+            ? (value) => value ?? {}
+            : undefined,
+      },
+    );
+    const module = { exports: {} };
+    const holder = {};
+    const context = vm.createContext({ App: stubApp, module, exports: module.exports, holder });
+    vm.runInContext(
+      `(function () {${fs.readFileSync(path.join(dir, "source.js"), "utf8")}\n;holder.sources = typeof _Sources !== "undefined" ? _Sources : module.exports.Sources || module.exports;}).call({})`,
+      context,
+      { timeout: 20_000 },
+    );
+    return holder.sources?.[`${id}Info`];
+  } catch {
+    return undefined;
+  }
+}

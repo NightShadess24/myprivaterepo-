@@ -25,8 +25,12 @@ import path from "node:path";
 // The repositories on this site, in the order their links are shown.
 const REPOS = [
   { ref: "0.9/stable", label: "Stable", version: "0.9" },
+  { ref: "0.9/languages", label: "Languages", version: "0.9" },
+  { ref: "0.9/nsfw", label: "NSFW", version: "0.9" },
   { ref: "0.9/testversion", label: "Test Version", version: "0.9" },
   { ref: "0.8/stable", label: "Stable", version: "0.8" },
+  { ref: "0.8/languages", label: "Languages", version: "0.8" },
+  { ref: "0.8/nsfw", label: "NSFW", version: "0.8" },
 ];
 // The app versions, in the order their tabs are shown.
 const VERSIONS = [
@@ -101,6 +105,25 @@ function normalizeSource(source) {
   };
 }
 
+// The language of a source not in English (third-party.json `languages`),
+// shown as a tag so the Languages repositories can be filtered by it.
+let languageNames;
+try {
+  languageNames = new Intl.DisplayNames(["en"], { type: "language" });
+} catch {
+  languageNames = undefined;
+}
+const languageName = (code) => {
+  try {
+    return languageNames?.of(code) ?? code;
+  } catch {
+    return code;
+  }
+};
+
+const LANGUAGE_TAG =
+  /^(english|indonesia|indonesian|arabic|spanish|español|french|italian|portuguese|japanese|raw|vietnamese|korean|thai|turkish|german|russian|polish|chinese)\b/i;
+
 function sourceTags(source) {
   const tags = (source.badges ?? []).map((badge) =>
     badge.backgroundColor
@@ -112,6 +135,13 @@ function sourceTags(source) {
   );
   const rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
   if (rating) tags.push({ label: rating.label, type: rating.type });
+  // One tag per language, named the same way whoever wrote the source
+  // ("Indonesia", "Indonesian", "Español", "French 🇫🇷" → one name).
+  if (source.language) {
+    const own = tags.filter((tag) => !LANGUAGE_TAG.test(tag.label));
+    tags.length = 0;
+    tags.push({ label: languageName(source.language), type: "info" }, ...own);
+  }
   // A source's own "18+" tag and the rating's are the same tag.
   return tags.filter(
     (tag, i) =>
@@ -198,7 +228,13 @@ function sourceItem(source) {
 }
 
 const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
-const sources = sortByName(versioning.sources.map(normalizeSource));
+const languagesById = thirdParty?.languages ?? {};
+const sources = sortByName(
+  versioning.sources.map((source) => ({
+    ...normalizeSource(source),
+    language: languagesById[source.id],
+  })),
+);
 const filterLabels = [
   ...new Set(sources.flatMap((source) => sourceTags(source).map((t) => t.label))),
 ];
@@ -210,12 +246,13 @@ const embedded = {
   name,
   description,
   buildTime: versioning.buildTime,
-  sources: sources.map(({ id, name, description, version, contentRating, badges }) => ({
+  sources: sources.map(({ id, name, description, version, contentRating, badges, language }) => ({
     name,
     description,
     version,
     contentRating,
     badges,
+    language,
     origin: originOf.get(id),
   })),
   credits,
@@ -270,6 +307,7 @@ try {
 .noir-only { display: none; }
 .classic-only { display: revert; }
 ul { margin-top: 0; }
+.source { overflow-wrap: anywhere; }
 .version { margin-left: 8px; font-size: 12px; opacity: .55; font-variant-numeric: tabular-nums; }
 .status { margin: 0; padding-left: 40px; }
 .origin { margin-left: 8px; font-size: 12px; opacity: .55; }
@@ -371,10 +409,11 @@ ul { margin-top: 0; }
   color: #2e84bf;
   font-size: .95rem;
 }
-[data-theme="classic"] .repo-link:first-child { border-radius: 4px 0 0 4px; }
-[data-theme="classic"] .repo-link:last-child { border-radius: 0 4px 4px 0; }
-[data-theme="classic"] .repo-link:only-child { border-radius: 4px; }
+[data-theme="classic"] .repo-switch { row-gap: 6px; }
 [data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
+[data-theme="classic"] .repo-link.row-start { border-left: 1px solid #2e84bf; border-radius: 4px 0 0 4px; }
+[data-theme="classic"] .repo-link.row-end { border-radius: 0 4px 4px 0; }
+[data-theme="classic"] .repo-link.row-start.row-end { border-radius: 4px; }
 [data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
 [data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
 [data-theme="classic"] .version-switch { margin: 0 auto .6rem; }
@@ -466,6 +505,8 @@ ul { margin-top: 0; }
   transition: background-size .25s ease, color .2s ease;
 }
 [data-theme="noir"] .repo-link + .repo-link { border-left: 1px solid #55555a; }
+[data-theme="noir"] .repo-link.row-start { border-left-color: transparent; }
+[data-theme="noir"] .repo-switch { row-gap: 4px; }
 [data-theme="noir"] .repo-link:hover,
 [data-theme="noir"] .repo-link:focus-visible { color: var(--text); background-size: 60% 2px; outline: none; }
 [data-theme="noir"] .repo-link[aria-current="true"] { color: var(--gold); background-size: 60% 2px; }
@@ -581,7 +622,7 @@ ul { margin-top: 0; }
 @media (max-width: 560px) {
   [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
   [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
-  [data-theme="noir"] .repo-link { padding: 4px 14px 8px; font-size: 18px; }
+  [data-theme="noir"] .repo-link { padding: 4px 10px 8px; font-size: 16px; letter-spacing: .05em; }
   [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
 }
 </style>
@@ -657,6 +698,7 @@ ${sources.map(sourceItem).join("\n")}
 (function () {
   var REPOS = ${jsonForScript(REPOS)};
   var CREDITS_NOTE = ${jsonForScript(CREDITS_NOTE)};
+  var LANGUAGE_TAG = new RegExp(${jsonForScript(LANGUAGE_TAG.source)}, "i");
   var CURRENT = ${jsonForScript(current.ref)};
   var BUILD_SITE_ROOT = ${jsonForScript(siteRoot)};
   var RATING_TAGS = ${jsonForScript(RATING_TAGS)};
@@ -673,6 +715,7 @@ ${sources.map(sourceItem).join("\n")}
   }
   toggle.addEventListener("click", function () {
     applyTheme(root.dataset.theme === "noir" ? "classic" : "noir");
+    if (typeof markRows === "function") markRows();
     if (root.dataset.theme === "classic") showAll(); // Classic ignores the filter
   });
   toggle.textContent = themes[root.dataset.theme] || themes.noir;
@@ -766,12 +809,13 @@ ${sources.map(sourceItem).join("\n")}
           (u.added || []).concat(u.ported || []).forEach(function (id) { origins[id] = u.label; });
         });
         var repository = versioning.repository || { name: labelOf(ref), description: "" };
+        var languages = (both[1] && both[1].languages) || {};
         data[ref] = {
           name: repository.name,
           description: repository.description,
           buildTime: versioning.buildTime,
           sources: versioning.sources
-            .map(function (s) { return Object.assign(normalize(s), { origin: origins[s.id] }); })
+            .map(function (s) { return Object.assign(normalize(s), { origin: origins[s.id], language: languages[s.id] }); })
             .sort(function (a, b) { return a.name.localeCompare(b.name); }),
           credits: creditList(upstreams),
         };
@@ -795,6 +839,11 @@ ${sources.map(sourceItem).join("\n")}
     });
     var rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
     if (rating) tags.push(rating);
+    if (source.language) {
+      var name = source.language;
+      try { name = new Intl.DisplayNames(["en"], { type: "language" }).of(source.language) || name; } catch (e) {}
+      tags = [{ label: name, type: "info" }].concat(tags.filter(function (tag) { return !LANGUAGE_TAG.test(tag.label); }));
+    }
     return tags.filter(function (tag, i) {
       return tags.findIndex(function (other) { return other.label.toLowerCase() === tag.label.toLowerCase(); }) === i;
     });
@@ -914,9 +963,25 @@ ${sources.map(sourceItem).join("\n")}
   // repository" would flip back to Stable instead of opening Paperback.
   var nav = document.querySelector(".repo-switch");
   var versionTabs = Array.prototype.slice.call(document.querySelectorAll(".version-tab"));
+  // Links that start or end a row (they wrap on narrow screens): no
+  // separator before the first of a row; Classic rounds each row's ends.
+  function markRows() {
+    var shown = links.filter(function (link) { return !link.parentNode.hidden; });
+    for (var pass = 0; pass < 2; pass++) {
+      shown.forEach(function (link, i) {
+        var before = shown[i - 1];
+        var after = shown[i + 1];
+        link.classList.toggle("row-start", !before || before.offsetTop !== link.offsetTop);
+        link.classList.toggle("row-end", !after || after.offsetTop !== link.offsetTop);
+      });
+    }
+  }
+  window.addEventListener("resize", markRows);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(markRows);
   function showVersion(version) {
     versionTabs.forEach(function (tab) { tab.setAttribute("aria-pressed", String(tab.dataset.version === version)); });
     document.querySelectorAll(".repo-group").forEach(function (group) { group.hidden = group.dataset.version !== version; });
+    markRows();
   }
   function choose(ref) {
     selected = ref;

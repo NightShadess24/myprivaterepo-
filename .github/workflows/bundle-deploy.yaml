@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - "[0-9]+.[0-9]+/*"
-  # Daily rebuild of both stable repositories (0.9/stable, the default branch,
-  # and 0.8/stable), so sources brought in from other repositories
-  # (scripts/aggregate.mjs) pick up their updates.
+  # Daily rebuild of the stable, languages and NSFW repositories of both app
+  # versions (0.9/stable is the default branch), so sources brought in from
+  # other repositories (scripts/aggregate.mjs) pick up their updates.
   schedule:
     - cron: "23 5 * * *"
   workflow_dispatch:
@@ -23,11 +23,11 @@ jobs:
     name: Bundle and Deploy (${{ matrix.ref }})
     runs-on: ubuntu-latest
     strategy:
-      # One at a time: both publish to the gh-pages branch.
+      # One at a time: they all publish to the gh-pages branch.
       max-parallel: 1
       fail-fast: false
       matrix:
-        ref: ${{ fromJSON(github.event_name == 'push' && format('["{0}"]', github.ref_name) || '["0.9/stable","0.8/stable"]') }}
+        ref: ${{ fromJSON(github.event_name == 'push' && format('["{0}"]', github.ref_name) || '["0.9/stable","0.9/languages","0.9/nsfw","0.8/stable","0.8/languages","0.8/nsfw"]') }}
     env:
       # The branch being built (a scheduled run builds more than one).
       BUILD_REF: ${{ matrix.ref }}
