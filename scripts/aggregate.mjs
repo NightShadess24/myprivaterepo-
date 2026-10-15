@@ -42,9 +42,15 @@ import { domainLanguage, isEnglish, languageCode } from "./languages.mjs";
 const args = process.argv.slice(2);
 const versionFlag = args.indexOf("--version");
 const flavorFlag = args.indexOf("--flavor");
+// 0.8: this repository's own 0.9 sources, built (paperback-cli bundle) into
+// this folder, to port first (scripts/build.mjs).
+const ownFlag = args.indexOf("--own");
+const ownFolder = ownFlag >= 0 ? args[ownFlag + 1] : undefined;
 const folder =
-  args.find((arg, i) => !arg.startsWith("--") && i !== versionFlag + 1 && i !== flavorFlag + 1) ??
-  "bundles";
+  args.find(
+    (arg, i) =>
+      !arg.startsWith("--") && i !== versionFlag + 1 && i !== flavorFlag + 1 && i !== ownFlag + 1,
+  ) ?? "bundles";
 
 function branchName() {
   if (process.env.BUILD_REF) return process.env.BUILD_REF;
@@ -79,6 +85,10 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 // Sources not brought in (aggregate.config.json `leaveOut`): sites for a
 // single series.
 const LEAVE_OUT = new Set((config.leaveOut?.ids ?? []).map((id) => id.toLowerCase()));
+
+// Sources this repository makes itself (src/), whose copies elsewhere are
+// left out (aggregate.config.json `replacedByOwn`).
+const REPLACED_BY_OWN = new Set((config.replacedByOwn?.ids ?? []).map((id) => id.toLowerCase()));
 
 // Clients for a server you run yourself (Komga, Kavita, …), not websites:
 // left out.
@@ -306,6 +316,20 @@ for (const upstream of foreign ?? []) {
   foreignLists.push({ upstream, record, list: await sourcesOf(upstream, record) });
 }
 records.push(...nativeLists.map((x) => x.record), ...foreignLists.map((x) => x.record));
+// 0.8: this repository's own sources go first among the ported ones (not
+// credited: they're from here).
+if (version === "0.8" && ownFolder && fs.existsSync(path.join(ownFolder, "versioning.json"))) {
+  const own = JSON.parse(fs.readFileSync(path.join(ownFolder, "versioning.json"), "utf8"));
+  foreignLists.unshift({
+    upstream: { label: "this repository", own: true },
+    record: recordFor({ label: "this repository" }, "0.9"),
+    list: (own.sources ?? []).map((entry) => ({
+      id: String(entry.id ?? ""),
+      entry,
+      dir: path.join(ownFolder, String(entry.id ?? "")),
+    })),
+  });
+}
 
 if (version === "0.9") versioning = JSON.parse(fs.readFileSync(versioningPath, "utf8"));
 const lists09 = version === "0.9" ? nativeLists : foreignLists;
@@ -416,6 +440,10 @@ for (const { upstream, record, list } of nativeLists) {
       record.skipped.push({ id, why: "a site for a single series" });
       continue;
     }
+    if (!upstream.own && REPLACED_BY_OWN.has(id.toLowerCase())) {
+      record.skipped.push({ id, why: "this repository has its own" });
+      continue;
+    }
     if (isSelfHosted(id, entry)) {
       record.skipped.push({ id, why: "needs a server you run yourself" });
       continue;
@@ -458,6 +486,10 @@ for (const { upstream, record, list } of foreignLists) {
     }
     if (LEAVE_OUT.has(id.toLowerCase())) {
       record.skipped.push({ id, why: "a site for a single series" });
+      continue;
+    }
+    if (!upstream.own && REPLACED_BY_OWN.has(id.toLowerCase())) {
+      record.skipped.push({ id, why: "this repository has its own" });
       continue;
     }
     if (isSelfHosted(id, entry)) {

@@ -82,6 +82,10 @@ Sites for a single series (ReadOnePiece, ReadBleach and the like, from
 TheNetsky/extensions-generic-0.8) are left out on purpose: `leaveOut` in
 `scripts/aggregate.config.json`.
 So are clients for a server you run yourself (Komga, Kavita and the like).
+Drake Scans is made in this repository (`src/DrakeScans`), since the site was
+rebuilt; the older copies in inkdex and TheNetsky/extensions-generic-0.8 are
+left out (`replacedByOwn`). The 0.8 repositories get this repository's own
+sources ported, ahead of other 0.9 repositories' copies.
 
 The 0.8 ports bundle [cheerio](https://github.com/cheeriojs/cheerio) 1.0.0-rc.12
 (MIT), which the 0.8 app provided to its sources; the 0.9 ports bundle
