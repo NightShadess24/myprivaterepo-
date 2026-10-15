@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-15T12:45:42.185Z",
+  "generated": "2026-10-15T13:14:48.776Z",
   "appVersion": "0.8",
   "languages": {
     "DoujinDesu": "id",
@@ -853,119 +853,119 @@
       "skipped": [
         {
           "id": "Read7DeadlySins",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadAttackOnTitan",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadBerserk",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadBlackClover",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadBleach",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadBlueLock",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadChainsawMan",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadDemonSlayer",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadDrStone",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadDragonBall",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadFairyTail",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadHaikyuu",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadHunterxHunter",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadJoJos",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadJujutsuKaisen",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadKagurabachi",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadKaguyaSama",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadKingdom",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadMyHeroAcademia",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadNarutoBoruto",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadNoblesse",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadOnePiece",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadOnePunchMan",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadSoloLeveling",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadThePromisedNeverland",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadTokyoGhoul",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadTokyoRevengers",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadTowerOfGod",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         },
         {
           "id": "ReadVinlandSaga",
-          "why": "in the Stable repository"
+          "why": "a site for a single series"
         }
       ],
       "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
