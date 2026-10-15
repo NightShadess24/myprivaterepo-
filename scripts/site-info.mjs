@@ -204,7 +204,7 @@ export async function registeredOn(domain) {
 
 export const KINDS = ["manga", "manhwa", "manhua", "comic", "novel"];
 // Bumped when how a sample is read changes, so the next run reads them again
-export const KIND_VERSION = 2;
+export const KIND_VERSION = 3;
 
 const normalize = (text) =>
   String(text ?? "")
@@ -228,8 +228,9 @@ export function sameTitle(a, b) {
   return shared / new Set([...one, ...two]).size >= 0.6;
 }
 
+// By where it's from. A comic site's title that AniList also lists as a
+// light novel is still that country's comic (novel sites go by their name).
 function kindOfMedia(media) {
-  if (media.format === "NOVEL") return "novel";
   switch (media.countryOfOrigin) {
     case "JP":
       return "manga";
@@ -321,9 +322,10 @@ export async function kindOf(sample) {
   if (!found) return null;
   const counts = {};
   titles.forEach((title, i) => {
-    const media = (found[i] ?? []).find((entry) =>
+    const matches = (found[i] ?? []).filter((entry) =>
       namesOf(entry).some((name) => sameTitle(name, title)),
     );
+    const media = matches.find((entry) => entry.format !== "NOVEL") ?? matches[0];
     let kind;
     if (media) {
       kind = kindOfMedia(media);
@@ -355,9 +357,30 @@ export function isNovelSource(source, host) {
   );
 }
 
-// What a source's name says it is, when there's no sample: only clear cases.
+// Well-known sites that turn the daily check away (Cloudflare), so there's
+// no sample of their titles.
+const KNOWN_KINDS = {
+  "comix.to": { manga: 1, manhwa: 1, manhua: 1 },
+  "mangafire.to": { manga: 5, manhwa: 3, manhua: 2 },
+  "weebcentral.com": { manga: 8, manhwa: 1, manhua: 1 },
+  "flamecomics.xyz": { manhwa: 1 },
+  "batcave.biz": { comic: 1 },
+  "readallcomics.com": { comic: 1 },
+  "readcomicsonline.ru": { comic: 1 },
+  "mangakakalot.gg": { manga: 4, manhwa: 4, manhua: 2 },
+  "natomanga.com": { manga: 4, manhwa: 4, manhua: 2 },
+  "manganato.gg": { manga: 4, manhwa: 4, manhua: 2 },
+  "mangabat.com": { manga: 4, manhwa: 4, manhua: 2 },
+  "nelomanga.net": { manga: 4, manhwa: 4, manhua: 2 },
+  "mangaplus.shueisha.co.jp": { manga: 1 },
+};
+
+// What a source's name (or a well-known site) says it is, when there's no
+// sample: only clear cases.
 export function kindFromName(source, host) {
   if (isNovelSource(source, host)) return { novel: 1 };
+  const known = KNOWN_KINDS[String(host ?? "").replace(/^www\./, "")];
+  if (known) return known;
   if (/manhwa|toon/i.test(source.name ?? "")) return { manhwa: 1 };
   if (/manhua/i.test(source.name ?? "")) return { manhua: 1 };
   return null;
