@@ -47,6 +47,11 @@ ul { margin-top: 0; }
 /* Repository links: hover shows that repository's sources, click keeps them */
 .repo-switch { display: flex; justify-content: center; flex-wrap: wrap; }
 .repo-link { cursor: pointer; white-space: nowrap; }
+.repo-link[hidden] { display: none !important; }
+
+/* App version tabs (v9 / v8) */
+.version-switch { display: flex; justify-content: center; gap: 0; }
+.version-tab { cursor: pointer; font: inherit; }
 
 /* Tags, after Element's tag component (https://element.eleme.io/#/en-US/component/tag) */
 .el-tag {
@@ -123,6 +128,19 @@ ul { margin-top: 0; }
 [data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
 [data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
 [data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
+[data-theme="classic"] .version-switch { margin: 0 auto .6rem; }
+[data-theme="classic"] .version-tab {
+  padding: .3rem 1.4rem;
+  border: 1px solid #6a8bad;
+  background: #fff;
+  color: #6a8bad;
+  font-size: .95rem;
+  font-weight: 600;
+}
+[data-theme="classic"] .version-tab:first-child { border-radius: 999px 0 0 999px; }
+[data-theme="classic"] .version-tab:last-child { border-radius: 0 999px 999px 0; }
+[data-theme="classic"] .version-tab + .version-tab { border-left: 0; }
+[data-theme="classic"] .version-tab[aria-pressed="true"] { background: #6a8bad; color: #fff; }
 
 /* ---------- Noir (dark shop style) ---------- */
 [data-theme="noir"] {
@@ -167,7 +185,23 @@ ul { margin-top: 0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-[data-theme="noir"] .repo-switch { gap: 0; margin: 22px 0 6px; }
+[data-theme="noir"] .version-switch { margin: 22px auto 0; width: max-content; border: 1px solid #4a4a50; border-radius: 999px; padding: 3px; }
+[data-theme="noir"] .version-tab {
+  min-width: 64px;
+  padding: 5px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  transition: background-color .2s ease, color .2s ease;
+}
+[data-theme="noir"] .version-tab:hover { color: var(--text); }
+[data-theme="noir"] .version-tab[aria-pressed="true"] { background: var(--gold); color: #1b1b1d; }
+[data-theme="noir"] .repo-switch { gap: 0; margin: 14px 0 6px; }
 [data-theme="noir"] .repo-link {
   padding: 4px 22px 8px;
   color: var(--muted);
@@ -317,8 +351,9 @@ ul { margin-top: 0; }
 <p class="pageDescription">A Paperback extensions repository</p>
 </header>
 
-<!-- Both: one link per repository on this site -->
-<nav class="repo-switch" aria-label="Repositories"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" aria-current="true">Test Version</a></nav>
+<!-- Both: the app version, then one link per repository of that version -->
+<nav class="version-switch" aria-label="Paperback version"><button class="version-tab" type="button" data-version="0.9" title="Paperback 0.9" aria-pressed="true">v9</button><button class="version-tab" type="button" data-version="0.8" title="Paperback 0.8" aria-pressed="false">v8</button></nav>
+<nav class="repo-switch" aria-label="Repositories"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable" data-version="0.9">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" data-version="0.9" aria-current="true">Test Version</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.8/stable/" data-ref="0.8/stable" data-version="0.8" hidden>Stable</a></nav>
 
 <header class="classic-only">
 <a class="addToPaperbackButton js-add-repo" href="paperback://addRepo?displayName=NightShadess24%20Extensions%20(0.9%20Test%20Version)&amp;url=https%3A%2F%2Fnightshadess24.github.io%2Fmyprivaterepo-%2F0.9%2Ftestversion">Add to Paperback</a>
@@ -371,12 +406,13 @@ ul { margin-top: 0; }
 
 <script>
 (function () {
-  var REPOS = [{"ref":"0.9/stable","label":"Stable"},{"ref":"0.9/testversion","label":"Test Version"}];
+  var REPOS = [{"ref":"0.9/stable","label":"Stable","version":"0.9"},{"ref":"0.9/testversion","label":"Test Version","version":"0.9"},{"ref":"0.8/stable","label":"Stable","version":"0.8"}];
+  var CREDITS_NOTE = "Copied from those public repositories when this one is built; their authors keep the credit. Sources marked “0.8 port” or “0.9 port” are the original code, unchanged, with a small layer that lets it run on the other app version.";
   var CURRENT = "0.9/testversion";
   var BUILD_SITE_ROOT = "https://nightshadess24.github.io/myprivaterepo-/";
   var RATING_TAGS = {"MATURE":{"label":"Mature","type":"warning"},"ADULT":{"label":"18+","type":"danger"}};
   var data = {};
-  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-15T00:37:09.109Z","sources":[{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.90","contentRating":"SAFE","badges":[]}],"credits":[]};
+  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-15T09:57:30.744Z","sources":[{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.90","contentRating":"SAFE","badges":[]}],"credits":[]};
 
   var root = document.documentElement;
   var themes = { noir: "☀ Classic", classic: "☾ Noir" };
@@ -420,9 +456,41 @@ ul { margin-top: 0; }
   links.forEach(function (link) {
     if (baseUrlOf(link.dataset.ref)) link.href = baseUrlOf(link.dataset.ref) + "/";
   });
+  function repoOf(ref) {
+    return REPOS.filter(function (r) { return r.ref === ref; })[0];
+  }
   function labelOf(ref) {
-    var repo = REPOS.filter(function (r) { return r.ref === ref; })[0];
-    return repo ? repo.label : ref;
+    var repo = repoOf(ref);
+    return repo ? repo.label + " (" + repo.version + ")" : ref;
+  }
+
+  // 0.9 entries have description/badges, 0.8 ones desc/tags.
+  function normalize(s) {
+    return {
+      id: s.id,
+      name: String(s.name || s.id).trim(),
+      description: s.description || s.desc || "",
+      version: s.version,
+      contentRating: s.contentRating,
+      badges: s.badges || (s.tags || []).filter(function (t) { return t && t.text; }).map(function (t) {
+        return { label: t.text, type: t.type === "default" ? undefined : t.type };
+      }),
+    };
+  }
+  function creditList(upstreams) {
+    var byRepo = {};
+    var order = [];
+    (upstreams || []).forEach(function (u) {
+      var count = (u.added || []).length + (u.ported || []).length;
+      if (!count) return;
+      var key = u.url + "|" + (u.appVersion || "");
+      if (!byRepo[key]) {
+        byRepo[key] = { label: u.label, url: u.url, sourceCode: u.sourceCode, license: u.license, licenseFile: u.licenseFile, commit: String(u.commit || "").slice(0, 7), count: 0, ported: !!(u.ported && u.ported.length), appVersion: u.appVersion };
+        order.push(key);
+      }
+      byRepo[key].count += count;
+    });
+    return order.map(function (key) { return byRepo[key]; });
   }
 
   function load(ref) {
@@ -445,19 +513,18 @@ ul { margin-top: 0; }
         var versioning = both[0];
         var upstreams = (both[1] && both[1].upstreams) || [];
         var origins = {};
-        upstreams.forEach(function (u) { (u.added || []).forEach(function (id) { origins[id] = u.label; }); });
+        upstreams.forEach(function (u) {
+          (u.added || []).concat(u.ported || []).forEach(function (id) { origins[id] = u.label; });
+        });
+        var repository = versioning.repository || { name: labelOf(ref), description: "" };
         data[ref] = {
-          name: versioning.repository.name,
-          description: versioning.repository.description,
+          name: repository.name,
+          description: repository.description,
           buildTime: versioning.buildTime,
           sources: versioning.sources
-            .map(function (s) { return Object.assign({}, s, { origin: origins[s.id] }); })
+            .map(function (s) { return Object.assign(normalize(s), { origin: origins[s.id] }); })
             .sort(function (a, b) { return a.name.localeCompare(b.name); }),
-          credits: upstreams
-            .filter(function (u) { return u.added && u.added.length; })
-            .map(function (u) {
-              return { label: u.label, url: u.url, sourceCode: u.sourceCode, license: u.license, licenseFile: u.licenseFile, commit: String(u.commit || "").slice(0, 7), count: u.added.length };
-            }),
+          credits: creditList(upstreams),
         };
       })
       .catch(function () {
@@ -471,6 +538,7 @@ ul { margin-top: 0; }
 
   function tagsOf(source) {
     var tags = (source.badges || []).map(function (badge) {
+      if (!badge.backgroundColor) return { label: badge.label, type: badge.type };
       return {
         label: badge.label,
         style: "background-color:" + badge.backgroundColor + ";border-color:" + badge.backgroundColor + ";color:" + badge.textColor,
@@ -478,7 +546,9 @@ ul { margin-top: 0; }
     });
     var rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
     if (rating) tags.push(rating);
-    return tags;
+    return tags.filter(function (tag, i) {
+      return tags.findIndex(function (other) { return other.label.toLowerCase() === tag.label.toLowerCase(); }) === i;
+    });
   }
 
   function el(tag, className, text) {
@@ -520,7 +590,7 @@ ul { margin-top: 0; }
       var link = el("a", "", c.label);
       link.href = c.url;
       li.appendChild(link);
-      li.appendChild(document.createTextNode(" · " + c.count + " sources · " + c.license + " ("));
+      li.appendChild(document.createTextNode(" · " + c.count + (c.count === 1 ? " source" : " sources") + (c.ported ? " (" + c.appVersion + ", ported)" : "") + " · " + c.license + " ("));
       var lic = el("a", "", "license");
       lic.href = baseUrlOf(ref) + "/licenses/" + c.licenseFile;
       li.appendChild(lic);
@@ -532,7 +602,7 @@ ul { margin-top: 0; }
       ul.appendChild(li);
     });
     creditsBox.appendChild(ul);
-    creditsBox.appendChild(el("p", "", "Copied unchanged from those public repositories when this one is built; their authors keep the credit."));
+    creditsBox.appendChild(el("p", "", CREDITS_NOTE));
   }
 
   function renderSources(sources) {
@@ -594,17 +664,36 @@ ul { margin-top: 0; }
   // on iPhone the page changing under a tap cancels the tap, so "Add this
   // repository" would flip back to Stable instead of opening Paperback.
   var nav = document.querySelector(".repo-switch");
+  var versionTabs = Array.prototype.slice.call(document.querySelectorAll(".version-tab"));
+  function showVersion(version) {
+    versionTabs.forEach(function (tab) { tab.setAttribute("aria-pressed", String(tab.dataset.version === version)); });
+    links.forEach(function (link) { link.hidden = link.dataset.version !== version; });
+  }
   function choose(ref) {
     selected = ref;
     try { sessionStorage.setItem("repo-choice", ref); } catch (e) {}
+    var repo = repoOf(ref);
+    if (repo) showVersion(repo.version);
     show(ref);
   }
+  versionTabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var version = tab.dataset.version;
+      if (repoOf(selected) && repoOf(selected).version === version) return;
+      var remembered = null;
+      try { remembered = sessionStorage.getItem("repo-choice-" + version); } catch (e) {}
+      var target = REPOS.filter(function (r) { return r.version === version && r.ref === remembered; })[0] ||
+        REPOS.filter(function (r) { return r.version === version; })[0];
+      if (target) choose(target.ref);
+    });
+  });
   links.forEach(function (link) {
     link.addEventListener("pointerenter", function (event) {
       if (event.pointerType === "mouse" && shown !== link.dataset.ref) show(link.dataset.ref);
     });
     link.addEventListener("click", function (event) {
       event.preventDefault();
+      try { sessionStorage.setItem("repo-choice-" + link.dataset.version, link.dataset.ref); } catch (e) {}
       choose(link.dataset.ref);
     });
   });
@@ -643,7 +732,7 @@ ul { margin-top: 0; }
     var saved = sessionStorage.getItem("repo-choice");
     if (REPOS.some(function (repo) { return repo.ref === saved; })) selected = saved;
   } catch (e) {}
-  show(selected);
+  choose(selected);
   REPOS.forEach(function (repo) { if (repo.ref !== CURRENT) load(repo.ref); });
 })();
 </script>
