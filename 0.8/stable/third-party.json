@@ -1,6 +1,7 @@
 {
-  "generated": "2026-10-15T10:22:44.990Z",
+  "generated": "2026-10-15T10:49:52.154Z",
   "appVersion": "0.8",
+  "languages": {},
   "upstreams": [
     {
       "repo": "acepilot147/pb-extensions",
@@ -26,13 +27,20 @@
       "url": "https://github.com/feliivk/felii-extensions",
       "appVersion": "0.8",
       "added": [
-        "ManhwaWeb",
         "VortexScans",
-        "HiveToons",
-        "ZonaTMO"
+        "HiveToons"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "ManhwaWeb",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "ZonaTMO",
+          "why": "not English (in the Languages repository)"
+        }
+      ],
       "commit": "a79a41f9b35ea980866b14daa36820f3facfe96e"
     },
     {
@@ -44,31 +52,68 @@
       "url": "https://github.com/PoppingMangoSources/popmango-paperback-sources",
       "appVersion": "0.8",
       "added": [
-        "BunManga",
-        "Chikari",
-        "Cocomic",
         "GalaxyManga",
-        "KaliScan",
         "KingOfShojo",
-        "LikeManga",
-        "LuaComic",
         "MangaBerri",
         "MangaCherri",
         "MangaTown",
-        "Mangago",
-        "MyReadingManga",
-        "OManga",
-        "ReiManga",
         "RokariComics",
         "RinkoComics",
         "StoneScape",
-        "TempleScan",
         "ValirScans",
-        "VyManga",
-        "XCOMIC"
+        "VyManga"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "BunManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Chikari",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Cocomic",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "KaliScan",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "LikeManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "LuaComic",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Mangago",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "MyReadingManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "OManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "ReiManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "TempleScan",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "XCOMIC",
+          "why": "18+ (in the NSFW repository)"
+        }
+      ],
       "commit": "cf3b39f726ceec981c54ec820aa08f67f56ac67e"
     },
     {
@@ -117,14 +162,21 @@
         "Elftoon",
         "BatCave",
         "GodaComic",
-        "Mangaball",
         "Mangacloud",
-        "Rawkuma",
         "Projectsuki",
         "ReadAllComics"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "Mangaball",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Rawkuma",
+          "why": "not English (in the Languages repository)"
+        }
+      ],
       "commit": "c40fa4220861a6e7cae95d50acd72c2d89dd23ab"
     },
     {
@@ -136,29 +188,87 @@
       "url": "https://github.com/naufaljct48/nopools-ext",
       "appVersion": "0.8",
       "added": [
-        "AinzScan",
-        "Comick",
-        "DoujinDesu",
-        "Ikiru",
-        "Kanzenin",
-        "Kiryuu",
-        "KomikIndoTop",
-        "KomikTap",
-        "Komikcast",
-        "Komiknesia",
-        "Komiksin",
-        "Komiku",
-        "KomikuAsia",
-        "LumosKomik",
-        "Mangasusu",
-        "Manhwalist",
-        "Shinigami",
-        "Tenshi",
-        "Voratoon",
-        "WestManga"
+        "Comick"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "AinzScan",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "DoujinDesu",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Ikiru",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Kanzenin",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Kiryuu",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "KomikIndoTop",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "KomikTap",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Komikcast",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Komiknesia",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Komiksin",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Komiku",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "KomikuAsia",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "LumosKomik",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Mangasusu",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Manhwalist",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Shinigami",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Tenshi",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Voratoon",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "WestManga",
+          "why": "not English (in the Languages repository)"
+        }
+      ],
       "commit": "eb5793a5524f1fdc1f9c9057be866353aa4c635c"
     },
     {
@@ -169,17 +279,38 @@
       "sourceCode": "https://github.com/ryukajinokami/paperback-extensions",
       "url": "https://github.com/ryukajinokami/paperback-extensions",
       "appVersion": "0.8",
-      "added": [
-        "AstralManga",
-        "EpsilonSoft",
-        "LelManga",
-        "MangaDistrict",
-        "MangasOrigines2026",
-        "OmegaScans",
-        "PoseidonScans"
-      ],
+      "added": [],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "AstralManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "EpsilonSoft",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "LelManga",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MangaDistrict",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "MangasOrigines2026",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "OmegaScans",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "PoseidonScans",
+          "why": "not English (in the Languages repository)"
+        }
+      ],
       "commit": "2026-08-11T21:16:30.496Z"
     },
     {
@@ -228,13 +359,20 @@
       "appVersion": "0.8",
       "added": [
         "BatoTo",
-        "Hentai2Read",
         "MangaDex",
-        "MangaPlus",
-        "NHentai"
+        "MangaPlus"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "Hentai2Read",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "NHentai",
+          "why": "18+ (in the NSFW repository)"
+        }
+      ],
       "commit": "94ecb78aef0492db9914b8d5009c9260aeb42790"
     },
     {
@@ -246,7 +384,6 @@
       "url": "https://github.com/ivanmatthew/ivans-paperback-extensions",
       "appVersion": "0.8",
       "added": [
-        "ToonilyMe",
         "RizzFables",
         "FlameComics",
         "AsuraScans",
@@ -254,7 +391,12 @@
         "MangaBuddy"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "ToonilyMe",
+          "why": "18+ (in the NSFW repository)"
+        }
+      ],
       "commit": "fb0fc30cdd65363315449590c01737d1eb97bc27"
     },
     {
@@ -342,51 +484,100 @@
       "url": "https://github.com/TheNetsky/extensions-generic-0.8",
       "appVersion": "0.8",
       "added": [
-        "AllPornComic",
-        "ArthurScan",
         "AstralLibrary",
-        "AzoraWorld",
         "CoffeeManga",
         "DarkScans",
         "DragonTea",
         "GourmetScans",
         "HariManga",
-        "HiperDex",
         "HuntManga",
-        "KnightNoScanlation",
         "KunManga",
         "LHTranslation",
         "LSComic",
         "LilyManga",
-        "MadaraDex",
-        "Manga3asq",
         "MangaClash",
-        "MangaLek",
-        "MangaOrigines",
         "MangaReadOrg",
-        "MangaScantrad",
         "ManhuaFast",
         "ManhuaPlus",
         "ManhuaSY",
         "ManhwaFull",
-        "ManhwaRaw",
         "Manhuaus",
         "ManhwaTop",
         "NovelMic",
         "PlatinumScans",
         "RDScans",
         "ResetScans",
-        "SamuraiScan",
         "SetsuScans",
-        "TheBlank",
-        "ToonGod",
-        "Toonily",
         "UToon",
-        "WebtoonXYZ",
         "ZinManga"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "AllPornComic",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "ArthurScan",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "AzoraWorld",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "HiperDex",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "KnightNoScanlation",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MadaraDex",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Manga3asq",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MangaLek",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MangaOrigines",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MangaScantrad",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "ManhwaRaw",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "SamuraiScan",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "TheBlank",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "ToonGod",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Toonily",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "WebtoonXYZ",
+          "why": "18+ (in the NSFW repository)"
+        }
+      ],
       "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
     },
     {
@@ -403,29 +594,47 @@
         "AsuraScansFree",
         "CypherScans",
         "DrakeScans",
-        "Hentai20",
         "ElarcPage",
         "IgnisComic",
-        "LunarScans",
-        "MangaTX",
-        "ManhwaX",
         "MyShojo",
         "NightScans",
         "QuantumScans",
-        "SushiScan",
         "ThunderScans",
-        "eDoujin",
         "xCalibrScans"
       ],
       "ported": [],
       "skipped": [
         {
+          "id": "Hentai20",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "LelManga",
           "why": "taken from Ryukajinokami"
         },
         {
+          "id": "LunarScans",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "MangaTX",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "ManhwaX",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "RawKuma",
           "why": "taken from Kakarot"
+        },
+        {
+          "id": "SushiScan",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "eDoujin",
+          "why": "18+ (in the NSFW repository)"
         }
       ],
       "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
@@ -500,7 +709,6 @@
       "url": "https://github.com/TheNetsky/extensions-generic-0.8",
       "appVersion": "0.8",
       "added": [
-        "BeeHentai",
         "BoxManhwa",
         "MangaCute",
         "MangaFab",
@@ -511,14 +719,21 @@
         "MangaXYZ",
         "ManhuaSite",
         "ManhwaTube",
-        "TooniTube",
         "TrueManga"
       ],
       "ported": [],
       "skipped": [
         {
+          "id": "BeeHentai",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "MangaBuddy",
           "why": "taken from Ivan"
+        },
+        {
+          "id": "TooniTube",
+          "why": "18+ (in the NSFW repository)"
         },
         {
           "id": "ToonilyMe",
@@ -536,15 +751,25 @@
       "url": "https://github.com/TheNetsky/extensions-generic-0.8",
       "appVersion": "0.8",
       "added": [
-        "DocTruyenFives",
-        "MangaKoma",
         "MangaSect",
         "ManhuaPlusORG",
-        "Manhuagold",
-        "Raw1001"
+        "Manhuagold"
       ],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "DocTruyenFives",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MangaKoma",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Raw1001",
+          "why": "not English (in the Languages repository)"
+        }
+      ],
       "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
     },
     {
@@ -590,20 +815,27 @@
       "url": "https://github.com/TheNetsky/netskys-extensions",
       "appVersion": "0.8",
       "added": [
-        "DynastyScans",
-        "HentaiCosplay",
-        "HentaiHere",
         "MangaDemon",
         "MangaFox",
         "MangaHasu",
         "MangaHere",
         "MangaKatana",
-        "Mitaku",
-        "Ososedki",
         "ReadComicsOnline"
       ],
       "ported": [],
       "skipped": [
+        {
+          "id": "DynastyScans",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "HentaiCosplay",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "HentaiHere",
+          "why": "18+ (in the NSFW repository)"
+        },
         {
           "id": "Mangahub",
           "why": "taken from Timkuel"
@@ -611,6 +843,14 @@
         {
           "id": "McReader",
           "why": "taken from Numby"
+        },
+        {
+          "id": "Mitaku",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Ososedki",
+          "why": "18+ (in the NSFW repository)"
         },
         {
           "id": "ReadAllComics",
@@ -655,7 +895,6 @@
         "MangaBob",
         "Manhuaga",
         "PianManga",
-        "ReaperScansFR",
         "TeenManhua"
       ],
       "ported": [],
@@ -781,6 +1020,10 @@
           "why": "taken from Netsky Generic"
         },
         {
+          "id": "ReaperScansFR",
+          "why": "not English (in the Languages repository)"
+        },
+        {
           "id": "ResetScans",
           "why": "taken from Netsky Generic"
         },
@@ -820,21 +1063,22 @@
       "url": "https://github.com/Seyden/extensions-generic-0.8",
       "appVersion": "0.8",
       "added": [
-        "AresManga",
         "FreakScans",
         "HelScans",
         "InfernalVoidScans",
         "LuminousScans",
         "ReadKomik",
-        "SkyMangas",
-        "SuryaScans",
-        "TeamxNovel"
+        "SuryaScans"
       ],
       "ported": [],
       "skipped": [
         {
           "id": "AnigliScans",
           "why": "taken from Netsky Generic"
+        },
+        {
+          "id": "AresManga",
+          "why": "not English (in the Languages repository)"
         },
         {
           "id": "AsuraScans",
@@ -873,8 +1117,16 @@
           "why": "taken from Kakarot"
         },
         {
+          "id": "SkyMangas",
+          "why": "not English (in the Languages repository)"
+        },
+        {
           "id": "SushiScan",
           "why": "taken from Netsky Generic"
+        },
+        {
+          "id": "TeamxNovel",
+          "why": "not English (in the Languages repository)"
         },
         {
           "id": "eDoujin",
@@ -928,17 +1180,38 @@
       "sourceCode": "https://github.com/hoang3402/extensions-vn",
       "url": "https://github.com/hoang3402/extensions-vn",
       "appVersion": "0.8",
-      "added": [
-        "BaoTangTruyen",
-        "CManga",
-        "HentaiVN",
-        "LxManga",
-        "Nettruyen",
-        "SayHentai",
-        "Yurineko"
-      ],
+      "added": [],
       "ported": [],
-      "skipped": [],
+      "skipped": [
+        {
+          "id": "BaoTangTruyen",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "CManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "HentaiVN",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "LxManga",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Nettruyen",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "SayHentai",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "Yurineko",
+          "why": "18+ (in the NSFW repository)"
+        }
+      ],
       "commit": "95cac34f27474c3f89424674857d083ae61ff136"
     },
     {
@@ -968,19 +1241,13 @@
       "appVersion": "0.9",
       "added": [],
       "ported": [
-        "LekManga",
         "MangaDot",
         "MangaNelo",
         "MangaTaro",
-        "MangaWorld",
-        "MangaWorldAdult",
-        "ManhwaClub",
-        "PunkRecords",
         "QiScans",
         "RageScans",
         "Roliascan",
-        "Webtoon",
-        "YaoiScan"
+        "Webtoon"
       ],
       "skipped": [
         {
@@ -1050,6 +1317,10 @@
         {
           "id": "LNori",
           "why": "novels (text chapters) can't be shown on 0.8"
+        },
+        {
+          "id": "LekManga",
+          "why": "not English (in the Languages repository)"
         },
         {
           "id": "LelManga",
@@ -1128,6 +1399,14 @@
           "why": "already from Paperback Trackers"
         },
         {
+          "id": "MangaWorld",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "MangaWorldAdult",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "MangaZin",
           "why": "already from Netsky Generic"
         },
@@ -1148,6 +1427,10 @@
           "why": "already from Netsky Generic"
         },
         {
+          "id": "ManhwaClub",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "ManhwaRaw",
           "why": "already from Netsky Generic"
         },
@@ -1162,6 +1445,10 @@
         {
           "id": "Mgeko",
           "why": "already from Numby"
+        },
+        {
+          "id": "PunkRecords",
+          "why": "not English (in the Languages repository)"
         },
         {
           "id": "Raw1001",
@@ -1206,6 +1493,10 @@
         {
           "id": "WeebCentral",
           "why": "already from Numby"
+        },
+        {
+          "id": "YaoiScan",
+          "why": "18+ (in the NSFW repository)"
         }
       ],
       "commit": "153fb93d140fbc6747436d8dc503052439e2c8b9"
@@ -1219,9 +1510,7 @@
       "url": "https://github.com/karrot0/KakarotExtension",
       "appVersion": "0.9",
       "added": [],
-      "ported": [
-        "Hitomi"
-      ],
+      "ported": [],
       "skipped": [
         {
           "id": "Batcave",
@@ -1238,6 +1527,10 @@
         {
           "id": "Hentai2read",
           "why": "already from Netsky Community"
+        },
+        {
+          "id": "Hitomi",
+          "why": "18+ (in the NSFW repository)"
         },
         {
           "id": "Kenmei",
@@ -1304,21 +1597,45 @@
       "appVersion": "0.9",
       "added": [],
       "ported": [
-        "BlueSolo",
-        "EHentai",
-        "ExHentai",
-        "FMTeam",
-        "GTOTheGreatSite",
-        "HNIScantrad",
-        "HastaTeam",
-        "HastaTeamDDT",
-        "HentaiHand",
-        "LupiTeam",
-        "PhoenixScans",
-        "RokuHentai",
-        "TuttoAnimeManga"
+        "HNIScantrad"
       ],
       "skipped": [
+        {
+          "id": "BlueSolo",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "EHentai",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "ExHentai",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "FMTeam",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "GTOTheGreatSite",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "HastaTeam",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "HastaTeamDDT",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "HentaiHand",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "LupiTeam",
+          "why": "not English (in the Languages repository)"
+        },
         {
           "id": "NovelBuddy",
           "why": "novels (text chapters) can't be shown on 0.8"
@@ -1330,6 +1647,18 @@
         {
           "id": "OmegaScans",
           "why": "already from Ryukajinokami"
+        },
+        {
+          "id": "PhoenixScans",
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "RokuHentai",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "TuttoAnimeManga",
+          "why": "not English (in the Languages repository)"
         }
       ],
       "commit": "a7e4fa6464e67f3cf03ccf162d0a1d9a8e739ff0"
@@ -1346,9 +1675,7 @@
       "ported": [
         "DankeFursLesen",
         "KaynScan",
-        "Manga18Club",
         "ManhwaRead",
-        "ManhwaToon",
         "ScytheScans",
         "SilentQuill",
         "TCBScans",
@@ -1368,8 +1695,16 @@
           "why": "already from Kavya"
         },
         {
+          "id": "Manga18Club",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "MangaHub",
           "why": "already from Timkuel"
+        },
+        {
+          "id": "ManhwaToon",
+          "why": "18+ (in the NSFW repository)"
         },
         {
           "id": "OniSaga",
@@ -1403,7 +1738,7 @@
         },
         {
           "id": "LNORI",
-          "why": "novels (text chapters) can't be shown on 0.8"
+          "why": "already from Inkdex"
         },
         {
           "id": "MangaBaka",
@@ -1427,11 +1762,17 @@
       "added": [],
       "ported": [
         "Hijala",
-        "Kagane",
-        "MangaSushi",
-        "ManhwaNex"
+        "Kagane"
       ],
       "skipped": [
+        {
+          "id": "MangaSushi",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
+          "id": "ManhwaNex",
+          "why": "18+ (in the NSFW repository)"
+        },
         {
           "id": "VortexScans",
           "why": "already from Felii"
@@ -1449,9 +1790,7 @@
       "appVersion": "0.9",
       "added": [],
       "ported": [
-        "MangaOni",
-        "NyxScans",
-        "Olympus"
+        "NyxScans"
       ],
       "skipped": [
         {
@@ -1463,16 +1802,24 @@
           "why": "already from Felii"
         },
         {
+          "id": "MangaOni",
+          "why": "not English (in the Languages repository)"
+        },
+        {
           "id": "ManhwaWeb",
           "why": "already from Felii"
         },
         {
           "id": "NovelasLigeras",
-          "why": "novels (text chapters) can't be shown on 0.8"
+          "why": "not English (in the Languages repository)"
+        },
+        {
+          "id": "Olympus",
+          "why": "not English (in the Languages repository)"
         },
         {
           "id": "Topcur",
-          "why": "novels (text chapters) can't be shown on 0.8"
+          "why": "not English (in the Languages repository)"
         },
         {
           "id": "VortexScans",
