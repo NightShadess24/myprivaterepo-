@@ -17,6 +17,7 @@ import type { MalManga } from "./models";
 import {
   AUTHORIZE_URL,
   CLIENT_ID,
+  getSyncReport,
   getUser,
   isLoggedIn,
   REDIRECT_URI,
@@ -43,7 +44,33 @@ export class MalSettingsForm extends Form {
 
   override getSections(): FormSectionElement<unknown>[] {
     if (isLoggedIn()) {
+      const sync = getSyncReport();
+      const when = sync ? new Date(sync.at) : undefined;
       return [
+        Section(
+          {
+            id: "sync",
+            header: "Automatic updates",
+            footer: "Paperback sends what you read in batches, so updates can take a few minutes.",
+          },
+          [
+            LabelRow("last-sync", {
+              title: "Last update",
+              value: when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : "Not yet",
+              subtitle: sync
+                ? [
+                    `${sync.updated} saved, ${sync.unchanged} already up to date, ${sync.failed} failed`,
+                    sync.error,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "Read a chapter of a linked manga, then come back here.",
+            }),
+            ...(sync?.lines ?? []).map((line, index) =>
+              LabelRow(`sync-line-${index}`, { title: line }),
+            ),
+          ],
+        ),
         Section("account", [
           LabelRow("user", { title: "Signed in as", value: getUser()?.name ?? "MyAnimeList user" }),
           ButtonRow("logout", {

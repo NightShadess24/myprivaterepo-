@@ -13,6 +13,8 @@ export const REDIRECT_URI = "paperback://malAuth";
 
 const TOKEN_KEY = "mal-token";
 const USER_KEY = "mal-user";
+const SIGNED_IN_KEY = "mal-signed-in";
+const SYNC_KEY = "mal-last-sync";
 const DAY = 24 * 60 * 60;
 
 export interface Token {
@@ -30,13 +32,45 @@ export interface User {
 
 const now = () => Math.floor(Date.now() / 1000);
 
+// Kept as text: the app's secure storage takes text most reliably.
 export function getToken(): Token | undefined {
-  const token = Application.getSecureState(TOKEN_KEY) as Token | null | undefined;
-  return token && typeof token.access === "string" ? token : undefined;
+  let token = Application.getSecureState(TOKEN_KEY) as Token | string | null | undefined;
+  if (typeof token === "string") {
+    try {
+      token = JSON.parse(token) as Token;
+    } catch {
+      token = undefined;
+    }
+  }
+  return token && typeof token === "object" && typeof token.access === "string" ? token : undefined;
 }
 
 export function setToken(token: Token | undefined): void {
-  Application.setSecureState(token ?? null, TOKEN_KEY);
+  Application.setSecureState(token ? JSON.stringify(token) : null, TOKEN_KEY);
+  Application.setState(token ? true : null, SIGNED_IN_KEY);
+}
+
+/** Signed in, even when the secure storage can't be read just now (in the background). */
+export const wasSignedIn = () =>
+  Application.getState(SIGNED_IN_KEY) === true || getToken() !== undefined;
+
+export interface SyncReport {
+  /** ISO date of the last automatic update */
+  at: string;
+  updated: number;
+  unchanged: number;
+  failed: number;
+  error?: string;
+  /** What happened to each manga ("Berserk: chapter 12 saved") */
+  lines?: string[];
+}
+
+export function getSyncReport(): SyncReport | undefined {
+  return (Application.getState(SYNC_KEY) as SyncReport | null | undefined) ?? undefined;
+}
+
+export function setSyncReport(report: SyncReport): void {
+  Application.setState(report, SYNC_KEY);
 }
 
 export function getUser(): User | undefined {

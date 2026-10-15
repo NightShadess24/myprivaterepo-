@@ -7,11 +7,14 @@ import { ContentRating, SourceIntents, type ExtensionInfo } from "@paperback/typ
 export default {
   name: "MyAnimeList",
   description: "Keeps your MyAnimeList manga list in sync as you read.",
-  version: "1.0.0",
+  version: "1.0.1",
   icon: "icon.png",
   language: "en",
   contentRating: ContentRating.EVERYONE,
+  // The same kinds as Paperback's own trackers (AniList, MangaUpdates):
+  // progress, settings, search, and a Discover page.
   capabilities: [
+    SourceIntents.DISCOVER_SECTION_PROVIDING,
     SourceIntents.MANGA_PROGRESS_PROVIDING,
     SourceIntents.SETTINGS_FORM_PROVIDING,
     SourceIntents.SEARCH_RESULT_PROVIDING,

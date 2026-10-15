@@ -32,6 +32,6 @@ export interface MalManga {
 }
 
 export interface MalPage {
-  data: { node: MalManga }[];
+  data: { node: MalManga; list_status?: MalListStatus; ranking?: { rank?: number } }[];
   paging?: { next?: string };
 }
