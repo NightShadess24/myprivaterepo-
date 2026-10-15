@@ -80,6 +80,10 @@ michaelasper/paperback-corruptbytes (0.9); shadorig/real-extensions,
 kittycatgit/kitty-extensions-0.8, benjamin5896/bens-paperback-extensions,
 dutch25/VietSource (0.8). They can still be added to Paperback on their own.
 
+Sites for a single series (ReadOnePiece, ReadBleach and the like, from
+TheNetsky/extensions-generic-0.8) are left out on purpose: `leaveOut` in
+`scripts/aggregate.config.json`.
+
 The 0.8 ports bundle [cheerio](https://github.com/cheeriojs/cheerio) 1.0.0-rc.12
 (MIT), which the 0.8 app provided to its sources; the 0.9 ports bundle
 [entities](https://github.com/fb55/entities) (BSD-2-Clause) and
