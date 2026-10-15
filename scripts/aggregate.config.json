@@ -407,6 +407,40 @@
       "description": "Paperback 0.8 extensions rated 18+: from open-source 0.8 repositories, plus 18+ sources only made for 0.9, ported to 0.8 (credited below)."
     }
   },
+  "leaveOut": {
+    "$comment": "Sources not brought in: sites for a single series (ReadOnePiece and the like), not worth a place in the list",
+    "ids": [
+      "Read7DeadlySins",
+      "ReadAttackOnTitan",
+      "ReadBerserk",
+      "ReadBlackClover",
+      "ReadBleach",
+      "ReadBlueLock",
+      "ReadChainsawMan",
+      "ReadDemonSlayer",
+      "ReadDrStone",
+      "ReadDragonBall",
+      "ReadFairyTail",
+      "ReadHaikyuu",
+      "ReadHunterxHunter",
+      "ReadJoJos",
+      "ReadJujutsuKaisen",
+      "ReadKagurabachi",
+      "ReadKaguyaSama",
+      "ReadKingdom",
+      "ReadMyHeroAcademia",
+      "ReadNarutoBoruto",
+      "ReadNoblesse",
+      "ReadOnePiece",
+      "ReadOnePunchMan",
+      "ReadSoloLeveling",
+      "ReadThePromisedNeverland",
+      "ReadTokyoGhoul",
+      "ReadTokyoRevengers",
+      "ReadTowerOfGod",
+      "ReadVinlandSaga"
+    ]
+  },
   "languageOverrides": {
     "$comment": "Sources whose language can't be worked out (scripts/languages.mjs)",
     "DocTruyenFives": "vi",

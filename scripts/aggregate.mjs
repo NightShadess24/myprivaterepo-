@@ -76,6 +76,9 @@ const licensesDir = path.join(import.meta.dirname, "..", "third-party", "license
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const versioningPath = path.join(folder, "versioning.json");
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+// Sources not brought in (aggregate.config.json `leaveOut`): sites for a
+// single series.
+const LEAVE_OUT = new Set((config.leaveOut?.ids ?? []).map((id) => id.toLowerCase()));
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "aggregate-"));
 
 function git(gitArgs) {
@@ -392,6 +395,10 @@ for (const { upstream, record, list } of nativeLists) {
       record.skipped.push({ id, why: "unusual id" });
       continue;
     }
+    if (LEAVE_OUT.has(id.toLowerCase())) {
+      record.skipped.push({ id, why: "a site for a single series" });
+      continue;
+    }
     if (taken.has(id.toLowerCase())) {
       const owner = catalog.find({ id });
       record.skipped.push({ id, why: owner === "here" ? "already here" : `taken from ${owner}` });
@@ -426,6 +433,10 @@ for (const { upstream, record, list } of foreignLists) {
   for (const { id, entry, dir } of list) {
     if (!SAFE_ID.test(id)) {
       record.skipped.push({ id, why: "unusual id" });
+      continue;
+    }
+    if (LEAVE_OUT.has(id.toLowerCase())) {
+      record.skipped.push({ id, why: "a site for a single series" });
       continue;
     }
     const about = describeForeign(entry);
