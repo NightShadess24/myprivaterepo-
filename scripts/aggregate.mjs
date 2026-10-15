@@ -262,6 +262,8 @@ const records = [];
 const catalog = new Catalog();
 const taken = new Set();
 const languages = {};
+// Each source's website (for the homepage's popularity ranking).
+const hosts = {};
 let versioning;
 
 const native = version === "0.8" ? config.upstreams08 : config.upstreams;
@@ -374,6 +376,7 @@ if (version === "0.8") {
     if (belongsHere(source, language)) {
       kept.push(source);
       if (!isEnglish(language)) languages[source.id] = language;
+      if (describe09(source).host) hosts[source.id] = describe09(source).host;
     } else {
       fs.rmSync(path.join(folder, source.id), { recursive: true, force: true });
       leftOut.push(`${source.id} (${PLACES[placeOf(source, language)]})`);
@@ -409,6 +412,7 @@ for (const { upstream, record, list } of nativeLists) {
     fs.cpSync(dir, path.join(folder, id), { recursive: true });
     versioning.sources.push(entry);
     if (!isEnglish(language)) languages[id] = language;
+    if (describeNative(entry).host) hosts[id] = describeNative(entry).host;
     record.added.push(id);
   }
   console.log(
@@ -455,6 +459,7 @@ for (const { upstream, record, list } of foreignLists) {
     }
     versioning.sources.push(version === "0.8" ? port.entry : port.info);
     if (!isEnglish(language)) languages[id] = language;
+    if (about.host) hosts[id] = about.host;
     record.ported.push(id);
   }
   console.log(
@@ -468,7 +473,13 @@ fs.cpSync(licensesDir, path.join(folder, "licenses"), { recursive: true });
 fs.writeFileSync(
   path.join(folder, "third-party.json"),
   JSON.stringify(
-    { generated: new Date().toISOString(), appVersion: version, languages, upstreams: records },
+    {
+      generated: new Date().toISOString(),
+      appVersion: version,
+      languages,
+      hosts,
+      upstreams: records,
+    },
     null,
     2,
   ),

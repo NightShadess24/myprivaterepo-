@@ -814,7 +814,10 @@ class PortedExtension {
     const end = (error) => {
       if (settled) return;
       settled = true;
-      if (error && sections.size === 0) finish.reject(error);
+      // An error (Cloudflare's check, say) after the sections were announced
+      // but before any had manga is still an error: the app shows it.
+      const anyItems = [...sections.values()].some((section) => (section.items ?? []).length > 0);
+      if (error && !anyItems) finish.reject(error);
       else finish.resolve(sections);
     };
     Promise.resolve()

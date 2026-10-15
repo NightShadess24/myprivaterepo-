@@ -29,4 +29,6 @@ if (branch.startsWith("0.8/")) {
   run("npx", ["paperback-cli", "bundle"]);
   run("node", ["scripts/aggregate.mjs", "bundles", "--version", "0.9"]);
 }
+// Source stats (works-check, website popularity); checked on daily runs.
+run("node", ["scripts/stats.mjs", "bundles"]);
 run("node", ["scripts/homepage.mjs", "bundles"]);

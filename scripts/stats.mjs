@@ -1,0 +1,335 @@
+// Source stats for the homepage, written to bundles/stats.json:
+//
+//   checks       whether each source still works, from a daily check (last 14
+//                days): it opens the source the way the app would, finds manga
+//                (home page, else a search) and lists one's chapters.
+//                ok    found manga and chapters
+//                cf    the site asked for its Cloudflare check (works in the
+//                      app once you pass it)
+//                fail  didn't work (why is kept)
+//                skip  can't be checked outside the app (your own server,
+//                      a hidden web page)
+//   ranks        how popular each source's website is: its rank in the Tranco
+//                list of the most visited websites (https://tranco-list.eu)
+//   recommended  sources that worked in recent checks and whose site is popular
+//
+// Daily runs (`--check`, or STATS_CHECK=1) check every source and refresh the
+// ranks; other builds carry the last stats over. Some sites block automated
+// visitors, so a failed check doesn't always mean the source is broken.
+//
+// Usage: node scripts/stats.mjs [bundleFolder] [--check] [--previous file] [--ranks file]
+
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import vm from "node:vm";
+
+import { portToV9 } from "./crossport.mjs";
+
+const args = process.argv.slice(2);
+const flag = (name) => {
+  const at = args.indexOf(name);
+  return at >= 0 ? args[at + 1] : undefined;
+};
+const valueFlags = new Set(["--previous", "--ranks"]);
+const folder =
+  args.find((arg, i) => !arg.startsWith("--") && !valueFlags.has(args[i - 1])) ?? "bundles";
+const runChecks = args.includes("--check") || process.env.STATS_CHECK === "1";
+
+const KEEP_DAYS = 14;
+const RECENT = 7;
+const POPULAR_RANK = 50_000;
+const today = new Date().toISOString().slice(0, 10);
+
+function branchName() {
+  if (process.env.BUILD_REF) return process.env.BUILD_REF;
+  if (process.env.GITHUB_REF_NAME) return process.env.GITHUB_REF_NAME;
+  try {
+    return execFileSync("git", ["branch", "--show-current"], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+}
+
+const versioning = JSON.parse(fs.readFileSync(path.join(folder, "versioning.json"), "utf8"));
+let thirdParty = {};
+try {
+  thirdParty = JSON.parse(fs.readFileSync(path.join(folder, "third-party.json"), "utf8"));
+} catch {
+  thirdParty = {};
+}
+const hosts = thirdParty.hosts ?? {};
+
+// ── The last stats (from the published site) ─────────────────────────────
+
+async function previousStats() {
+  const file = flag("--previous");
+  if (file) {
+    try {
+      return JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {
+      return {};
+    }
+  }
+  const repository = process.env.GITHUB_REPOSITORY || "NightShadess24/myprivaterepo-";
+  const url = `https://raw.githubusercontent.com/${repository}/gh-pages/${branchName()}/stats.json`;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    return response.ok ? await response.json() : {};
+  } catch {
+    return {};
+  }
+}
+
+// ── Checking a source ────────────────────────────────────────────────────
+
+const SERVER_CLIENTS = /^(komga|kavita|kavya|paperback)/i;
+const STEP_SECONDS = 30;
+
+function withTimeout(promise, seconds, what) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${what} took over ${seconds}s`)), seconds * 1000),
+    ),
+  ]);
+}
+
+async function loadExtension(id, entry) {
+  const { ApplicationPolyfill } = await import("@paperback/runtime-polyfills");
+  let file = path.join(folder, id, "index.js");
+  let temp;
+  if (!fs.existsSync(file)) {
+    // A 0.8 source: checked through the same layer that runs it on 0.9.
+    temp = fs.mkdtempSync(path.join(os.tmpdir(), "stats-"));
+    const port = await portToV9({ id, dir: path.join(folder, id), entry, outDir: temp });
+    if (port.skipped) throw Object.assign(new Error(port.skipped), { skip: true });
+    file = path.join(temp, id, "index.js");
+  }
+  const quiet = { log() {}, warn() {}, error() {}, info() {}, debug() {} };
+  const context = vm.createContext({
+    Application: ApplicationPolyfill(),
+    console: quiet,
+    TextDecoder,
+    TextEncoder,
+    atob,
+    btoa,
+    setTimeout,
+    clearTimeout,
+    URL,
+  });
+  const code = fs.readFileSync(file, "utf8");
+  if (temp) fs.rmSync(temp, { recursive: true, force: true });
+  return vm.runInContext(`${code}\n;source`, context, { timeout: 30_000 })[id];
+}
+
+function classify(error) {
+  const message = String(error?.message ?? error);
+  if (error?.skip) return { r: "skip", why: message };
+  if (/not implemented/i.test(message))
+    return { r: "skip", why: "needs the app (hidden web page)" };
+  if (
+    error?.type === "cloudflareError" ||
+    /cloudflare|just a moment|cf-chl|bypass/i.test(message)
+  ) {
+    return { r: "cf" };
+  }
+  return { r: "fail", why: message.split("\n")[0].slice(0, 140) };
+}
+
+async function check(id, entry) {
+  const capabilities = Array.isArray(entry.capabilities)
+    ? entry.capabilities
+    : [entry.intents ?? 1].flat();
+  const chapters = capabilities.some((c) => Number(c) & 1);
+  if (!chapters) return { r: "skip", why: "not a manga source" };
+  if (SERVER_CLIENTS.test(id)) return { r: "skip", why: "needs your own server" };
+  try {
+    const ext = await withTimeout(loadExtension(id, entry), STEP_SECONDS, "loading");
+    await withTimeout(Promise.resolve(ext.initialise?.()), STEP_SECONDS, "starting");
+    let items = [];
+    if (typeof ext.getDiscoverSections === "function") {
+      try {
+        const sections =
+          (await withTimeout(ext.getDiscoverSections(), STEP_SECONDS, "home page")) ?? [];
+        for (const section of sections.filter((s) => s.type !== 4).slice(0, 2)) {
+          const page = await withTimeout(
+            ext.getDiscoverSectionItems(section, undefined),
+            STEP_SECONDS,
+            "home section",
+          );
+          items = (page?.items ?? []).filter((item) => item?.mangaId);
+          if (items.length) break;
+        }
+      } catch (error) {
+        if (classify(error).r === "cf") throw error;
+      }
+    }
+    if (!items.length && typeof ext.getSearchResults === "function") {
+      let sorting;
+      try {
+        sorting = (await ext.getSortingOptions?.({ title: "a" }))?.[0];
+      } catch {
+        sorting = undefined;
+      }
+      for (const title of ["a", "one"]) {
+        const page = await withTimeout(
+          ext.getSearchResults({ title }, undefined, sorting),
+          STEP_SECONDS,
+          "search",
+        );
+        items = (page?.items ?? []).filter((item) => item?.mangaId);
+        if (items.length) break;
+      }
+    }
+    if (!items.length) return { r: "fail", why: "found no manga" };
+    for (const item of items.slice(0, 2)) {
+      const manga = await withTimeout(
+        ext.getMangaDetails(item.mangaId),
+        STEP_SECONDS,
+        "manga page",
+      );
+      const list = await withTimeout(ext.getChapters(manga), STEP_SECONDS, "chapter list");
+      if ((list ?? []).length) return { r: "ok" };
+    }
+    return { r: "fail", why: "found manga but no chapters" };
+  } catch (error) {
+    return classify(error);
+  }
+}
+
+async function checkAll(sources) {
+  const results = {};
+  const queue = [...sources];
+  // Real requests to real sites: a few at a time, a few per source.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (url, init = {}) =>
+    realFetch(url, { signal: AbortSignal.timeout(25_000), ...init });
+  process.on("unhandledRejection", () => {});
+  const worker = async () => {
+    for (let source = queue.shift(); source; source = queue.shift()) {
+      const started = Date.now();
+      results[source.id] = await withTimeout(check(source.id, source), 120, "the check").catch(
+        classify,
+      );
+      console.log(
+        `[stats] ${source.id}: ${results[source.id].r}${results[source.id].why ? ` (${results[source.id].why})` : ""} ${Math.round((Date.now() - started) / 1000)}s`,
+      );
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  globalThis.fetch = realFetch;
+  return results;
+}
+
+// ── Website popularity (Tranco) ──────────────────────────────────────────
+
+// The domains to look a host up by: itself, without www, and its last two
+// (or three, for co.uk-style) labels.
+function candidates(host) {
+  const clean = String(host ?? "")
+    .toLowerCase()
+    .replace(/^www\./, "");
+  if (!clean) return [];
+  const labels = clean.split(".");
+  const out = new Set([clean]);
+  if (labels.length > 2) {
+    const two = labels.slice(-2).join(".");
+    out.add(/^(co|com|net|org|ac)\.[a-z]{2}$/.test(two) ? labels.slice(-3).join(".") : two);
+  }
+  return [...out];
+}
+
+async function trancoRanks(wanted) {
+  const file = flag("--ranks");
+  let text;
+  if (file) {
+    text = fs.readFileSync(file, "utf8");
+  } else {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tranco-"));
+    try {
+      const response = await fetch("https://tranco-list.eu/top-1m.csv.zip", {
+        signal: AbortSignal.timeout(120_000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      fs.writeFileSync(path.join(dir, "list.zip"), Buffer.from(await response.arrayBuffer()));
+      text = execFileSync("unzip", ["-p", path.join(dir, "list.zip")], {
+        maxBuffer: 1 << 28,
+      }).toString("utf8");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  const ranks = new Map();
+  for (const line of text.split("\n")) {
+    const comma = line.indexOf(",");
+    if (comma < 0) continue;
+    const domain = line
+      .slice(comma + 1)
+      .trim()
+      .toLowerCase();
+    if (wanted.has(domain) && !ranks.has(domain)) ranks.set(domain, Number(line.slice(0, comma)));
+  }
+  return ranks;
+}
+
+// ── Build stats.json ─────────────────────────────────────────────────────
+
+const previous = await previousStats();
+const ids = new Set(versioning.sources.map((source) => source.id));
+const checks = {};
+for (const [id, history] of Object.entries(previous.checks ?? {})) {
+  if (ids.has(id)) checks[id] = history;
+}
+let ranks = Object.fromEntries(Object.entries(previous.ranks ?? {}).filter(([id]) => ids.has(id)));
+let ranksUpdated = previous.ranksUpdated;
+
+if (runChecks) {
+  const results = await checkAll(versioning.sources);
+  for (const [id, result] of Object.entries(results)) {
+    const history = (checks[id] ?? []).filter((entry) => entry.d !== today);
+    history.push({ d: today, ...result });
+    checks[id] = history.slice(-KEEP_DAYS);
+  }
+  try {
+    const wanted = new Set(Object.values(hosts).flatMap(candidates));
+    const found = await trancoRanks(wanted);
+    ranks = {};
+    for (const [id, host] of Object.entries(hosts)) {
+      if (!ids.has(id)) continue;
+      const best = Math.min(...candidates(host).map((domain) => found.get(domain) ?? Infinity));
+      if (Number.isFinite(best)) ranks[id] = best;
+    }
+    ranksUpdated = today;
+  } catch (error) {
+    console.warn(`[stats] couldn't get the Tranco list: ${error.message}`);
+  }
+}
+
+// Worked recently (Cloudflare's check counts: the site is up and works in the
+// app after it) and its website is popular.
+const recommended = [];
+for (const id of ids) {
+  const recent = (checks[id] ?? []).slice(-RECENT).filter((entry) => entry.r !== "skip");
+  if (!recent.length || recent.at(-1).r === "fail") continue;
+  const worked = recent.filter((entry) => entry.r === "ok" || entry.r === "cf").length;
+  if (worked / recent.length >= 0.85 && (ranks[id] ?? Infinity) <= POPULAR_RANK)
+    recommended.push(id);
+}
+
+const stats = {
+  updated: runChecks ? today : previous.updated,
+  ranksUpdated,
+  checks,
+  ranks,
+  recommended,
+};
+fs.writeFileSync(path.join(folder, "stats.json"), JSON.stringify(stats));
+const counted = Object.values(checks).map((history) => history.at(-1)?.r);
+console.log(
+  `[stats] ${runChecks ? "checked" : "carried over"}: ${counted.filter((r) => r === "ok").length} ok, ` +
+    `${counted.filter((r) => r === "cf").length} Cloudflare, ${counted.filter((r) => r === "fail").length} failed, ` +
+    `${counted.filter((r) => r === "skip").length} skipped; ${Object.keys(ranks).length} ranked; ${recommended.length} recommended`,
+);
+process.exit(0);

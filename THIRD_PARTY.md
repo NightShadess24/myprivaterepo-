@@ -88,3 +88,11 @@ The 0.8 ports bundle [cheerio](https://github.com/cheeriojs/cheerio) 1.0.0-rc.12
 0.9 app provides.
 
 License texts: `third-party/licenses/`.
+
+## Source stats
+
+The homepage's status dots, "Popular" tags, sort bar and "Recommended" come
+from `scripts/stats.mjs`: once a day every source is opened the way the app
+would (home page or a search, then one manga's chapters) and the results of
+the last 14 days are kept. Website popularity is each site's rank in the
+[Tranco list](https://tranco-list.eu) of the most visited websites.

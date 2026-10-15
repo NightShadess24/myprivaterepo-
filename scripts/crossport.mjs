@@ -16,7 +16,7 @@ import { build, transform } from "esbuild";
 
 // Raised when the runtimes in scripts/crossport/ change, so the app offers
 // every ported source again as an update.
-export const PORT_REVISION = 1;
+export const PORT_REVISION = 2;
 
 const shimDir = path.join(import.meta.dirname, "crossport");
 const shims = new Map();
