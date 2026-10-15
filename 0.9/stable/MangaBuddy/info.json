@@ -1,1 +1,0 @@
-{"name":"MangaBuddy","description":"Extension that pulls manga from https://mangabuddy.com","version":"2.1.502","icon":"icon.png","language":"en","contentRating":"MATURE","capabilities":[1,64,4,16],"badges":[{"label":"0.8 port","textColor":"#ffffff","backgroundColor":"#6b7280"}],"developers":[{"name":"Netsky","website":"http://github.com/TheNetsky"}],"id":"MangaBuddy"}
