@@ -46,6 +46,22 @@ jobs:
       - name: Bundle Extensions
         run: npm run bundle
       - name: Deploy to GitHub Pages
+        id: deploy
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: bundles
+          destination_dir: ${{ matrix.ref }}
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+      # Two branches pushed together deploy at the same time, and the second
+      # push to gh-pages is refused; try again once the first is in.
+      - name: Wait before trying again
+        if: steps.deploy.outcome == 'failure'
+        run: sleep $((20 + RANDOM % 40))
+      - name: Deploy to GitHub Pages (second try)
+        if: steps.deploy.outcome == 'failure'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
