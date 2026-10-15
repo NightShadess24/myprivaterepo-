@@ -3,7 +3,7 @@
 //   titles  roughly how many titles: counted from the site's sitemap, the list
 //           of its pages a site publishes for search engines
 //   since   when the site's address was first registered (RDAP, the public
-//           domain registration records)
+//           domain registration records, asked of the registry IANA lists)
 //   kind    what it mostly has (manga, manhwa, manhua, Western comics or
 //           novels): a sample of its titles from the daily check, looked up
 //           on AniList (https://anilist.co)
@@ -147,11 +147,43 @@ export function registeredDomain(host) {
   return /^(co|com|net|org|ac|or|ne|go)\.[a-z]{2}$/.test(two) ? labels.slice(-3).join(".") : two;
 }
 
-// "YYYY-MM-DD", null when the registry doesn't say, undefined when it
-// couldn't be asked (try again next time).
+// Which registry answers for each top-level domain (IANA's RDAP list)
+let registries;
+async function registryFor(domain) {
+  registries ??= fetch("https://data.iana.org/rdap/dns.json", {
+    signal: AbortSignal.timeout(30_000),
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      const map = new Map();
+      for (const [tlds, urls] of data.services ?? []) {
+        const url = (urls ?? []).find((u) => u.startsWith("https://")) ?? urls?.[0];
+        for (const tld of tlds ?? [])
+          if (url) map.set(tld.toLowerCase(), url.endsWith("/") ? url : `${url}/`);
+      }
+      return map;
+    })
+    .catch(() => {
+      registries = undefined;
+      return new Map();
+    });
+  const labels = domain.split(".");
+  const map = await registries;
+  // co.jp-style names are under the last label's registry
+  return map.get(labels.slice(-2).join(".")) ?? map.get(labels.at(-1));
+}
+
+// "YYYY-MM-DD", null when the registry doesn't say (or there's no public
+// registry for the name), undefined when it couldn't be asked (try again
+// next time).
 export async function registeredOn(domain) {
   try {
-    const response = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+    const base = await registryFor(domain);
+    if (!base) return registries ? null : undefined;
+    const response = await fetch(`${base}domain/${encodeURIComponent(domain)}`, {
       headers: { accept: "application/rdap+json, application/json" },
       signal: AbortSignal.timeout(20_000),
     });
@@ -171,6 +203,8 @@ export async function registeredOn(domain) {
 // ── What it mostly has (AniList) ──────────────────────────────────────────
 
 export const KINDS = ["manga", "manhwa", "manhua", "comic", "novel"];
+// Bumped when how a sample is read changes, so the next run reads them again
+export const KIND_VERSION = 2;
 
 const normalize = (text) =>
   String(text ?? "")
@@ -221,12 +255,16 @@ const TAG_KINDS = [
 ];
 
 let lastAniList = 0;
+let lastAniListStatus = 0;
 
+// Up to three AniList entries for each title. A list per title, so a title
+// it doesn't know is just an empty list (asking for one entry would make
+// the whole answer an error).
 async function askAniList(titles) {
   const query = `query (${titles.map((_, i) => `$s${i}: String`).join(", ")}) { ${titles
     .map(
       (_, i) =>
-        `q${i}: Media(search: $s${i}, type: MANGA) { countryOfOrigin format title { romaji english native } synonyms }`,
+        `q${i}: Page(perPage: 3) { media(search: $s${i}, type: MANGA) { countryOfOrigin format title { romaji english native } synonyms } }`,
     )
     .join(" ")} }`;
   const variables = Object.fromEntries(titles.map((title, i) => [`s${i}`, title]));
@@ -241,18 +279,29 @@ async function askAniList(titles) {
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(30_000),
     });
-    if (response.status === 429) {
+    if (response.status === 429 || response.status >= 500) {
       await sleep(Math.min(Number(response.headers.get("retry-after")) || 60, 90) * 1000);
       continue;
     }
-    // A title it can't find answers 404 for the whole request, with the
-    // other titles' answers still in it.
+    lastAniListStatus = response.status;
     const body = await response.json().catch(() => null);
-    if (!body?.data) return null;
-    return titles.map((_, i) => body.data[`q${i}`] ?? null);
+    if (!body?.data) {
+      console.warn(
+        `[stats] AniList: HTTP ${response.status} ${JSON.stringify(body?.errors ?? body)?.slice(0, 200)}`,
+      );
+      return null;
+    }
+    return titles.map((_, i) => body.data[`q${i}`]?.media ?? []);
   }
   return null;
 }
+
+const namesOf = (media) => [
+  media.title?.romaji,
+  media.title?.english,
+  media.title?.native,
+  ...(media.synonyms ?? []),
+];
 
 // What a sample of titles is: counts per kind, or null when too few were
 // recognised. `sample` is { titles: [...], tags: { title: [tag, ...] } }.
@@ -261,20 +310,22 @@ export async function kindOf(sample) {
     ...new Set((sample?.titles ?? []).map((t) => String(t).trim()).filter(Boolean)),
   ].slice(0, 10);
   if (!titles.length) return null;
-  const found = (await askAniList(titles).catch(() => null)) ?? [];
+  let found = await askAniList(titles).catch(() => null);
+  // Too big a question for AniList: ask in two halves
+  if (!found && lastAniListStatus === 400 && titles.length > 3) {
+    const half = Math.ceil(titles.length / 2);
+    const first = await askAniList(titles.slice(0, half)).catch(() => null);
+    const second = first && (await askAniList(titles.slice(half)).catch(() => null));
+    found = first && second ? [...first, ...second] : null;
+  }
+  if (!found) return null;
   const counts = {};
   titles.forEach((title, i) => {
-    const media = found[i];
+    const media = (found[i] ?? []).find((entry) =>
+      namesOf(entry).some((name) => sameTitle(name, title)),
+    );
     let kind;
-    if (
-      media &&
-      [
-        media.title?.romaji,
-        media.title?.english,
-        media.title?.native,
-        ...(media.synonyms ?? []),
-      ].some((name) => sameTitle(name, title))
-    ) {
+    if (media) {
       kind = kindOfMedia(media);
     } else if (WESTERN_TITLE.test(title)) {
       kind = "comic";
@@ -290,7 +341,8 @@ export async function kindOf(sample) {
     if (kind) counts[kind] = (counts[kind] ?? 0) + 1;
   });
   const recognised = Object.values(counts).reduce((a, b) => a + b, 0);
-  return recognised >= 3 ? counts : null;
+  // Three titles, or all of a small sample (sites for a single series)
+  return recognised >= Math.min(3, titles.length) ? counts : null;
 }
 
 // Novel sources are novels whatever AniList matched (it lists adaptations).

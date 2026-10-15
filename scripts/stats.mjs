@@ -34,6 +34,7 @@ import {
   countTitles,
   isNovelSource,
   kindFromName,
+  KIND_VERSION,
   kindOf,
   registeredDomain,
   registeredOn,
@@ -381,7 +382,7 @@ async function trancoRanks(wanted) {
 const SITE_FIELDS = [
   ["titles", "titlesOn", ["path"]],
   ["since", "sinceOn", []],
-  ["kind", "kindOn", []],
+  ["kind", "kindOn", ["kindV"]],
 ];
 const BRANCHES = [
   "0.9/stable",
@@ -466,7 +467,12 @@ async function lookUpSites(sites, samples) {
   });
   const kindJobs = all.filter((host) => {
     const site = sites[host];
-    return sampleOf(host) && (!site?.kindOn || daysSince(site.kindOn) >= (site.kind ? 30 : 7));
+    return (
+      sampleOf(host) &&
+      (!site?.kindOn ||
+        site.kindV !== KIND_VERSION ||
+        daysSince(site.kindOn) >= (site.kind ? 30 : 7))
+    );
   });
   const started = Date.now();
   await Promise.all([
@@ -483,7 +489,7 @@ async function lookUpSites(sites, samples) {
     }),
     pool(kindJobs, 1, deadline, async (host) => {
       const kind = await kindOf(sampleOf(host)).catch(() => null);
-      set(host, { kind, kindOn: today });
+      set(host, { kind, kindOn: today, kindV: KIND_VERSION });
     }),
   ]);
   console.log(
