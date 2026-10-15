@@ -23,6 +23,7 @@ try {
 .noir-only { display: none; }
 .classic-only { display: revert; }
 ul { margin-top: 0; }
+.source { overflow-wrap: anywhere; }
 .version { margin-left: 8px; font-size: 12px; opacity: .55; font-variant-numeric: tabular-nums; }
 .status { margin: 0; padding-left: 40px; }
 .origin { margin-left: 8px; font-size: 12px; opacity: .55; }
@@ -124,10 +125,11 @@ ul { margin-top: 0; }
   color: #2e84bf;
   font-size: .95rem;
 }
-[data-theme="classic"] .repo-link:first-child { border-radius: 4px 0 0 4px; }
-[data-theme="classic"] .repo-link:last-child { border-radius: 0 4px 4px 0; }
-[data-theme="classic"] .repo-link:only-child { border-radius: 4px; }
+[data-theme="classic"] .repo-switch { row-gap: 6px; }
 [data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
+[data-theme="classic"] .repo-link.row-start { border-left: 1px solid #2e84bf; border-radius: 4px 0 0 4px; }
+[data-theme="classic"] .repo-link.row-end { border-radius: 0 4px 4px 0; }
+[data-theme="classic"] .repo-link.row-start.row-end { border-radius: 4px; }
 [data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
 [data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
 [data-theme="classic"] .version-switch { margin: 0 auto .6rem; }
@@ -219,6 +221,8 @@ ul { margin-top: 0; }
   transition: background-size .25s ease, color .2s ease;
 }
 [data-theme="noir"] .repo-link + .repo-link { border-left: 1px solid #55555a; }
+[data-theme="noir"] .repo-link.row-start { border-left-color: transparent; }
+[data-theme="noir"] .repo-switch { row-gap: 4px; }
 [data-theme="noir"] .repo-link:hover,
 [data-theme="noir"] .repo-link:focus-visible { color: var(--text); background-size: 60% 2px; outline: none; }
 [data-theme="noir"] .repo-link[aria-current="true"] { color: var(--gold); background-size: 60% 2px; }
@@ -334,7 +338,7 @@ ul { margin-top: 0; }
 @media (max-width: 560px) {
   [data-theme="noir"] .banner { gap: 14px; padding: 18px 14px; }
   [data-theme="noir"] .banner__label { width: 92px; padding-right: 14px; font-size: 15px; }
-  [data-theme="noir"] .repo-link { padding: 4px 14px 8px; font-size: 18px; }
+  [data-theme="noir"] .repo-link { padding: 4px 10px 8px; font-size: 16px; letter-spacing: .05em; }
   [data-theme="classic"] body { padding: 3.6rem 1rem 1.5rem; }
 }
 </style>
@@ -355,7 +359,7 @@ ul { margin-top: 0; }
 
 <!-- Both: the app version, then one link per repository of that version -->
 <nav class="version-switch" aria-label="Paperback version"><button class="version-tab" type="button" data-version="0.9" title="Paperback 0.9" aria-pressed="true">v9</button><button class="version-tab" type="button" data-version="0.8" title="Paperback 0.8" aria-pressed="false">v8</button></nav>
-<nav class="repo-switch" aria-label="Repositories"><span class="repo-group" data-version="0.9"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable" data-version="0.9">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" data-version="0.9" aria-current="true">Test Version</a></span><span class="repo-group" data-version="0.8" hidden><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.8/stable/" data-ref="0.8/stable" data-version="0.8">Stable</a></span></nav>
+<nav class="repo-switch" aria-label="Repositories"><span class="repo-group" data-version="0.9"><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/stable/" data-ref="0.9/stable" data-version="0.9">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/languages/" data-ref="0.9/languages" data-version="0.9">Languages</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/nsfw/" data-ref="0.9/nsfw" data-version="0.9">NSFW</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.9/testversion/" data-ref="0.9/testversion" data-version="0.9" aria-current="true">Test Version</a></span><span class="repo-group" data-version="0.8" hidden><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.8/stable/" data-ref="0.8/stable" data-version="0.8">Stable</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.8/languages/" data-ref="0.8/languages" data-version="0.8">Languages</a><a class="repo-link" href="https://nightshadess24.github.io/myprivaterepo-/0.8/nsfw/" data-ref="0.8/nsfw" data-version="0.8">NSFW</a></span></nav>
 
 <header class="classic-only">
 <a class="addToPaperbackButton js-add-repo" href="paperback://addRepo?displayName=NightShadess24%20Extensions%20(0.9%20Test%20Version)&amp;url=https%3A%2F%2Fnightshadess24.github.io%2Fmyprivaterepo-%2F0.9%2Ftestversion">Add to Paperback</a>
@@ -408,13 +412,14 @@ ul { margin-top: 0; }
 
 <script>
 (function () {
-  var REPOS = [{"ref":"0.9/stable","label":"Stable","version":"0.9"},{"ref":"0.9/testversion","label":"Test Version","version":"0.9"},{"ref":"0.8/stable","label":"Stable","version":"0.8"}];
+  var REPOS = [{"ref":"0.9/stable","label":"Stable","version":"0.9"},{"ref":"0.9/languages","label":"Languages","version":"0.9"},{"ref":"0.9/nsfw","label":"NSFW","version":"0.9"},{"ref":"0.9/testversion","label":"Test Version","version":"0.9"},{"ref":"0.8/stable","label":"Stable","version":"0.8"},{"ref":"0.8/languages","label":"Languages","version":"0.8"},{"ref":"0.8/nsfw","label":"NSFW","version":"0.8"}];
   var CREDITS_NOTE = "Copied from those public repositories when this one is built; their authors keep the credit. Sources marked “0.8 port” or “0.9 port” are the original code, unchanged, with a small layer that lets it run on the other app version.";
+  var LANGUAGE_TAG = new RegExp("^(english|indonesia|indonesian|arabic|spanish|español|french|italian|portuguese|japanese|raw|vietnamese|korean|thai|turkish|german|russian|polish|chinese)\\b", "i");
   var CURRENT = "0.9/testversion";
   var BUILD_SITE_ROOT = "https://nightshadess24.github.io/myprivaterepo-/";
   var RATING_TAGS = {"MATURE":{"label":"Mature","type":"warning"},"ADULT":{"label":"18+","type":"danger"}};
   var data = {};
-  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-15T10:21:10.372Z","sources":[{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.91","contentRating":"SAFE","badges":[]}],"credits":[]};
+  data[CURRENT] = {"name":"NightShadess24 Extensions (0.9 Test Version)","description":"Test version of the NightShadess24 repository: only the sources being fixed (now Comix), with the newest fixes first.","buildTime":"2026-10-15T10:53:28.248Z","sources":[{"name":"Comix","description":"Extension that pulls content from Comix.to (test version).","version":"1.0.0-alpha.91","contentRating":"SAFE","badges":[]}],"credits":[]};
 
   var root = document.documentElement;
   var themes = { noir: "☀ Classic", classic: "☾ Noir" };
@@ -426,6 +431,7 @@ ul { margin-top: 0; }
   }
   toggle.addEventListener("click", function () {
     applyTheme(root.dataset.theme === "noir" ? "classic" : "noir");
+    if (typeof markRows === "function") markRows();
     if (root.dataset.theme === "classic") showAll(); // Classic ignores the filter
   });
   toggle.textContent = themes[root.dataset.theme] || themes.noir;
@@ -519,12 +525,13 @@ ul { margin-top: 0; }
           (u.added || []).concat(u.ported || []).forEach(function (id) { origins[id] = u.label; });
         });
         var repository = versioning.repository || { name: labelOf(ref), description: "" };
+        var languages = (both[1] && both[1].languages) || {};
         data[ref] = {
           name: repository.name,
           description: repository.description,
           buildTime: versioning.buildTime,
           sources: versioning.sources
-            .map(function (s) { return Object.assign(normalize(s), { origin: origins[s.id] }); })
+            .map(function (s) { return Object.assign(normalize(s), { origin: origins[s.id], language: languages[s.id] }); })
             .sort(function (a, b) { return a.name.localeCompare(b.name); }),
           credits: creditList(upstreams),
         };
@@ -548,6 +555,11 @@ ul { margin-top: 0; }
     });
     var rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
     if (rating) tags.push(rating);
+    if (source.language) {
+      var name = source.language;
+      try { name = new Intl.DisplayNames(["en"], { type: "language" }).of(source.language) || name; } catch (e) {}
+      tags = [{ label: name, type: "info" }].concat(tags.filter(function (tag) { return !LANGUAGE_TAG.test(tag.label); }));
+    }
     return tags.filter(function (tag, i) {
       return tags.findIndex(function (other) { return other.label.toLowerCase() === tag.label.toLowerCase(); }) === i;
     });
@@ -667,9 +679,25 @@ ul { margin-top: 0; }
   // repository" would flip back to Stable instead of opening Paperback.
   var nav = document.querySelector(".repo-switch");
   var versionTabs = Array.prototype.slice.call(document.querySelectorAll(".version-tab"));
+  // Links that start or end a row (they wrap on narrow screens): no
+  // separator before the first of a row; Classic rounds each row's ends.
+  function markRows() {
+    var shown = links.filter(function (link) { return !link.parentNode.hidden; });
+    for (var pass = 0; pass < 2; pass++) {
+      shown.forEach(function (link, i) {
+        var before = shown[i - 1];
+        var after = shown[i + 1];
+        link.classList.toggle("row-start", !before || before.offsetTop !== link.offsetTop);
+        link.classList.toggle("row-end", !after || after.offsetTop !== link.offsetTop);
+      });
+    }
+  }
+  window.addEventListener("resize", markRows);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(markRows);
   function showVersion(version) {
     versionTabs.forEach(function (tab) { tab.setAttribute("aria-pressed", String(tab.dataset.version === version)); });
     document.querySelectorAll(".repo-group").forEach(function (group) { group.hidden = group.dataset.version !== version; });
+    markRows();
   }
   function choose(ref) {
     selected = ref;
