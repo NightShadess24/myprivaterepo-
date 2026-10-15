@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - "[0-9]+.[0-9]+/*"
-  # Daily rebuild of the default branch (0.9/stable), so sources copied in from
-  # other repositories (scripts/aggregate.mjs) pick up their updates.
+  # Daily rebuild of both stable repositories (0.9/stable, the default branch,
+  # and 0.8/stable), so sources brought in from other repositories
+  # (scripts/aggregate.mjs) pick up their updates.
   schedule:
     - cron: "23 5 * * *"
   workflow_dispatch:
@@ -19,11 +20,22 @@ concurrency:
 
 jobs:
   bundle-deploy:
-    name: Bundle and Deploy
+    name: Bundle and Deploy (${{ matrix.ref }})
     runs-on: ubuntu-latest
+    strategy:
+      # One at a time: both publish to the gh-pages branch.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        ref: ${{ fromJSON(github.event_name == 'push' && format('["{0}"]', github.ref_name) || '["0.9/stable","0.8/stable"]') }}
+    env:
+      # The branch being built (a scheduled run builds more than one).
+      BUILD_REF: ${{ matrix.ref }}
     steps:
       - name: Checkout Branch
         uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.ref }}
       - name: Setup Node.js Environment
         uses: actions/setup-node@v6
         with:
@@ -38,6 +50,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: bundles
-          destination_dir: ${{ github.ref_name }}
+          destination_dir: ${{ matrix.ref }}
           user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"

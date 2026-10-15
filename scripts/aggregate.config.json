@@ -1,5 +1,5 @@
 {
-  "$comment": "Other public Paperback 0.9 repositories whose sources are copied into this one at build time (scripts/aggregate.mjs). Only repositories under an open-source license that allows redistribution are listed; earlier entries win when two offer the same source id. Not included (no license, or 'all rights reserved'): nyzzik/extensions, TheVodraz/paperback-extensions, michaelasper/paperback-corruptbytes. PoppingMangoSources/general-extensions-mangago adds nothing the Inkdex registry doesn't already have.",
+  "$comment": "Other public Paperback repositories whose sources are brought into this site at build time (scripts/aggregate.mjs). `upstreams` are 0.9 repositories, `upstreams08` are 0.8 ones; each repository on this site copies the ones made for its app version and ports the sources only the other version has (scripts/crossport.mjs). Only repositories under an open-source license that allows redistribution are listed (a LICENSE file, or the license declared in their package.json); earlier entries win when two offer the same source. Not included (no license, or 'all rights reserved'): nyzzik/extensions, TheVodraz/paperback-extensions, michaelasper/paperback-corruptbytes (0.9); shadorig/real-extensions, kittycatgit/kitty-extensions-0.8, benjamin5896/bens-paperback-extensions, dutch25/VietSource (0.8). PoppingMangoSources/general-extensions-mangago adds nothing the Inkdex registry doesn't already have. `pages` repositories are only published on GitHub Pages, so their files are downloaded from there.",
   "upstreams": [
     {
       "repo": "inkdex/extensions",
@@ -54,6 +54,335 @@
       "license": "GPL-3.0",
       "licenseFile": "GPL-3.0.txt",
       "sourceCode": "https://github.com/LucifersCircle/pirate.vodka-extensions"
+    },
+    {
+      "repo": "feliivk/felii-extensions",
+      "branch": "main",
+      "path": "0.9",
+      "label": "Felii",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/feliivk/felii-extensions"
+    },
+    {
+      "repo": "xdKinso/kinso-extensions-v0.8",
+      "branch": "master",
+      "path": "bundles",
+      "layout": "info",
+      "label": "Kinso",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/xdKinso/kinso-extensions-v0.8"
+    },
+    {
+      "repo": "Paperback-iOS/extensions-default",
+      "branch": "gh-pages",
+      "path": "0.9",
+      "label": "Paperback",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Paperback-iOS/extensions-default"
+    },
+    {
+      "repo": "TheNetsky/netskys-extensions",
+      "branch": "gh-pages",
+      "path": "0.9",
+      "label": "Netsky",
+      "license": "MIT",
+      "licenseFile": "MIT-netskys-extensions.txt",
+      "sourceCode": "https://github.com/TheNetsky/netskys-extensions"
+    },
+    {
+      "repo": "Elrulia/paperback-extension",
+      "branch": "gh-pages",
+      "path": "0.9/stable",
+      "label": "Elrulia",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Elrulia/paperback-extension"
     }
-  ]
+  ],
+  "upstreams08": [
+    {
+      "repo": "acepilot147/pb-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Ace",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/acepilot147/pb-extensions/tree/0.8"
+    },
+    {
+      "repo": "feliivk/felii-extensions",
+      "branch": "main",
+      "path": "0.8",
+      "label": "Felii",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/feliivk/felii-extensions"
+    },
+    {
+      "repo": "PoppingMangoSources/popmango-paperback-sources",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "PoppingMango",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/PoppingMangoSources/popmango-paperback-sources"
+    },
+    {
+      "repo": "timkuel/PaperBackExtension",
+      "pages": "https://timkuel.github.io/PaperBackExtension/0.8/",
+      "label": "Timkuel",
+      "license": "MIT",
+      "licenseFile": "MIT-PaperBackExtension.txt",
+      "sourceCode": "https://github.com/timkuel/PaperBackExtension"
+    },
+    {
+      "repo": "HailXD/pb-extensions",
+      "branch": "main",
+      "path": "0.8",
+      "label": "HailXD",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/HailXD/pb-extensions"
+    },
+    {
+      "repo": "karrot0/kakarotextension0.8",
+      "branch": "gh-pages",
+      "path": "0.8-stable",
+      "label": "Kakarot",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/karrot0/kakarotextension0.8"
+    },
+    {
+      "repo": "naufaljct48/nopools-ext",
+      "branch": "gh-pages",
+      "path": "mangastream",
+      "label": "Nopools",
+      "license": "MIT",
+      "licenseFile": "MIT-nopools-ext.txt",
+      "sourceCode": "https://github.com/naufaljct48/nopools-ext"
+    },
+    {
+      "repo": "ryukajinokami/paperback-extensions",
+      "pages": "https://ryukajinokami.github.io/paperback-extensions/",
+      "label": "Ryukajinokami",
+      "license": "MIT",
+      "licenseFile": "MIT-ryukajinokami-paperback-extensions.txt",
+      "sourceCode": "https://github.com/ryukajinokami/paperback-extensions"
+    },
+    {
+      "repo": "g2asell2019/numby-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Numby",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/g2asell2019/numby-extensions"
+    },
+    {
+      "repo": "gabrielcwt/gabe-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Gabe",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/gabrielcwt/gabe-extensions"
+    },
+    {
+      "repo": "TheNetsky/community-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Netsky Community",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/TheNetsky/community-extensions"
+    },
+    {
+      "repo": "ivanmatthew/ivans-paperback-extensions",
+      "branch": "gh-pages",
+      "path": "paperback-0.8",
+      "label": "Ivan",
+      "license": "MIT",
+      "licenseFile": "MIT-ivans-paperback-extensions.txt",
+      "sourceCode": "https://github.com/ivanmatthew/ivans-paperback-extensions"
+    },
+    {
+      "repo": "awwrch/extension",
+      "branch": "gh-pages",
+      "path": "main",
+      "label": "Awwrch",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/awwrch/extension"
+    },
+    {
+      "repo": "Seyden/community-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Seyden",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Seyden/community-extensions"
+    },
+    {
+      "repo": "Paperback-iOS/extensions-default",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Paperback",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Paperback-iOS/extensions-default"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "madara",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "mangastream",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "mangabox",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "mangacatalog",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "buddycomplex",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "liliana",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "hean",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "nepnep",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8"
+    },
+    {
+      "repo": "TheNetsky/netskys-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Netsky",
+      "license": "MIT",
+      "licenseFile": "MIT-netskys-extensions.txt",
+      "sourceCode": "https://github.com/TheNetsky/netskys-extensions"
+    },
+    {
+      "repo": "CookieSylvia/cookies-extensions",
+      "branch": "gh-pages",
+      "path": "0.8",
+      "label": "Cookie",
+      "license": "MIT",
+      "licenseFile": "MIT-cookies-extensions.txt",
+      "sourceCode": "https://github.com/CookieSylvia/cookies-extensions"
+    },
+    {
+      "repo": "Seyden/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "madara",
+      "label": "Seyden Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-Seyden-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/Seyden/extensions-generic-0.8"
+    },
+    {
+      "repo": "Seyden/extensions-generic-0.8",
+      "branch": "gh-pages",
+      "path": "mangastream",
+      "label": "Seyden Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-Seyden-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/Seyden/extensions-generic-0.8"
+    },
+    {
+      "repo": "ACK72/kavya-paperback",
+      "branch": "gh-pages",
+      "path": "",
+      "label": "Kavya",
+      "license": "BSD-2-Clause",
+      "licenseFile": "BSD-2-Clause-kavya-paperback.txt",
+      "sourceCode": "https://github.com/ACK72/kavya-paperback"
+    },
+    {
+      "repo": "ACK72/kavya-paperback-tracker",
+      "branch": "gh-pages",
+      "path": "",
+      "label": "Kavya Tracker",
+      "license": "BSD-2-Clause",
+      "licenseFile": "BSD-2-Clause-kavya-paperback-tracker.txt",
+      "sourceCode": "https://github.com/ACK72/kavya-paperback-tracker"
+    },
+    {
+      "repo": "hoang3402/extensions-vn",
+      "branch": "gh-pages",
+      "path": "",
+      "label": "Hoang",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-vn.txt",
+      "sourceCode": "https://github.com/hoang3402/extensions-vn"
+    },
+    {
+      "repo": "Paperback-iOS/extensions",
+      "branch": "gh-pages",
+      "path": "main",
+      "label": "Paperback Trackers",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Paperback-iOS/extensions"
+    }
+  ],
+  "repository08": {
+    "name": "NightShadess24 Extensions (0.8)",
+    "description": "Paperback 0.8 extensions: the sources of open-source 0.8 repositories, plus the sources only made for 0.9, ported to 0.8 (credited below)."
+  }
 }

@@ -8,10 +8,12 @@
 //   - Classic: the classic Paperback 0.8 repository page — logo, "Add to
 //     Paperback" button, guide, base URL and a plain list of sources.
 //
-// The site publishes more than one repository (one per branch, see REPOS).
-// Every page has a link for each; hovering a link shows that repository's
-// sources, clicking it keeps them shown. This branch's repository is built
-// into the page, the others are read from their versioning.json.
+// The site publishes more than one repository (one per branch, see REPOS),
+// for two app versions: tabs pick Paperback 0.9 ("v9") or 0.8 ("v8"), then a
+// link per repository of that version. Hovering a link shows that
+// repository's sources, clicking it keeps them shown. This branch's
+// repository is built into the page, the others are read from their
+// versioning.json (0.9 and 0.8 write it differently; both are read).
 //
 // Runs after `paperback-cli bundle`.
 // Usage: node scripts/homepage.mjs [bundleFolder]
@@ -22,15 +24,27 @@ import path from "node:path";
 
 // The repositories on this site, in the order their links are shown.
 const REPOS = [
-  { ref: "0.9/stable", label: "Stable" },
-  { ref: "0.9/testversion", label: "Test Version" },
+  { ref: "0.9/stable", label: "Stable", version: "0.9" },
+  { ref: "0.9/testversion", label: "Test Version", version: "0.9" },
+  { ref: "0.8/stable", label: "Stable", version: "0.8" },
+];
+// The app versions, in the order their tabs are shown.
+const VERSIONS = [
+  { id: "0.9", label: "v9", title: "Paperback 0.9" },
+  { id: "0.8", label: "v8", title: "Paperback 0.8" },
 ];
 
 const folder = process.argv[2] ?? "bundles";
 const versioning = JSON.parse(fs.readFileSync(path.join(folder, "versioning.json"), "utf8"));
-const { name, description } = versioning.repository;
+const { name, description } = versioning.repository ?? {
+  name: "Paperback Extensions",
+  description: "A Paperback extensions repository",
+};
 
 function branchName() {
+  // BUILD_REF: the branch a scheduled run builds (GITHUB_REF_NAME is then
+  // always the default branch).
+  if (process.env.BUILD_REF) return process.env.BUILD_REF;
   if (process.env.GITHUB_REF_NAME) return process.env.GITHUB_REF_NAME;
   try {
     return execSync("git branch --show-current", { encoding: "utf8" }).trim();
@@ -70,14 +84,39 @@ const RATING_TAGS = {
   ADULT: { label: "18+", type: "danger" },
 };
 
+// 0.9 entries have `description` and `badges` (colours), 0.8 ones `desc` and
+// `tags` (a type: default, success, info, warning, danger).
+function normalizeSource(source) {
+  return {
+    id: source.id,
+    name: String(source.name ?? source.id).trim(),
+    description: source.description ?? source.desc ?? "",
+    version: source.version,
+    contentRating: source.contentRating,
+    badges:
+      source.badges ??
+      (source.tags ?? [])
+        .filter((tag) => tag?.text)
+        .map((tag) => ({ label: tag.text, type: tag.type === "default" ? undefined : tag.type })),
+  };
+}
+
 function sourceTags(source) {
-  const tags = (source.badges ?? []).map((badge) => ({
-    label: badge.label,
-    style: `background-color:${badge.backgroundColor};border-color:${badge.backgroundColor};color:${badge.textColor}`,
-  }));
+  const tags = (source.badges ?? []).map((badge) =>
+    badge.backgroundColor
+      ? {
+          label: badge.label,
+          style: `background-color:${badge.backgroundColor};border-color:${badge.backgroundColor};color:${badge.textColor}`,
+        }
+      : { label: badge.label, type: badge.type },
+  );
   const rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
   if (rating) tags.push({ label: rating.label, type: rating.type });
-  return tags;
+  // A source's own "18+" tag and the rating's are the same tag.
+  return tags.filter(
+    (tag, i) =>
+      tags.findIndex((other) => other.label.toLowerCase() === tag.label.toLowerCase()) === i,
+  );
 }
 
 const tagHtml = (tag) =>
@@ -93,22 +132,40 @@ try {
 } catch {
   thirdParty = null;
 }
-const credits = (thirdParty?.upstreams ?? [])
-  .filter((upstream) => upstream.added?.length)
-  .map(({ label, url, sourceCode, license, licenseFile, commit, added }) => ({
-    label,
-    url,
-    sourceCode,
-    license,
-    licenseFile,
-    commit: String(commit ?? "").slice(0, 7),
-    count: added.length,
-  }));
+// Upstreams can list a repository more than once (one per folder); credit
+// it once.
+function creditList(upstreams) {
+  const byRepo = new Map();
+  for (const upstream of upstreams ?? []) {
+    const count = (upstream.added?.length ?? 0) + (upstream.ported?.length ?? 0);
+    if (!count) continue;
+    const key = `${upstream.url}|${upstream.appVersion ?? ""}`;
+    const credit = byRepo.get(key) ?? {
+      label: upstream.label,
+      url: upstream.url,
+      sourceCode: upstream.sourceCode,
+      license: upstream.license,
+      licenseFile: upstream.licenseFile,
+      commit: String(upstream.commit ?? "").slice(0, 7),
+      count: 0,
+      ported: Boolean(upstream.ported?.length),
+      appVersion: upstream.appVersion,
+    };
+    credit.count += count;
+    byRepo.set(key, credit);
+  }
+  return [...byRepo.values()];
+}
+const credits = creditList(thirdParty?.upstreams);
 const originOf = new Map(
-  (thirdParty?.upstreams ?? []).flatMap((upstream) =>
-    (upstream.added ?? []).map((id) => [id, upstream.label]),
-  ),
+  (thirdParty?.upstreams ?? []).flatMap((upstream) => [
+    ...(upstream.added ?? []).map((id) => [id, upstream.label]),
+    ...(upstream.ported ?? []).map((id) => [id, upstream.label]),
+  ]),
 );
+
+const CREDITS_NOTE =
+  "Copied from those public repositories when this one is built; their authors keep the credit. Sources marked “0.8 port” or “0.9 port” are the original code, unchanged, with a small layer that lets it run on the other app version.";
 
 function creditsHtml(list) {
   if (!list.length) return "";
@@ -117,15 +174,15 @@ function creditsHtml(list) {
 ${list
   .map(
     (c) =>
-      `<li><a href="${escapeHtml(c.url)}">${escapeHtml(c.label)}</a> · ${c.count} sources · ${escapeHtml(
-        c.license,
-      )} (<a href="licenses/${escapeHtml(c.licenseFile)}">license</a>, <a href="${escapeHtml(
+      `<li><a href="${escapeHtml(c.url)}">${escapeHtml(c.label)}</a> · ${c.count} source${c.count === 1 ? "" : "s"}${
+        c.ported ? ` (${escapeHtml(c.appVersion)}, ported)` : ""
+      } · ${escapeHtml(c.license)} (<a href="licenses/${escapeHtml(c.licenseFile)}">license</a>, <a href="${escapeHtml(
         c.sourceCode,
       )}">source code</a>)${c.commit ? ` · ${escapeHtml(c.commit)}` : ""}</li>`,
   )
   .join("\n")}
 </ul>
-<p>Copied unchanged from those public repositories when this one is built; their authors keep the credit.</p>`;
+<p>${CREDITS_NOTE}</p>`;
 }
 
 function sourceItem(source) {
@@ -141,7 +198,7 @@ function sourceItem(source) {
 }
 
 const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
-const sources = sortByName(versioning.sources);
+const sources = sortByName(versioning.sources.map(normalizeSource));
 const filterLabels = [
   ...new Set(sources.flatMap((source) => sourceTags(source).map((t) => t.label))),
 ];
@@ -168,9 +225,16 @@ const baseUrl = baseUrlOf(current.ref);
 
 const repoLinks = REPOS.map(
   (repo) =>
-    `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}"${
+    `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}" data-version="${escapeHtml(repo.version)}"${
       repo === current ? ' aria-current="true"' : ""
-    }>${escapeHtml(repo.label)}</a>`,
+    }${repo.version === current.version ? "" : " hidden"}>${escapeHtml(repo.label)}</a>`,
+).join("");
+
+const versionTabs = VERSIONS.map(
+  (version) =>
+    `<button class="version-tab" type="button" data-version="${escapeHtml(version.id)}" title="${escapeHtml(
+      version.title,
+    )}" aria-pressed="${version.id === current.version}">${escapeHtml(version.label)}</button>`,
 ).join("");
 
 const html = `<!DOCTYPE html>
@@ -222,6 +286,11 @@ ul { margin-top: 0; }
 /* Repository links: hover shows that repository's sources, click keeps them */
 .repo-switch { display: flex; justify-content: center; flex-wrap: wrap; }
 .repo-link { cursor: pointer; white-space: nowrap; }
+.repo-link[hidden] { display: none !important; }
+
+/* App version tabs (v9 / v8) */
+.version-switch { display: flex; justify-content: center; gap: 0; }
+.version-tab { cursor: pointer; font: inherit; }
 
 /* Tags, after Element's tag component (https://element.eleme.io/#/en-US/component/tag) */
 .el-tag {
@@ -298,6 +367,19 @@ ul { margin-top: 0; }
 [data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
 [data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
 [data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
+[data-theme="classic"] .version-switch { margin: 0 auto .6rem; }
+[data-theme="classic"] .version-tab {
+  padding: .3rem 1.4rem;
+  border: 1px solid #6a8bad;
+  background: #fff;
+  color: #6a8bad;
+  font-size: .95rem;
+  font-weight: 600;
+}
+[data-theme="classic"] .version-tab:first-child { border-radius: 999px 0 0 999px; }
+[data-theme="classic"] .version-tab:last-child { border-radius: 0 999px 999px 0; }
+[data-theme="classic"] .version-tab + .version-tab { border-left: 0; }
+[data-theme="classic"] .version-tab[aria-pressed="true"] { background: #6a8bad; color: #fff; }
 
 /* ---------- Noir (dark shop style) ---------- */
 [data-theme="noir"] {
@@ -342,7 +424,23 @@ ul { margin-top: 0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-[data-theme="noir"] .repo-switch { gap: 0; margin: 22px 0 6px; }
+[data-theme="noir"] .version-switch { margin: 22px auto 0; width: max-content; border: 1px solid #4a4a50; border-radius: 999px; padding: 3px; }
+[data-theme="noir"] .version-tab {
+  min-width: 64px;
+  padding: 5px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  transition: background-color .2s ease, color .2s ease;
+}
+[data-theme="noir"] .version-tab:hover { color: var(--text); }
+[data-theme="noir"] .version-tab[aria-pressed="true"] { background: var(--gold); color: #1b1b1d; }
+[data-theme="noir"] .repo-switch { gap: 0; margin: 14px 0 6px; }
 [data-theme="noir"] .repo-link {
   padding: 4px 22px 8px;
   color: var(--muted);
@@ -492,7 +590,8 @@ ul { margin-top: 0; }
 <p class="pageDescription">A Paperback extensions repository</p>
 </header>
 
-<!-- Both: one link per repository on this site -->
+<!-- Both: the app version, then one link per repository of that version -->
+<nav class="version-switch" aria-label="Paperback version">${versionTabs}</nav>
 <nav class="repo-switch" aria-label="Repositories">${repoLinks}</nav>
 
 <header class="classic-only">
@@ -547,6 +646,7 @@ ${sources.map(sourceItem).join("\n")}
 <script>
 (function () {
   var REPOS = ${jsonForScript(REPOS)};
+  var CREDITS_NOTE = ${jsonForScript(CREDITS_NOTE)};
   var CURRENT = ${jsonForScript(current.ref)};
   var BUILD_SITE_ROOT = ${jsonForScript(siteRoot)};
   var RATING_TAGS = ${jsonForScript(RATING_TAGS)};
@@ -595,9 +695,41 @@ ${sources.map(sourceItem).join("\n")}
   links.forEach(function (link) {
     if (baseUrlOf(link.dataset.ref)) link.href = baseUrlOf(link.dataset.ref) + "/";
   });
+  function repoOf(ref) {
+    return REPOS.filter(function (r) { return r.ref === ref; })[0];
+  }
   function labelOf(ref) {
-    var repo = REPOS.filter(function (r) { return r.ref === ref; })[0];
-    return repo ? repo.label : ref;
+    var repo = repoOf(ref);
+    return repo ? repo.label + " (" + repo.version + ")" : ref;
+  }
+
+  // 0.9 entries have description/badges, 0.8 ones desc/tags.
+  function normalize(s) {
+    return {
+      id: s.id,
+      name: String(s.name || s.id).trim(),
+      description: s.description || s.desc || "",
+      version: s.version,
+      contentRating: s.contentRating,
+      badges: s.badges || (s.tags || []).filter(function (t) { return t && t.text; }).map(function (t) {
+        return { label: t.text, type: t.type === "default" ? undefined : t.type };
+      }),
+    };
+  }
+  function creditList(upstreams) {
+    var byRepo = {};
+    var order = [];
+    (upstreams || []).forEach(function (u) {
+      var count = (u.added || []).length + (u.ported || []).length;
+      if (!count) return;
+      var key = u.url + "|" + (u.appVersion || "");
+      if (!byRepo[key]) {
+        byRepo[key] = { label: u.label, url: u.url, sourceCode: u.sourceCode, license: u.license, licenseFile: u.licenseFile, commit: String(u.commit || "").slice(0, 7), count: 0, ported: !!(u.ported && u.ported.length), appVersion: u.appVersion };
+        order.push(key);
+      }
+      byRepo[key].count += count;
+    });
+    return order.map(function (key) { return byRepo[key]; });
   }
 
   function load(ref) {
@@ -620,19 +752,18 @@ ${sources.map(sourceItem).join("\n")}
         var versioning = both[0];
         var upstreams = (both[1] && both[1].upstreams) || [];
         var origins = {};
-        upstreams.forEach(function (u) { (u.added || []).forEach(function (id) { origins[id] = u.label; }); });
+        upstreams.forEach(function (u) {
+          (u.added || []).concat(u.ported || []).forEach(function (id) { origins[id] = u.label; });
+        });
+        var repository = versioning.repository || { name: labelOf(ref), description: "" };
         data[ref] = {
-          name: versioning.repository.name,
-          description: versioning.repository.description,
+          name: repository.name,
+          description: repository.description,
           buildTime: versioning.buildTime,
           sources: versioning.sources
-            .map(function (s) { return Object.assign({}, s, { origin: origins[s.id] }); })
+            .map(function (s) { return Object.assign(normalize(s), { origin: origins[s.id] }); })
             .sort(function (a, b) { return a.name.localeCompare(b.name); }),
-          credits: upstreams
-            .filter(function (u) { return u.added && u.added.length; })
-            .map(function (u) {
-              return { label: u.label, url: u.url, sourceCode: u.sourceCode, license: u.license, licenseFile: u.licenseFile, commit: String(u.commit || "").slice(0, 7), count: u.added.length };
-            }),
+          credits: creditList(upstreams),
         };
       })
       .catch(function () {
@@ -646,6 +777,7 @@ ${sources.map(sourceItem).join("\n")}
 
   function tagsOf(source) {
     var tags = (source.badges || []).map(function (badge) {
+      if (!badge.backgroundColor) return { label: badge.label, type: badge.type };
       return {
         label: badge.label,
         style: "background-color:" + badge.backgroundColor + ";border-color:" + badge.backgroundColor + ";color:" + badge.textColor,
@@ -653,7 +785,9 @@ ${sources.map(sourceItem).join("\n")}
     });
     var rating = RATING_TAGS[String(source.contentRating).toUpperCase()];
     if (rating) tags.push(rating);
-    return tags;
+    return tags.filter(function (tag, i) {
+      return tags.findIndex(function (other) { return other.label.toLowerCase() === tag.label.toLowerCase(); }) === i;
+    });
   }
 
   function el(tag, className, text) {
@@ -695,7 +829,7 @@ ${sources.map(sourceItem).join("\n")}
       var link = el("a", "", c.label);
       link.href = c.url;
       li.appendChild(link);
-      li.appendChild(document.createTextNode(" · " + c.count + " sources · " + c.license + " ("));
+      li.appendChild(document.createTextNode(" · " + c.count + (c.count === 1 ? " source" : " sources") + (c.ported ? " (" + c.appVersion + ", ported)" : "") + " · " + c.license + " ("));
       var lic = el("a", "", "license");
       lic.href = baseUrlOf(ref) + "/licenses/" + c.licenseFile;
       li.appendChild(lic);
@@ -707,7 +841,7 @@ ${sources.map(sourceItem).join("\n")}
       ul.appendChild(li);
     });
     creditsBox.appendChild(ul);
-    creditsBox.appendChild(el("p", "", "Copied unchanged from those public repositories when this one is built; their authors keep the credit."));
+    creditsBox.appendChild(el("p", "", CREDITS_NOTE));
   }
 
   function renderSources(sources) {
@@ -769,17 +903,36 @@ ${sources.map(sourceItem).join("\n")}
   // on iPhone the page changing under a tap cancels the tap, so "Add this
   // repository" would flip back to Stable instead of opening Paperback.
   var nav = document.querySelector(".repo-switch");
+  var versionTabs = Array.prototype.slice.call(document.querySelectorAll(".version-tab"));
+  function showVersion(version) {
+    versionTabs.forEach(function (tab) { tab.setAttribute("aria-pressed", String(tab.dataset.version === version)); });
+    links.forEach(function (link) { link.hidden = link.dataset.version !== version; });
+  }
   function choose(ref) {
     selected = ref;
     try { sessionStorage.setItem("repo-choice", ref); } catch (e) {}
+    var repo = repoOf(ref);
+    if (repo) showVersion(repo.version);
     show(ref);
   }
+  versionTabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var version = tab.dataset.version;
+      if (repoOf(selected) && repoOf(selected).version === version) return;
+      var remembered = null;
+      try { remembered = sessionStorage.getItem("repo-choice-" + version); } catch (e) {}
+      var target = REPOS.filter(function (r) { return r.version === version && r.ref === remembered; })[0] ||
+        REPOS.filter(function (r) { return r.version === version; })[0];
+      if (target) choose(target.ref);
+    });
+  });
   links.forEach(function (link) {
     link.addEventListener("pointerenter", function (event) {
       if (event.pointerType === "mouse" && shown !== link.dataset.ref) show(link.dataset.ref);
     });
     link.addEventListener("click", function (event) {
       event.preventDefault();
+      try { sessionStorage.setItem("repo-choice-" + link.dataset.version, link.dataset.ref); } catch (e) {}
       choose(link.dataset.ref);
     });
   });
@@ -818,7 +971,7 @@ ${sources.map(sourceItem).join("\n")}
     var saved = sessionStorage.getItem("repo-choice");
     if (REPOS.some(function (repo) { return repo.ref === saved; })) selected = saved;
   } catch (e) {}
-  show(selected);
+  choose(selected);
   REPOS.forEach(function (repo) { if (repo.ref !== CURRENT) load(repo.ref); });
 })();
 </script>

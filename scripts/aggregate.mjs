@@ -1,107 +1,337 @@
-// Copies the sources of other public Paperback 0.9 repositories into this one,
-// so a single repository URL offers all of them. Runs after
-// `paperback-cli bundle`, before the homepage is written.
+// Brings the sources of other public Paperback repositories into this one, so
+// a single repository URL offers all of them, and makes the ones that exist
+// for only one app version usable on the other.
 //
-// For each upstream in scripts/aggregate.config.json (in order):
-//   - shallow-clone the branch its built repository is published from
-//   - copy every source folder whose id isn't taken yet (ids compared without
-//     case; this repository's own sources and earlier upstreams win)
-//   - add its entry to versioning.json unchanged
-// Then write third-party.json (what came from where, at which commit) and the
-// license texts next to the bundles. An upstream that can't be fetched is
-// skipped with a warning so the deploy still goes out.
+// The same script builds both repositories on this site; the branch decides:
 //
-// Usage: node scripts/aggregate.mjs [bundleFolder]
+//   0.9 (0.9/stable): after `paperback-cli bundle`,
+//     1. copies every source of the 0.9 repositories in `upstreams`
+//     2. adds every source of the 0.8 repositories in `upstreams08` that
+//        isn't here yet, ported to 0.9 (scripts/crossport.mjs)
+//
+//   0.8 (0.8/stable): from an empty folder,
+//     1. copies every source of the 0.8 repositories in `upstreams08`
+//     2. adds every source of the 0.9 repositories in `upstreams` that isn't
+//        here yet, ported to 0.8
+//
+// Repositories are listed in scripts/aggregate.config.json; only ones under an
+// open-source license that allows it are. A source counts as already here when
+// its id or name matches one that is (ignoring case and punctuation) or it
+// reads the same website. Earlier repositories win. third-party.json records
+// what came from where, at which commit; the license texts go next to the
+// bundles. A repository that can't be fetched is skipped with a warning so
+// the deploy still goes out.
+//
+// Usage: node scripts/aggregate.mjs [bundleFolder] [--version 0.8|0.9]
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const folder = process.argv[2] ?? "bundles";
+import { portToV8, portToV9 } from "./crossport.mjs";
+
+const args = process.argv.slice(2);
+const versionFlag = args.indexOf("--version");
+const folder = args.find((arg, i) => !arg.startsWith("--") && i !== versionFlag + 1) ?? "bundles";
+
+function branchName() {
+  if (process.env.BUILD_REF) return process.env.BUILD_REF;
+  if (process.env.GITHUB_REF_NAME) return process.env.GITHUB_REF_NAME;
+  try {
+    return execFileSync("git", ["branch", "--show-current"], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+}
+const version =
+  versionFlag >= 0 ? args[versionFlag + 1] : branchName().startsWith("0.8/") ? "0.8" : "0.9";
+
 const configPath = path.join(import.meta.dirname, "aggregate.config.json");
 const licensesDir = path.join(import.meta.dirname, "..", "third-party", "licenses");
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const versioningPath = path.join(folder, "versioning.json");
-const versioning = JSON.parse(fs.readFileSync(versioningPath, "utf8"));
-
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const taken = new Map(versioning.sources.map((source) => [source.id.toLowerCase(), "own"]));
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "aggregate-"));
-const upstreams = [];
 
-function git(args, options = {}) {
-  return execFileSync("git", args, { stdio: "pipe", timeout: 300_000, ...options })
-    .toString()
-    .trim();
+function git(gitArgs) {
+  return execFileSync("git", gitArgs, { stdio: "pipe", timeout: 300_000 }).toString().trim();
 }
 
-for (const upstream of config.upstreams) {
-  const dir = path.join(work, upstream.repo.replace(/[^A-Za-z0-9._-]/g, "_"));
-  const entry = {
-    repo: upstream.repo,
-    label: upstream.label,
-    license: upstream.license,
-    licenseFile: upstream.licenseFile,
-    sourceCode: upstream.sourceCode,
-    url: `https://github.com/${upstream.repo}`,
-    added: [],
-    skipped: [],
+// ── What's already here ──────────────────────────────────────────────────
+
+const ALIASES = { paperback: "komga", kavya: "kavita", comixto: "comix" };
+const norm = (value) => {
+  const key = String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  return ALIASES[key] ?? key;
+};
+const hostOf = (url) =>
+  (/^[a-z]+:\/\/([^/?#:]+)/i.exec(String(url ?? ""))?.[1] ?? "")
+    .toLowerCase()
+    .replace(/^www\./, "");
+// 0.9 sources name their website in the description ("… from mangadex.org.")
+const hostInText = (text) =>
+  (
+    /\b((?:[a-z0-9-]+\.)+(?:[a-z]{2,}))\b/i.exec(
+      String(text ?? "").replace(/https?:\/\//gi, ""),
+    )?.[1] ?? ""
+  )
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .replace(/\.$/, "");
+
+const describe08 = (entry) => ({
+  id: entry.id,
+  name: entry.name,
+  host: hostOf(entry.websiteBaseURL),
+});
+const describe09 = (info) => ({ id: info.id, name: info.name, host: hostInText(info.description) });
+
+class Catalog {
+  ids = new Map();
+  names = new Map();
+  hosts = new Map();
+  add({ id, name, host }, owner) {
+    this.ids.set(norm(id), owner);
+    if (name && !this.names.has(norm(name))) this.names.set(norm(name), { owner, host });
+    if (host && !this.hosts.has(host)) this.hosts.set(host, owner);
+  }
+  // Who already has this source, or undefined.
+  find({ id, name, host }) {
+    if (this.ids.has(norm(id))) return this.ids.get(norm(id));
+    if (host && this.hosts.has(host)) return this.hosts.get(host);
+    const named = name ? this.names.get(norm(name)) : undefined;
+    if (named && (!named.host || !host || named.host === host)) return named.owner;
+    return undefined;
+  }
+}
+
+// ── Fetching a repository ────────────────────────────────────────────────
+
+const clones = new Map();
+function clone(repo, branch) {
+  const key = `${repo}@${branch}`;
+  if (!clones.has(key)) {
+    const dir = path.join(work, key.replace(/[^A-Za-z0-9._-]/g, "_"));
+    try {
+      git([
+        "clone",
+        "--quiet",
+        "--depth",
+        "1",
+        "--branch",
+        branch,
+        `https://github.com/${repo}.git`,
+        dir,
+      ]);
+      clones.set(key, { dir, commit: git(["-C", dir, "rev-parse", "HEAD"]) });
+    } catch (error) {
+      clones.set(key, { error: error.message.split("\n")[0] });
+    }
+  }
+  return clones.get(key);
+}
+
+// A repository only published on GitHub Pages (no branch with the build):
+// its versioning.json and each source's files are downloaded (0.8 layout).
+async function download(pages) {
+  const base = pages.endsWith("/") ? pages : `${pages}/`;
+  const dir = path.join(work, base.replace(/[^A-Za-z0-9._-]/g, "_"));
+  const get = async (file) => {
+    const response = await fetch(base + file, { signal: AbortSignal.timeout(60_000) });
+    if (!response.ok) throw new Error(`${file}: HTTP ${response.status}`);
+    return Buffer.from(await response.arrayBuffer());
   };
-  upstreams.push(entry);
-  try {
-    git([
-      "clone",
-      "--quiet",
-      "--depth",
-      "1",
-      "--branch",
-      upstream.branch,
-      `https://github.com/${upstream.repo}.git`,
-      dir,
-    ]);
-    entry.commit = git(["-C", dir, "rev-parse", "HEAD"]);
-  } catch (error) {
-    entry.error = "couldn't be fetched";
-    console.warn(`[aggregate] ${upstream.repo}: ${error.message.split("\n")[0]}`);
-    continue;
+  const versioningFile = await get("versioning.json");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "versioning.json"), versioningFile);
+  const theirs = JSON.parse(versioningFile.toString("utf8"));
+  for (const source of theirs.sources ?? []) {
+    if (!SAFE_ID.test(String(source?.id ?? ""))) continue;
+    const icon = path.basename(String(source.icon ?? "icon.png"));
+    try {
+      fs.mkdirSync(path.join(dir, source.id, "includes"), { recursive: true });
+      fs.writeFileSync(path.join(dir, source.id, "source.js"), await get(`${source.id}/source.js`));
+      fs.writeFileSync(
+        path.join(dir, source.id, "includes", icon),
+        await get(`${source.id}/includes/${icon}`),
+      );
+    } catch (error) {
+      console.warn(`[aggregate] ${base}${source.id}: ${error.message}`);
+    }
+  }
+  return { dir, commit: String(theirs.buildTime ?? "") };
+}
+
+// The sources one upstream offers: [{ id, entry, dir }], in its order.
+async function sourcesOf(upstream, record) {
+  let base;
+  if (upstream.pages) {
+    try {
+      const fetched = await download(upstream.pages);
+      base = fetched.dir;
+      record.commit = fetched.commit;
+    } catch (error) {
+      record.error = "couldn't be fetched";
+      console.warn(`[aggregate] ${upstream.pages}: ${error.message}`);
+      return [];
+    }
+  } else {
+    const fetched = clone(upstream.repo, upstream.branch);
+    if (fetched.error) {
+      record.error = "couldn't be fetched";
+      console.warn(`[aggregate] ${upstream.repo}: ${fetched.error}`);
+      return [];
+    }
+    record.commit = fetched.commit;
+    base = path.join(fetched.dir, upstream.path ?? "");
   }
 
-  const base = path.join(dir, upstream.path ?? "");
+  if (upstream.layout === "info") {
+    // 0.9 bundles without a versioning.json: each source has its info.json.
+    return fs
+      .readdirSync(base, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && fs.existsSync(path.join(base, d.name, "info.json")))
+      .map((d) => {
+        const entry = JSON.parse(fs.readFileSync(path.join(base, d.name, "info.json"), "utf8"));
+        entry.id ??= d.name;
+        return { id: String(entry.id), entry, dir: path.join(base, d.name) };
+      });
+  }
   let theirs;
   try {
     theirs = JSON.parse(fs.readFileSync(path.join(base, "versioning.json"), "utf8"));
   } catch {
-    entry.error = "no versioning.json";
-    console.warn(`[aggregate] ${upstream.repo}: no versioning.json at ${upstream.path || "/"}`);
-    continue;
+    record.error = "no versioning.json";
+    console.warn(
+      `[aggregate] ${upstream.repo ?? upstream.pages}: no versioning.json at ${upstream.path || "/"}`,
+    );
+    return [];
   }
+  return (theirs.sources ?? []).filter(Boolean).map((entry) => ({
+    id: String(entry.id ?? ""),
+    entry,
+    dir: path.join(base, String(entry.id ?? "")),
+  }));
+}
 
-  for (const source of theirs.sources ?? []) {
-    const id = String(source?.id ?? "");
-    const key = id.toLowerCase();
+function recordFor(upstream, kind) {
+  return {
+    repo: upstream.repo ?? hostOf(upstream.pages),
+    label: upstream.label,
+    license: upstream.license,
+    licenseFile: upstream.licenseFile,
+    sourceCode: upstream.sourceCode,
+    url: upstream.repo ? `https://github.com/${upstream.repo}` : upstream.pages,
+    appVersion: kind,
+    added: [],
+    ported: [],
+    skipped: [],
+  };
+}
+
+// ── Build ────────────────────────────────────────────────────────────────
+
+const records = [];
+const catalog = new Catalog();
+const taken = new Set();
+let versioning;
+
+const native = version === "0.8" ? config.upstreams08 : config.upstreams;
+const foreign = version === "0.8" ? config.upstreams : config.upstreams08;
+const nativeFile = version === "0.8" ? "source.js" : "index.js";
+const describeNative = version === "0.8" ? describe08 : describe09;
+const describeForeign = version === "0.8" ? describe09 : describe08;
+
+if (version === "0.8") {
+  fs.rmSync(folder, { recursive: true, force: true });
+  fs.mkdirSync(folder, { recursive: true });
+  versioning = {
+    buildTime: new Date(),
+    builtWith: { toolchain: "0.8.7", types: "0.8.7" },
+    repository: config.repository08,
+    sources: [],
+  };
+} else {
+  versioning = JSON.parse(fs.readFileSync(versioningPath, "utf8"));
+  for (const source of versioning.sources) {
+    catalog.add(describe09(source), "here");
+    taken.add(source.id.toLowerCase());
+  }
+}
+
+// 1. Sources made for this app version, copied as they are.
+for (const upstream of native ?? []) {
+  const record = recordFor(upstream, version);
+  records.push(record);
+  for (const { id, entry, dir } of await sourcesOf(upstream, record)) {
     if (!SAFE_ID.test(id)) {
-      entry.skipped.push({ id, why: "unusual id" });
+      record.skipped.push({ id, why: "unusual id" });
       continue;
     }
-    if (taken.has(key)) {
-      const owner = taken.get(key);
-      entry.skipped.push({ id, why: owner === "own" ? "already here" : `taken from ${owner}` });
+    if (taken.has(id.toLowerCase())) {
+      const owner = catalog.find({ id });
+      record.skipped.push({ id, why: owner === "here" ? "already here" : `taken from ${owner}` });
       continue;
     }
-    const from = path.join(base, id);
-    if (!fs.existsSync(path.join(from, "index.js"))) {
-      entry.skipped.push({ id, why: "no bundle" });
+    if (!fs.existsSync(path.join(dir, nativeFile))) {
+      record.skipped.push({ id, why: "no bundle" });
       continue;
     }
-    fs.cpSync(from, path.join(folder, id), { recursive: true });
-    versioning.sources.push(source);
-    taken.set(key, upstream.label);
-    entry.added.push(id);
+    fs.cpSync(dir, path.join(folder, id), { recursive: true });
+    versioning.sources.push(entry);
+    taken.add(id.toLowerCase());
+    catalog.add(describeNative(entry), upstream.label);
+    record.added.push(id);
   }
   console.log(
-    `[aggregate] ${upstream.repo}@${entry.commit.slice(0, 7)}: +${entry.added.length}` +
-      (entry.skipped.length ? `, skipped ${entry.skipped.map((s) => s.id).join(", ")}` : ""),
+    `[aggregate] ${record.repo}@${String(record.commit ?? "").slice(0, 7)}: +${record.added.length}` +
+      (record.skipped.length ? `, skipped ${record.skipped.map((s) => s.id).join(", ")}` : ""),
+  );
+}
+
+// 2. Sources only the other app version has, ported.
+const otherVersion = version === "0.8" ? "0.9" : "0.8";
+for (const upstream of foreign ?? []) {
+  const record = recordFor(upstream, otherVersion);
+  records.push(record);
+  for (const { id, entry, dir } of await sourcesOf(upstream, record)) {
+    if (!SAFE_ID.test(id)) {
+      record.skipped.push({ id, why: "unusual id" });
+      continue;
+    }
+    const about = describeForeign(entry);
+    const owner = taken.has(id.toLowerCase())
+      ? (catalog.find({ id }) ?? "here")
+      : catalog.find(about);
+    if (owner) {
+      record.skipped.push({ id, why: owner === "here" ? "already here" : `already from ${owner}` });
+      continue;
+    }
+    const port =
+      version === "0.8"
+        ? await portToV8({
+            id,
+            dir,
+            info: entry,
+            outDir: folder,
+            website: about.host ? `https://${about.host}` : "",
+          })
+        : await portToV9({ id, dir, entry, outDir: folder });
+    if (port.skipped) {
+      record.skipped.push({ id, why: port.skipped });
+      continue;
+    }
+    versioning.sources.push(version === "0.8" ? port.entry : port.info);
+    taken.add(id.toLowerCase());
+    catalog.add(about, upstream.label);
+    record.ported.push(id);
+  }
+  console.log(
+    `[aggregate] ${record.repo}: ported ${record.ported.length} to ${version}` +
+      (record.skipped.length ? `, skipped ${record.skipped.length}` : ""),
   );
 }
 
@@ -109,9 +339,16 @@ fs.writeFileSync(versioningPath, JSON.stringify(versioning));
 fs.cpSync(licensesDir, path.join(folder, "licenses"), { recursive: true });
 fs.writeFileSync(
   path.join(folder, "third-party.json"),
-  JSON.stringify({ generated: new Date().toISOString(), upstreams }, null, 2),
+  JSON.stringify(
+    { generated: new Date().toISOString(), appVersion: version, upstreams: records },
+    null,
+    2,
+  ),
 );
 fs.rmSync(work, { recursive: true, force: true });
 
-const added = upstreams.reduce((sum, u) => sum + u.added.length, 0);
-console.log(`[aggregate] ${versioning.sources.length} sources (${added} from other repositories)`);
+const added = records.reduce((sum, r) => sum + r.added.length, 0);
+const ported = records.reduce((sum, r) => sum + r.ported.length, 0);
+console.log(
+  `[aggregate] ${version}: ${versioning.sources.length} sources (${added} from other repositories, ${ported} ported from ${otherVersion})`,
+);
