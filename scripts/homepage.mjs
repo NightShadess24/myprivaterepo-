@@ -223,11 +223,19 @@ const embedded = {
 
 const baseUrl = baseUrlOf(current.ref);
 
-const repoLinks = REPOS.map(
-  (repo) =>
-    `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}" data-version="${escapeHtml(repo.version)}"${
-      repo === current ? ' aria-current="true"' : ""
-    }${repo.version === current.version ? "" : " hidden"}>${escapeHtml(repo.label)}</a>`,
+// One group of links per app version, so separators and rounded ends only
+// count the links of the version shown.
+const repoLink = (repo) =>
+  `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}" data-version="${escapeHtml(repo.version)}"${
+    repo === current ? ' aria-current="true"' : ""
+  }>${escapeHtml(repo.label)}</a>`;
+const repoLinks = VERSIONS.map(
+  (version) =>
+    `<span class="repo-group" data-version="${escapeHtml(version.id)}"${
+      version.id === current.version ? "" : " hidden"
+    }>${REPOS.filter((repo) => repo.version === version.id)
+      .map(repoLink)
+      .join("")}</span>`,
 ).join("");
 
 const versionTabs = VERSIONS.map(
@@ -286,7 +294,8 @@ ul { margin-top: 0; }
 /* Repository links: hover shows that repository's sources, click keeps them */
 .repo-switch { display: flex; justify-content: center; flex-wrap: wrap; }
 .repo-link { cursor: pointer; white-space: nowrap; }
-.repo-link[hidden] { display: none !important; }
+.repo-group { display: contents; }
+.repo-group[hidden] { display: none !important; }
 
 /* App version tabs (v9 / v8) */
 .version-switch { display: flex; justify-content: center; gap: 0; }
@@ -364,6 +373,7 @@ ul { margin-top: 0; }
 }
 [data-theme="classic"] .repo-link:first-child { border-radius: 4px 0 0 4px; }
 [data-theme="classic"] .repo-link:last-child { border-radius: 0 4px 4px 0; }
+[data-theme="classic"] .repo-link:only-child { border-radius: 4px; }
 [data-theme="classic"] .repo-link + .repo-link { border-left: 0; }
 [data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
 [data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
@@ -906,7 +916,7 @@ ${sources.map(sourceItem).join("\n")}
   var versionTabs = Array.prototype.slice.call(document.querySelectorAll(".version-tab"));
   function showVersion(version) {
     versionTabs.forEach(function (tab) { tab.setAttribute("aria-pressed", String(tab.dataset.version === version)); });
-    links.forEach(function (link) { link.hidden = link.dataset.version !== version; });
+    document.querySelectorAll(".repo-group").forEach(function (group) { group.hidden = group.dataset.version !== version; });
   }
   function choose(ref) {
     selected = ref;
