@@ -18,7 +18,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["MangaOniInfo"] = {"version":"1.0.101","name":"MangaOni","icon":"icon.png","author":"Felii","authorWebsite":"https://github.com/feliivk","description":"Lectura desde MangaOni (manga-oni.com)","contentRating":"MATURE","websiteBaseURL":"https://manga-oni.com","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"Español","type":"default"}],"intents":5,"language":"es"};
+exported["MangaOniInfo"] = {"version":"1.0.102","name":"MangaOni","icon":"icon.png","author":"Felii","authorWebsite":"https://github.com/feliivk","description":"Lectura desde MangaOni (manga-oni.com)","contentRating":"MATURE","websiteBaseURL":"https://manga-oni.com","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"Español","type":"default"}],"intents":5,"language":"es"};
 exported["MangaOni"] = __pbV9.makeSourceClass(__load, {"id":"MangaOni","name":"MangaOni","website":"https://manga-oni.com","contentRating":"MATURE","discover":true,"settings":false,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

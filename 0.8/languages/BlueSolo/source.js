@@ -11,7 +11,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["BlueSoloInfo"] = {"version":"1.0.401","name":"BlueSolo","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls manga from BlueSolo.","contentRating":"EVERYONE","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"French 🇫🇷","type":"default"}],"intents":5,"language":"fr"};
+exported["BlueSoloInfo"] = {"version":"1.0.402","name":"BlueSolo","icon":"icon.png","author":"Catta1997","authorWebsite":"https://github.com/Catta1997","description":"Extension that pulls manga from BlueSolo.","contentRating":"EVERYONE","websiteBaseURL":"","sourceTags":[{"text":"0.9 port","type":"info"},{"text":"French 🇫🇷","type":"default"}],"intents":5,"language":"fr"};
 exported["BlueSolo"] = __pbV9.makeSourceClass(__load, {"id":"BlueSolo","name":"BlueSolo","website":"","contentRating":"SAFE","discover":true,"settings":false,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

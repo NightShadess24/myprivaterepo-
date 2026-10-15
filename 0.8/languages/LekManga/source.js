@@ -19,7 +19,7 @@ CHANGING THIS OPTION WILL ERASE YOUR READING PROGRESS FOR THIS SOURCE!`}),oe(`hq
 ;return source;
 };
 var exported = {};
-exported["LekMangaInfo"] = {"version":"1.0.0-alpha.1401","name":"LekManga","icon":"icon.png","author":"Inkdex","authorWebsite":"https://inkdex.github.io","description":"Extension that pulls content from mangalik.net.","contentRating":"EVERYONE","websiteBaseURL":"https://mangalik.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"ar"};
+exported["LekMangaInfo"] = {"version":"1.0.0-alpha.1402","name":"LekManga","icon":"icon.png","author":"Inkdex","authorWebsite":"https://inkdex.github.io","description":"Extension that pulls content from mangalik.net.","contentRating":"EVERYONE","websiteBaseURL":"https://mangalik.net","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":53,"language":"ar"};
 exported["LekManga"] = __pbV9.makeSourceClass(__load, {"id":"LekManga","name":"LekManga","website":"https://mangalik.net","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":true,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);

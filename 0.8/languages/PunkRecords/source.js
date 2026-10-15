@@ -19,7 +19,7 @@ var source=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value:`Modul
 ;return source;
 };
 var exported = {};
-exported["PunkRecordsInfo"] = {"version":"1.0.0-alpha.201","name":"PunkRecords","icon":"icon.png","author":"Finebouche","authorWebsite":"https://github.com/Finebouche","description":"Extension pour récupérer le contenu de punkrecordz.com.","contentRating":"EVERYONE","websiteBaseURL":"https://punkrecordz.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37,"language":"fr"};
+exported["PunkRecordsInfo"] = {"version":"1.0.0-alpha.202","name":"PunkRecords","icon":"icon.png","author":"Finebouche","authorWebsite":"https://github.com/Finebouche","description":"Extension pour récupérer le contenu de punkrecordz.com.","contentRating":"EVERYONE","websiteBaseURL":"https://punkrecordz.com","sourceTags":[{"text":"0.9 port","type":"info"}],"intents":37,"language":"fr"};
 exported["PunkRecords"] = __pbV9.makeSourceClass(__load, {"id":"PunkRecords","name":"PunkRecords","website":"https://punkrecordz.com","contentRating":"SAFE","discover":true,"settings":true,"cloudflare":false,"filters":false});
 return exported;
 })(__pbV9.Application, __pbV9.globals.TextDecoder, __pbV9.globals.TextEncoder, __pbV9.globals.crypto, __pbV9.globals.atob, __pbV9.globals.btoa, __pbV9.globals.setTimeout, __pbV9.globals.clearTimeout, __pbV9.globals.console);
