@@ -23,14 +23,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 // The repositories on this site, in the order their links are shown.
+// `place`: top (the links under the version tabs), bottom (a quiet link at
+// the end of the page) or secret (shown after tapping "Available Sources"
+// five times in a row, or when that repository's own page is open).
 const REPOS = [
-  { ref: "0.9/stable", label: "Stable", version: "0.9" },
-  { ref: "0.9/languages", label: "Languages", version: "0.9" },
-  { ref: "0.9/nsfw", label: "NSFW", version: "0.9" },
-  { ref: "0.9/testversion", label: "Test Version", version: "0.9" },
-  { ref: "0.8/stable", label: "Stable", version: "0.8" },
-  { ref: "0.8/languages", label: "Languages", version: "0.8" },
-  { ref: "0.8/nsfw", label: "NSFW", version: "0.8" },
+  { ref: "0.9/stable", label: "SFW", version: "0.9", place: "top" },
+  { ref: "0.9/nsfw", label: "NSFW", version: "0.9", place: "top" },
+  { ref: "0.9/testversion", label: "Test Version", version: "0.9", place: "secret" },
+  { ref: "0.9/languages", label: "Others", version: "0.9", place: "bottom" },
+  { ref: "0.8/stable", label: "SFW", version: "0.8", place: "top" },
+  { ref: "0.8/nsfw", label: "NSFW", version: "0.8", place: "top" },
+  { ref: "0.8/languages", label: "Others", version: "0.8", place: "bottom" },
 ];
 // The app versions, in the order their tabs are shown.
 const VERSIONS = [
@@ -263,17 +266,20 @@ const baseUrl = baseUrlOf(current.ref);
 // One group of links per app version, so separators and rounded ends only
 // count the links of the version shown.
 const repoLink = (repo) =>
-  `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}" data-version="${escapeHtml(repo.version)}"${
+  `<a class="repo-link" href="${escapeHtml(siteRoot ? `${siteRoot}${repo.ref}/` : `../../${repo.ref}/`)}" data-ref="${escapeHtml(repo.ref)}" data-version="${escapeHtml(repo.version)}" data-place="${escapeHtml(repo.place)}"${
     repo === current ? ' aria-current="true"' : ""
-  }>${escapeHtml(repo.label)}</a>`;
-const repoLinks = VERSIONS.map(
-  (version) =>
-    `<span class="repo-group" data-version="${escapeHtml(version.id)}"${
-      version.id === current.version ? "" : " hidden"
-    }>${REPOS.filter((repo) => repo.version === version.id)
-      .map(repoLink)
-      .join("")}</span>`,
-).join("");
+  }${repo.place === "secret" && repo !== current ? " hidden" : ""}>${escapeHtml(repo.label)}</a>`;
+const linkGroups = (wanted) =>
+  VERSIONS.map(
+    (version) =>
+      `<span class="repo-group" data-version="${escapeHtml(version.id)}"${
+        version.id === current.version ? "" : " hidden"
+      }>${REPOS.filter((repo) => repo.version === version.id && wanted(repo.place))
+        .map(repoLink)
+        .join("")}</span>`,
+  ).join("");
+const repoLinks = linkGroups((place) => place !== "bottom");
+const otherLinks = linkGroups((place) => place === "bottom");
 
 const versionTabs = VERSIONS.map(
   (version) =>
@@ -334,6 +340,10 @@ ul { margin-top: 0; }
 .repo-link { cursor: pointer; white-space: nowrap; }
 .repo-group { display: contents; }
 .repo-group[hidden] { display: none !important; }
+
+/* "Others": a quiet link at the end of the page */
+.others-switch { display: flex; justify-content: center; margin-top: 40px; }
+.js-available { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 
 /* App version tabs (v9 / v8) */
 .version-switch { display: flex; justify-content: center; gap: 0; }
@@ -414,6 +424,8 @@ ul { margin-top: 0; }
 [data-theme="classic"] .repo-link.row-start { border-left: 1px solid #2e84bf; border-radius: 4px 0 0 4px; }
 [data-theme="classic"] .repo-link.row-end { border-radius: 0 4px 4px 0; }
 [data-theme="classic"] .repo-link.row-start.row-end { border-radius: 4px; }
+[data-theme="classic"] .others-switch .repo-link { border: 0; border-radius: 0; padding: 2px 6px; background: none; color: #6a8bad; font-size: .85rem; }
+[data-theme="classic"] .others-switch .repo-link[aria-current="true"] { color: #2e84bf; text-decoration: underline; }
 [data-theme="classic"] .repo-link:hover { text-decoration: none; background: #ecf5ff; }
 [data-theme="classic"] .repo-link[aria-current="true"] { background: #2e84bf; color: #fff; }
 [data-theme="classic"] .version-switch { margin: 0 auto .6rem; }
@@ -507,6 +519,19 @@ ul { margin-top: 0; }
 [data-theme="noir"] .repo-link + .repo-link { border-left: 1px solid #55555a; }
 [data-theme="noir"] .repo-link.row-start { border-left-color: transparent; }
 [data-theme="noir"] .repo-switch { row-gap: 4px; }
+[data-theme="noir"] .others-switch .repo-link {
+  padding: 2px 8px 4px;
+  border: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: none;
+  color: #6b6b72;
+  background-size: 0 1px;
+}
+[data-theme="noir"] .others-switch .repo-link:hover,
+[data-theme="noir"] .others-switch .repo-link[aria-current="true"] { color: var(--gold); background-size: 100% 1px; }
 [data-theme="noir"] .repo-link:hover,
 [data-theme="noir"] .repo-link:focus-visible { color: var(--text); background-size: 60% 2px; outline: none; }
 [data-theme="noir"] .repo-link[aria-current="true"] { color: var(--gold); background-size: 60% 2px; }
@@ -657,7 +682,7 @@ ul { margin-top: 0; }
 <p class="js-repo-description">${escapeHtml(description)}</p>
 <div class="baseUrlBar"><code class="js-base-url">${escapeHtml(baseUrl)}</code><button class="copyButton" type="button">Copy URL</button></div>
 </section>
-<h2 class="section-title">AVAILABLE<br>SOURCES</h2>
+<h2 class="section-title js-available">AVAILABLE<br>SOURCES</h2>
 <nav class="tabs" aria-label="Filter sources">
 <button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
 ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${escapeHtml(label)}" aria-pressed="false">${escapeHtml(label)}</button>`).join("\n")}
@@ -678,7 +703,7 @@ ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${
 <p class="title">Base URL:</p>
 <p class="js-base-url">${escapeHtml(baseUrl)}</p>
 </div>
-<p class="title">Available Sources:</p>
+<p class="title js-available">Available Sources:</p>
 </div>
 
 <!-- Both: the sources -->
@@ -690,6 +715,7 @@ ${sources.map(sourceItem).join("\n")}
 <p class="empty noir-only" hidden>No sources match this filter.</p>
 </div>
 <section class="credits js-credits"${credits.length ? "" : " hidden"}>${creditsHtml(credits)}</section>
+<nav class="others-switch" aria-label="Other repositories">${otherLinks}</nav>
 </div>
 </main>
 <footer class="noir-only js-footer">${escapeHtml(footerText(name, sources.length, versioning.buildTime))}</footer>
@@ -960,13 +986,16 @@ ${sources.map(sourceItem).join("\n")}
   // With a mouse, hovering a link shows that repository and leaving goes back
   // to the chosen one. A click or tap chooses it. Touch gets no hover preview:
   // on iPhone the page changing under a tap cancels the tap, so "Add this
-  // repository" would flip back to Stable instead of opening Paperback.
+  // repository" would flip back to SFW instead of opening Paperback.
   var nav = document.querySelector(".repo-switch");
+  var topLinks = links.filter(function (link) { return !!link.closest(".repo-switch"); });
+  var secretLinks = links.filter(function (link) { return link.dataset.place === "secret"; });
+  var revealed = false;
   var versionTabs = Array.prototype.slice.call(document.querySelectorAll(".version-tab"));
   // Links that start or end a row (they wrap on narrow screens): no
   // separator before the first of a row; Classic rounds each row's ends.
   function markRows() {
-    var shown = links.filter(function (link) { return !link.parentNode.hidden; });
+    var shown = topLinks.filter(function (link) { return !link.parentNode.hidden && !link.hidden; });
     for (var pass = 0; pass < 2; pass++) {
       shown.forEach(function (link, i) {
         var before = shown[i - 1];
@@ -985,8 +1014,11 @@ ${sources.map(sourceItem).join("\n")}
   }
   function choose(ref) {
     selected = ref;
-    try { sessionStorage.setItem("repo-choice", ref); } catch (e) {}
     var repo = repoOf(ref);
+    try {
+      sessionStorage.setItem("repo-choice", ref);
+      if (repo) sessionStorage.setItem("repo-choice-" + repo.version, ref);
+    } catch (e) {}
     if (repo) showVersion(repo.version);
     show(ref);
   }
@@ -996,21 +1028,48 @@ ${sources.map(sourceItem).join("\n")}
       if (repoOf(selected) && repoOf(selected).version === version) return;
       var remembered = null;
       try { remembered = sessionStorage.getItem("repo-choice-" + version); } catch (e) {}
-      var target = REPOS.filter(function (r) { return r.version === version && r.ref === remembered; })[0] ||
-        REPOS.filter(function (r) { return r.version === version; })[0];
+      var target = REPOS.filter(function (r) { return r.version === version && r.ref === remembered && (r.place !== "secret" || revealed); })[0] ||
+        REPOS.filter(function (r) { return r.version === version && r.place === "top"; })[0];
       if (target) choose(target.ref);
     });
   });
-  links.forEach(function (link) {
+  topLinks.forEach(function (link) {
     link.addEventListener("pointerenter", function (event) {
       if (event.pointerType === "mouse" && shown !== link.dataset.ref) show(link.dataset.ref);
     });
+  });
+  links.forEach(function (link) {
     link.addEventListener("click", function (event) {
       event.preventDefault();
-      try { sessionStorage.setItem("repo-choice-" + link.dataset.version, link.dataset.ref); } catch (e) {}
       choose(link.dataset.ref);
+      if (link.dataset.place === "bottom") window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
+
+  // Test Version: tapping "Available Sources" five times in a row shows it.
+  function reveal() {
+    revealed = true;
+    secretLinks.forEach(function (link) { link.hidden = false; });
+    try { sessionStorage.setItem("show-test", "1"); } catch (e) {}
+    markRows();
+  }
+  var taps = 0;
+  var lastTap = 0;
+  document.querySelectorAll(".js-available").forEach(function (title) {
+    title.addEventListener("click", function () {
+      var now = Date.now();
+      taps = now - lastTap < 1500 ? taps + 1 : 1;
+      lastTap = now;
+      if (taps < 5 || !secretLinks.length) return;
+      taps = 0;
+      reveal();
+      choose(secretLinks[0].dataset.ref);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+  try {
+    if (sessionStorage.getItem("show-test") === "1" || (repoOf(CURRENT) || {}).place === "secret") reveal();
+  } catch (e) {}
   nav.addEventListener("pointerleave", function (event) {
     if (event.pointerType === "mouse" && shown !== selected) show(selected);
   });
@@ -1044,7 +1103,7 @@ ${sources.map(sourceItem).join("\n")}
   // on coming back from Paperback.
   try {
     var saved = sessionStorage.getItem("repo-choice");
-    if (REPOS.some(function (repo) { return repo.ref === saved; })) selected = saved;
+    if (REPOS.some(function (repo) { return repo.ref === saved && (repo.place !== "secret" || revealed); })) selected = saved;
   } catch (e) {}
   choose(selected);
   REPOS.forEach(function (repo) { if (repo.ref !== CURRENT) load(repo.ref); });
