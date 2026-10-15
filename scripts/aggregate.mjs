@@ -332,6 +332,18 @@ if (version === "0.8" && ownFolder && fs.existsSync(path.join(ownFolder, "versio
 }
 
 if (version === "0.9") versioning = JSON.parse(fs.readFileSync(versioningPath, "utf8"));
+// Ratings decided here rather than by the source's own repository
+// (aggregate.config.json `ratingOverrides`): which of the three repositories
+// a source goes in follows them.
+const RATING_OVERRIDES = Object.fromEntries(
+  Object.entries(config.ratingOverrides ?? {}).filter(([id]) => !id.startsWith("$")),
+);
+for (const { list } of [...nativeLists, ...foreignLists]) {
+  for (const item of list) {
+    if (RATING_OVERRIDES[item.id]) item.entry.contentRating = RATING_OVERRIDES[item.id];
+  }
+}
+
 const lists09 = version === "0.9" ? nativeLists : foreignLists;
 const lists08 = version === "0.8" ? nativeLists : foreignLists;
 const overrides = config.languageOverrides ?? {};
@@ -466,6 +478,9 @@ for (const { upstream, record, list } of nativeLists) {
       continue;
     }
     fs.cpSync(dir, path.join(folder, id), { recursive: true });
+    if (RATING_OVERRIDES[id] && fs.existsSync(path.join(folder, id, "info.json"))) {
+      fs.writeFileSync(path.join(folder, id, "info.json"), JSON.stringify(entry));
+    }
     versioning.sources.push(entry);
     if (!isEnglish(language)) languages[id] = language;
     if (describeNative(entry).host) hosts[id] = describeNative(entry).host;
