@@ -53,6 +53,7 @@ import {
 } from "./utils/filters";
 import { filterChapters } from "./utils/groupFilter";
 import { errorText, logEvent } from "./utils/log";
+import { fetchAhead, keptPages, nextChapterId, rememberPages } from "./utils/pageCache";
 import {
   CaptchaRequired,
   fetchChapterPages,
@@ -404,8 +405,9 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       titleIndex !== -1
         ? (raw as string).slice(titleIndex)
         : `/title/${chapter.sourceManga.mangaId}/${chapter.chapterId}-chapter-${chapter.chapNum}`;
-    let pages: ChapterPageItems | undefined;
-    if (signedApiEnabled()) {
+    let pages: ChapterPageItems | undefined = (await keptPages(chapter.chapterId)) ?? undefined;
+    if (pages) logPageList(pages, "remembered or fetched ahead");
+    if (!pages && signedApiEnabled()) {
       try {
         pages = await fetchChapterPages(chapter.chapterId);
         logPageList(pages, "fast loading");
@@ -424,6 +426,19 @@ class ComixExtension implements ExtensionImpl<typeof ComixConfig> {
       if (!(error instanceof CloudflareError))
         logEvent("chapter failed", `${url}: ${errorText(error)}`);
       throw error;
+    }
+    rememberPages(chapter.chapterId, pages);
+    // With Fast Loading working, fetch the next chapter's pages while this one
+    // is read (one quick API call; the slower method would load a whole extra
+    // page out of sight for every chapter, which is what brings comix's check).
+    if (signedApiEnabled()) {
+      const next = nextChapterId(
+        chapter.sourceManga.mangaId,
+        chapter.chapterId,
+        chapter.chapNum,
+        chapter.langCode,
+      );
+      if (next) fetchAhead(next, () => fetchChapterPages(next));
     }
     startImageLog();
     return parseChapterDetails(chapter.chapterId, chapter.sourceManga.mangaId, pages);
