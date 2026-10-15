@@ -706,6 +706,9 @@ ul { margin-top: 0; }
 }
 [data-theme="noir"] .sortbar button:hover { color: var(--text); border-color: var(--text); }
 [data-theme="noir"] .sortbar button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #1b1b1d; font-weight: 600; }
+[data-theme="noir"] .sortbar .sort-reset { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
+[data-theme="noir"] .sortbar .sort-reset:disabled { opacity: .35; cursor: default; text-decoration: none; }
+[data-theme="noir"] .sortbar .sort-reset:disabled:hover { color: var(--muted); border-color: transparent; }
 [data-theme="noir"] .empty,
 [data-theme="noir"] .status { color: var(--muted); }
 [data-theme="noir"] .credits { max-width: 920px; margin: 48px auto 0; color: var(--muted); }
@@ -755,7 +758,7 @@ ul { margin-top: 0; }
 <button class="tab tab--brand" type="button" data-filter="" aria-pressed="true">All Sources</button>
 ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${escapeHtml(label)}" aria-pressed="false">${escapeHtml(label)}</button>`).join("\n")}
 </nav>
-<nav class="sortbar" aria-label="Sort sources"${pageStats ? "" : " hidden"}><span class="sortbar__label">Sort</span><button type="button" data-sort="name" aria-pressed="true">A–Z</button><button type="button" data-sort="popular" aria-pressed="false">Popular</button><button type="button" data-sort="stable" aria-pressed="false">Stable</button><button type="button" data-sort="recommended" aria-pressed="false">Recommended</button><button type="button" data-sort="titles" aria-pressed="false">Most titles</button><button type="button" data-sort="newest" aria-pressed="false">Newest</button></nav>
+<nav class="sortbar" aria-label="Sort sources"${pageStats ? "" : " hidden"}><span class="sortbar__label">Sort</span><button type="button" data-sort="name" aria-pressed="true">A–Z</button><button type="button" data-sort="popular" aria-pressed="false">Popular</button><button type="button" data-sort="stable" aria-pressed="false">Stable</button><button type="button" data-sort="recommended" aria-pressed="false">Recommended</button><button type="button" data-sort="titles" aria-pressed="false">Most titles</button><button type="button" data-sort="newest" aria-pressed="false">Newest</button><button type="button" class="sort-reset" title="Back to A–Z" disabled>↺ Reset</button></nav>
 </div>
 
 <div class="content">
@@ -1185,11 +1188,13 @@ ${sources.map(sourceItem).join("\n")}
       sortState.on = savedSort.on.filter(function (s) { return s && SORTS[s.key]; });
     }
   } catch (e) {}
-  var sortButtons = Array.prototype.slice.call(document.querySelectorAll(".sortbar button"));
+  var sortButtons = Array.prototype.slice.call(document.querySelectorAll(".sortbar button[data-sort]"));
+  var sortReset = document.querySelector(".sort-reset");
   function activeSort(key) {
     return sortState.on.filter(function (s) { return s.key === key; })[0];
   }
   function updateSortButtons() {
+    if (sortReset) sortReset.disabled = !sortState.on.length && !sortState.reverseName;
     sortButtons.forEach(function (button) {
       var key = button.dataset.sort;
       if (key === "name") {
@@ -1255,6 +1260,13 @@ ${sources.map(sourceItem).join("\n")}
       applySort();
     });
   });
+  if (sortReset) {
+    sortReset.addEventListener("click", function () {
+      sortState = { reverseName: false, on: [] };
+      try { localStorage.setItem("repo-sort-2", JSON.stringify(sortState)); } catch (e) {}
+      applySort();
+    });
+  }
 
   function show(ref) {
     shown = ref;
