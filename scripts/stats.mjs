@@ -113,8 +113,9 @@ async function loadExtension(id, entry) {
   const { ApplicationPolyfill } = await import("@paperback/runtime-polyfills");
   let file = path.join(folder, id, "index.js");
   let temp;
-  if (!fs.existsSync(file)) {
-    // A 0.8 source: checked through the same layer that runs it on 0.9.
+  // A 0.8 source (source.js; the 0.8 toolchain also leaves an unbundled
+  // index.js next to it): checked through the same layer that runs it on 0.9.
+  if (fs.existsSync(path.join(folder, id, "source.js"))) {
     temp = fs.mkdtempSync(path.join(os.tmpdir(), "stats-"));
     const port = await portToV9({ id, dir: path.join(folder, id), entry, outDir: temp });
     if (port.skipped) throw Object.assign(new Error(port.skipped), { skip: true });
@@ -498,6 +499,88 @@ async function lookUpSites(sites, samples) {
   );
 }
 
+// ── Failed checks: is the site gone, or only turning the check away? ──────
+
+const BOT_CHECK =
+  /just a moment|cf-chl|challenge-platform|ddos-guard|checking your browser|captcha|attention required|are you a robot|bot verification|sucuri website firewall/i;
+const PARKED =
+  /domain (?:name )?(?:is|may be) for sale|buy this domain|this domain (?:is|has been) parked|parked (?:free|domain)|sedoparking|hugedomains|afternic|domain parking|account (?:has been )?suspended|this account has been suspended|welcome to nginx!|apache2 (?:ubuntu|debian) default page|default web site page|<title>\s*index of \//i;
+const DEFINITE = /address doesn't exist|security certificate is broken/;
+
+// One look at the site's home page, the way a browser would ask for it.
+async function probeSite(host) {
+  try {
+    const response = await fetch(`https://${host}/`, {
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+        accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(20_000),
+    });
+    const text = (await response.text()).slice(0, 300_000);
+    const server = `${response.headers.get("server") ?? ""} ${response.headers.get("cf-mitigated") ?? ""}`;
+    if (
+      BOT_CHECK.test(text) ||
+      (/cloudflare|ddos-guard/i.test(server) && [403, 429, 503].includes(response.status))
+    )
+      return { site: "blocked" };
+    if (response.status === 403 || response.status === 429) return { site: "blocked" };
+    if (response.status === 404 || response.status === 410 || response.status >= 500)
+      return { site: "gone", why: `the site's home page answers ${response.status}` };
+    if (PARKED.test(text)) return { site: "gone", why: "the site's address is parked or for sale" };
+    const landed = bareHost(new URL(response.url).hostname);
+    if (registeredDomain(landed) !== registeredDomain(host))
+      return { site: "moved", why: `the site moved to ${landed}` };
+    return { site: "up" };
+  } catch (error) {
+    return { site: "unreachable", why: networkProblem(error) };
+  }
+}
+
+// Today's failures: a site that turns automated visitors away counts like
+// Cloudflare's check (it works in the app once you pass it); a site that's
+// gone or moved says so.
+async function probeFailures(checks) {
+  const failed = Object.entries(checks)
+    .map(([id, history]) => [id, history.at(-1)])
+    .filter(
+      ([id, entry]) =>
+        entry?.d === today && entry.r === "fail" && hosts[id] && !DEFINITE.test(entry.why ?? ""),
+    );
+  const byHost = new Map();
+  for (const [id, entry] of failed)
+    byHost.set(bareHost(hosts[id]), [...(byHost.get(bareHost(hosts[id])) ?? []), entry]);
+  await pool([...byHost.keys()], 6, Date.now() + 5 * 60_000, async (host) => {
+    const found = await probeSite(host);
+    for (const entry of byHost.get(host)) {
+      if (found.site === "blocked") {
+        entry.r = "cf";
+        entry.why =
+          "the site turned the check away (bot protection); works in the app once you pass it";
+      } else if (found.site === "gone" || found.site === "moved") {
+        entry.why = `${found.why} (${entry.why})`;
+      }
+      entry.site = found.site;
+    }
+  });
+  console.log(`[stats] looked at ${byHost.size} sites of failed checks`);
+}
+
+// Third-party sources that stopped working: the last check failed and none
+// of the last three worked. They're left out of the repository until a
+// daily check finds them working again (they're still checked every day).
+// Sources made here are never left out.
+const CHECKER_FAULT = /source is not defined/;
+function stoppedWorking(history) {
+  const recent = (history ?? []).filter((entry) => !CHECKER_FAULT.test(entry.why ?? "")).slice(-3);
+  return (
+    recent.length > 0 &&
+    recent.at(-1).r === "fail" &&
+    !recent.some((entry) => entry.r === "ok" || entry.r === "cf")
+  );
+}
+
 // ── Build stats.json ─────────────────────────────────────────────────────
 
 const previous = await previousStats();
@@ -519,6 +602,7 @@ if (runChecks) {
     history.push({ d: today, ...result });
     checks[id] = history.slice(-KEEP_DAYS);
   }
+  await probeFailures(checks);
   if (!args.includes("--no-sites")) await lookUpSites(sites, samples);
   try {
     const wanted = new Set(Object.values(hosts).flatMap(candidates));
@@ -563,6 +647,38 @@ for (const source of versioning.sources) {
   if (Object.keys(entry).length) about[source.id] = entry;
 }
 
+// Left out until they work again
+const fromElsewhere = new Set(
+  (thirdParty.upstreams ?? []).flatMap((upstream) => [
+    ...(upstream.added ?? []),
+    ...(upstream.ported ?? []),
+  ]),
+);
+const leftOut = {};
+for (const id of ids) {
+  if (fromElsewhere.has(id) && stoppedWorking(checks[id])) {
+    leftOut[id] = checks[id].at(-1).why ?? "stopped working";
+  }
+}
+if (Object.keys(leftOut).length && !args.includes("--keep-all")) {
+  versioning.sources = versioning.sources.filter((source) => !leftOut[source.id]);
+  fs.writeFileSync(path.join(folder, "versioning.json"), JSON.stringify(versioning));
+  for (const id of Object.keys(leftOut)) {
+    fs.rmSync(path.join(folder, id), { recursive: true, force: true });
+  }
+  if (thirdParty.upstreams) {
+    for (const upstream of thirdParty.upstreams) {
+      upstream.added = (upstream.added ?? []).filter((id) => !leftOut[id]);
+      upstream.ported = (upstream.ported ?? []).filter((id) => !leftOut[id]);
+    }
+    thirdParty.stoppedWorking = leftOut;
+    fs.writeFileSync(path.join(folder, "third-party.json"), JSON.stringify(thirdParty));
+  }
+  console.log(
+    `[stats] left out ${Object.keys(leftOut).length} sources that stopped working: ${Object.keys(leftOut).join(", ")}`,
+  );
+}
+
 const stats = {
   updated: runChecks ? today : previous.updated,
   ranksUpdated,
@@ -571,6 +687,7 @@ const stats = {
   recommended,
   about,
   sites: ownSites,
+  stoppedWorking: leftOut,
 };
 fs.writeFileSync(path.join(folder, "stats.json"), JSON.stringify(stats));
 const counted = Object.values(checks).map((history) => history.at(-1)?.r);

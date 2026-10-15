@@ -345,24 +345,6 @@
       "sourceCode": "https://github.com/Seyden/extensions-generic-0.8"
     },
     {
-      "repo": "ACK72/kavya-paperback",
-      "branch": "gh-pages",
-      "path": "",
-      "label": "Kavya",
-      "license": "BSD-2-Clause",
-      "licenseFile": "BSD-2-Clause-kavya-paperback.txt",
-      "sourceCode": "https://github.com/ACK72/kavya-paperback"
-    },
-    {
-      "repo": "ACK72/kavya-paperback-tracker",
-      "branch": "gh-pages",
-      "path": "",
-      "label": "Kavya Tracker",
-      "license": "BSD-2-Clause",
-      "licenseFile": "BSD-2-Clause-kavya-paperback-tracker.txt",
-      "sourceCode": "https://github.com/ACK72/kavya-paperback-tracker"
-    },
-    {
       "repo": "hoang3402/extensions-vn",
       "branch": "gh-pages",
       "path": "",

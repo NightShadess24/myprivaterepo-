@@ -79,6 +79,23 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 // Sources not brought in (aggregate.config.json `leaveOut`): sites for a
 // single series.
 const LEAVE_OUT = new Set((config.leaveOut?.ids ?? []).map((id) => id.toLowerCase()));
+
+// Clients for a server you run yourself (Komga, Kavita, …), not websites:
+// left out.
+const SELF_HOSTED =
+  /komga|kavita|kavya|lanraragi|suwayomi|tachidesk|ubooquity|self[- ]?hosted|host(?:ed)? yourself|your own server/i;
+function isSelfHosted(id, entry) {
+  return SELF_HOSTED.test(
+    [
+      id,
+      entry?.name,
+      entry?.description,
+      entry?.desc,
+      ...(entry?.badges ?? []).map((badge) => badge?.label),
+      ...(entry?.tags ?? []).map((tag) => tag?.text),
+    ].join(" "),
+  );
+}
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "aggregate-"));
 
 function git(gitArgs) {
@@ -399,6 +416,10 @@ for (const { upstream, record, list } of nativeLists) {
       record.skipped.push({ id, why: "a site for a single series" });
       continue;
     }
+    if (isSelfHosted(id, entry)) {
+      record.skipped.push({ id, why: "needs a server you run yourself" });
+      continue;
+    }
     if (taken.has(id.toLowerCase())) {
       const owner = catalog.find({ id });
       record.skipped.push({ id, why: owner === "here" ? "already here" : `taken from ${owner}` });
@@ -437,6 +458,10 @@ for (const { upstream, record, list } of foreignLists) {
     }
     if (LEAVE_OUT.has(id.toLowerCase())) {
       record.skipped.push({ id, why: "a site for a single series" });
+      continue;
+    }
+    if (isSelfHosted(id, entry)) {
+      record.skipped.push({ id, why: "needs a server you run yourself" });
       continue;
     }
     const about = describeForeign(entry);

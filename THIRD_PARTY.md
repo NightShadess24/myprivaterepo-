@@ -48,31 +48,29 @@ its repository, license and source code.
 
 ## Paperback 0.8 repositories
 
-| Repository                                                                                                          | License      |
-| ------------------------------------------------------------------------------------------------------------------- | ------------ |
-| [acepilot147/pb-extensions](https://github.com/acepilot147/pb-extensions)                                           | GPL-3.0      |
-| [feliivk/felii-extensions](https://github.com/feliivk/felii-extensions)                                             | GPL-3.0      |
-| [PoppingMangoSources/popmango-paperback-sources](https://github.com/PoppingMangoSources/popmango-paperback-sources) | GPL-3.0      |
-| [timkuel/PaperBackExtension](https://github.com/timkuel/PaperBackExtension)                                         | MIT          |
-| [HailXD/pb-extensions](https://github.com/HailXD/pb-extensions)                                                     | GPL-3.0      |
-| [karrot0/kakarotextension0.8](https://github.com/karrot0/kakarotextension0.8)                                       | GPL-3.0      |
-| [naufaljct48/nopools-ext](https://github.com/naufaljct48/nopools-ext)                                               | MIT          |
-| [ryukajinokami/paperback-extensions](https://github.com/ryukajinokami/paperback-extensions)                         | MIT          |
-| [g2asell2019/numby-extensions](https://github.com/g2asell2019/numby-extensions)                                     | GPL-3.0      |
-| [gabrielcwt/gabe-extensions](https://github.com/gabrielcwt/gabe-extensions)                                         | GPL-3.0      |
-| [TheNetsky/community-extensions](https://github.com/TheNetsky/community-extensions)                                 | GPL-3.0      |
-| [ivanmatthew/ivans-paperback-extensions](https://github.com/ivanmatthew/ivans-paperback-extensions)                 | MIT          |
-| [awwrch/extension](https://github.com/awwrch/extension)                                                             | GPL-3.0      |
-| [Seyden/community-extensions](https://github.com/Seyden/community-extensions)                                       | GPL-3.0      |
-| [Paperback-iOS/extensions-default](https://github.com/Paperback-iOS/extensions-default)                             | GPL-3.0      |
-| [TheNetsky/extensions-generic-0.8](https://github.com/TheNetsky/extensions-generic-0.8)                             | MIT          |
-| [TheNetsky/netskys-extensions](https://github.com/TheNetsky/netskys-extensions)                                     | MIT          |
-| [CookieSylvia/cookies-extensions](https://github.com/CookieSylvia/cookies-extensions)                               | MIT          |
-| [Seyden/extensions-generic-0.8](https://github.com/Seyden/extensions-generic-0.8)                                   | MIT          |
-| [ACK72/kavya-paperback](https://github.com/ACK72/kavya-paperback)                                                   | BSD-2-Clause |
-| [ACK72/kavya-paperback-tracker](https://github.com/ACK72/kavya-paperback-tracker)                                   | BSD-2-Clause |
-| [hoang3402/extensions-vn](https://github.com/hoang3402/extensions-vn)                                               | MIT          |
-| [Paperback-iOS/extensions](https://github.com/Paperback-iOS/extensions)                                             | GPL-3.0      |
+| Repository                                                                                                          | License |
+| ------------------------------------------------------------------------------------------------------------------- | ------- |
+| [acepilot147/pb-extensions](https://github.com/acepilot147/pb-extensions)                                           | GPL-3.0 |
+| [feliivk/felii-extensions](https://github.com/feliivk/felii-extensions)                                             | GPL-3.0 |
+| [PoppingMangoSources/popmango-paperback-sources](https://github.com/PoppingMangoSources/popmango-paperback-sources) | GPL-3.0 |
+| [timkuel/PaperBackExtension](https://github.com/timkuel/PaperBackExtension)                                         | MIT     |
+| [HailXD/pb-extensions](https://github.com/HailXD/pb-extensions)                                                     | GPL-3.0 |
+| [karrot0/kakarotextension0.8](https://github.com/karrot0/kakarotextension0.8)                                       | GPL-3.0 |
+| [naufaljct48/nopools-ext](https://github.com/naufaljct48/nopools-ext)                                               | MIT     |
+| [ryukajinokami/paperback-extensions](https://github.com/ryukajinokami/paperback-extensions)                         | MIT     |
+| [g2asell2019/numby-extensions](https://github.com/g2asell2019/numby-extensions)                                     | GPL-3.0 |
+| [gabrielcwt/gabe-extensions](https://github.com/gabrielcwt/gabe-extensions)                                         | GPL-3.0 |
+| [TheNetsky/community-extensions](https://github.com/TheNetsky/community-extensions)                                 | GPL-3.0 |
+| [ivanmatthew/ivans-paperback-extensions](https://github.com/ivanmatthew/ivans-paperback-extensions)                 | MIT     |
+| [awwrch/extension](https://github.com/awwrch/extension)                                                             | GPL-3.0 |
+| [Seyden/community-extensions](https://github.com/Seyden/community-extensions)                                       | GPL-3.0 |
+| [Paperback-iOS/extensions-default](https://github.com/Paperback-iOS/extensions-default)                             | GPL-3.0 |
+| [TheNetsky/extensions-generic-0.8](https://github.com/TheNetsky/extensions-generic-0.8)                             | MIT     |
+| [TheNetsky/netskys-extensions](https://github.com/TheNetsky/netskys-extensions)                                     | MIT     |
+| [CookieSylvia/cookies-extensions](https://github.com/CookieSylvia/cookies-extensions)                               | MIT     |
+| [Seyden/extensions-generic-0.8](https://github.com/Seyden/extensions-generic-0.8)                                   | MIT     |
+| [hoang3402/extensions-vn](https://github.com/hoang3402/extensions-vn)                                               | MIT     |
+| [Paperback-iOS/extensions](https://github.com/Paperback-iOS/extensions)                                             | GPL-3.0 |
 
 Not included, because they don't allow copying (no license, or "all rights
 reserved"): nyzzik/extensions, TheVodraz/paperback-extensions,
@@ -83,6 +81,7 @@ dutch25/VietSource (0.8). They can still be added to Paperback on their own.
 Sites for a single series (ReadOnePiece, ReadBleach and the like, from
 TheNetsky/extensions-generic-0.8) are left out on purpose: `leaveOut` in
 `scripts/aggregate.config.json`.
+So are clients for a server you run yourself (Komga, Kavita and the like).
 
 The 0.8 ports bundle [cheerio](https://github.com/cheeriojs/cheerio) 1.0.0-rc.12
 (MIT), which the 0.8 app provided to its sources; the 0.9 ports bundle
@@ -108,3 +107,7 @@ address was registered, from the public domain registration records
 Western comics or novels, from a sample of its titles looked up on
 [AniList](https://anilist.co). Paperback doesn't publish how many people use
 each source, so popularity stays the website's Tranco rank.
+
+Sources from other repositories that stop working (the site is gone, or they
+fail every daily check for three days) are left out of the repositories until
+a daily check finds them working again (`stoppedWorking` in `stats.json`).
