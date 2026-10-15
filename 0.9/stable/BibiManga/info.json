@@ -1,0 +1,1 @@
+{"name":"BibiManga","description":"Extension that pulls manga from https://bibimanga.com","version":"3.1.401","icon":"icon.png","language":"en","contentRating":"SAFE","capabilities":[1,64,4,16,32],"badges":[{"label":"0.8 port","textColor":"#ffffff","backgroundColor":"#6b7280"}],"developers":[{"name":"Netsky","website":"http://github.com/TheNetsky"}],"id":"BibiManga"}

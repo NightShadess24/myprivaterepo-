@@ -1,0 +1,1 @@
+{"name":"MangaHere","description":"Extension that pulls manga from mangahere.cc","version":"3.0.501","icon":"icon.png","language":"en","contentRating":"MATURE","capabilities":[1,64,4,16],"badges":[{"label":"0.8 port","textColor":"#ffffff","backgroundColor":"#6b7280"}],"developers":[{"name":"Netsky","website":"https://github.com/TheNetsky"}],"id":"MangaHere"}

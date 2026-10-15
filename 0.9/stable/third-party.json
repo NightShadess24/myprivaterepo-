@@ -1,5 +1,6 @@
 {
-  "generated": "2026-10-15T00:38:13.648Z",
+  "generated": "2026-10-15T09:57:53.024Z",
+  "appVersion": "0.9",
   "upstreams": [
     {
       "repo": "inkdex/extensions",
@@ -8,6 +9,7 @@
       "licenseFile": "GPL-3.0.txt",
       "sourceCode": "https://github.com/inkdex",
       "url": "https://github.com/inkdex/extensions",
+      "appVersion": "0.9",
       "added": [
         "AllPornComic",
         "AniList",
@@ -56,6 +58,7 @@
         "WebtoonXYZ",
         "YaoiScan"
       ],
+      "ported": [],
       "skipped": [
         {
           "id": "AllManga",
@@ -159,6 +162,7 @@
       "licenseFile": "MIT-KakarotExtension.txt",
       "sourceCode": "https://github.com/karrot0/KakarotExtension",
       "url": "https://github.com/karrot0/KakarotExtension",
+      "appVersion": "0.9",
       "added": [
         "Batcave",
         "Elftoon",
@@ -179,6 +183,7 @@
         "ScribbleHub",
         "ZipComic"
       ],
+      "ported": [],
       "skipped": [],
       "commit": "95e23868f39ceb88766969a603b9aef4c9b9d89c"
     },
@@ -189,6 +194,7 @@
       "licenseFile": "GPL-3.0.txt",
       "sourceCode": "https://github.com/Catta1997/Sinon-Paperback-Extensions",
       "url": "https://github.com/Catta1997/Sinon-Paperback-Extensions",
+      "appVersion": "0.9",
       "added": [
         "BlueSolo",
         "EHentai",
@@ -207,6 +213,7 @@
         "RokuHentai",
         "TuttoAnimeManga"
       ],
+      "ported": [],
       "skipped": [],
       "commit": "a7e4fa6464e67f3cf03ccf162d0a1d9a8e739ff0"
     },
@@ -217,6 +224,7 @@
       "licenseFile": "GPL-3.0.txt",
       "sourceCode": "https://github.com/kittycatgit/kitty-extensions-0.9",
       "url": "https://github.com/kittycatgit/kitty-extensions-0.9",
+      "appVersion": "0.9",
       "added": [
         "DankeFursLesen",
         "Kavita",
@@ -232,6 +240,7 @@
         "ToonTop",
         "ZinManga"
       ],
+      "ported": [],
       "skipped": [
         {
           "id": "CoffeeManga",
@@ -255,11 +264,13 @@
       "licenseFile": "GPL-3.0.txt",
       "sourceCode": "https://github.com/itskodama/paperback-extensions",
       "url": "https://github.com/itskodama/paperback-extensions",
+      "appVersion": "0.9",
       "added": [
         "AsuraScans",
         "MangaBaka",
         "NovelArchive"
       ],
+      "ported": [],
       "skipped": [
         {
           "id": "LNORI",
@@ -275,13 +286,1334 @@
       "licenseFile": "GPL-3.0.txt",
       "sourceCode": "https://github.com/LucifersCircle/pirate.vodka-extensions",
       "url": "https://github.com/LucifersCircle/pirate.vodka-extensions",
+      "appVersion": "0.9",
       "added": [
         "Hijala",
         "Kagane",
+        "MangaSushi",
+        "ManhwaNex",
         "VortexScans"
       ],
+      "ported": [],
       "skipped": [],
-      "commit": "aa07adbccd0125ca4cb4de7a611d2d27011baf44"
+      "commit": "6f8fe5e5c3943464563a4fb5567b90899ef4b7e6"
+    },
+    {
+      "repo": "feliivk/felii-extensions",
+      "label": "Felii",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/feliivk/felii-extensions",
+      "url": "https://github.com/feliivk/felii-extensions",
+      "appVersion": "0.9",
+      "added": [
+        "MangaOni",
+        "ManhwaWeb",
+        "NovelasLigeras",
+        "NyxScans",
+        "Olympus",
+        "Topcur",
+        "Webtoons",
+        "ZonaTMO"
+      ],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "AsuraScans",
+          "why": "taken from Kodama"
+        },
+        {
+          "id": "HiveToons",
+          "why": "already here"
+        },
+        {
+          "id": "VortexScans",
+          "why": "taken from Pirate Vodka"
+        }
+      ],
+      "commit": "a79a41f9b35ea980866b14daa36820f3facfe96e"
+    },
+    {
+      "repo": "xdKinso/kinso-extensions-v0.8",
+      "label": "Kinso",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/xdKinso/kinso-extensions-v0.8",
+      "url": "https://github.com/xdKinso/kinso-extensions-v0.8",
+      "appVersion": "0.9",
+      "added": [
+        "BatoTo",
+        "ComixGallery",
+        "MangaPark"
+      ],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "AsuraScans",
+          "why": "taken from Kodama"
+        },
+        {
+          "id": "MangaBat",
+          "why": "taken from Inkdex"
+        },
+        {
+          "id": "MangaDemon",
+          "why": "already here"
+        },
+        {
+          "id": "MangaKatana",
+          "why": "already here"
+        },
+        {
+          "id": "ThunderScans",
+          "why": "taken from Inkdex"
+        },
+        {
+          "id": "WeebCentral",
+          "why": "already here"
+        }
+      ],
+      "commit": "762d06d2c983b862c232a30d0f79028ed2812050"
+    },
+    {
+      "repo": "Paperback-iOS/extensions-default",
+      "label": "Paperback",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Paperback-iOS/extensions-default",
+      "url": "https://github.com/Paperback-iOS/extensions-default",
+      "appVersion": "0.9",
+      "added": [
+        "Komga",
+        "Komga_2"
+      ],
+      "ported": [],
+      "skipped": [],
+      "commit": "59ffcaeb836992d73bb13b5252bdef9bf5afdb6f"
+    },
+    {
+      "repo": "TheNetsky/netskys-extensions",
+      "label": "Netsky",
+      "license": "MIT",
+      "licenseFile": "MIT-netskys-extensions.txt",
+      "sourceCode": "https://github.com/TheNetsky/netskys-extensions",
+      "url": "https://github.com/TheNetsky/netskys-extensions",
+      "appVersion": "0.9",
+      "added": [
+        "Mitaku"
+      ],
+      "ported": [],
+      "skipped": [],
+      "commit": "01148ddd98f5e990b337ac3d19c6d237d17f8f7b"
+    },
+    {
+      "repo": "Elrulia/paperback-extension",
+      "label": "Elrulia",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Elrulia/paperback-extension",
+      "url": "https://github.com/Elrulia/paperback-extension",
+      "appVersion": "0.9",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "MangaHub",
+          "why": "taken from Kittykat"
+        }
+      ],
+      "commit": "ae752c6bd36675513181fdb87852119854334e20"
+    },
+    {
+      "repo": "acepilot147/pb-extensions",
+      "label": "Ace",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/acepilot147/pb-extensions/tree/0.8",
+      "url": "https://github.com/acepilot147/pb-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "ComixTo",
+          "why": "already here"
+        }
+      ],
+      "commit": "c2ce4d3373e4f46f937a864ca812d3da31bbe68f"
+    },
+    {
+      "repo": "feliivk/felii-extensions",
+      "label": "Felii",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/feliivk/felii-extensions",
+      "url": "https://github.com/feliivk/felii-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "ManhwaWeb",
+          "why": "already from Felii"
+        },
+        {
+          "id": "VortexScans",
+          "why": "already from Pirate Vodka"
+        },
+        {
+          "id": "HiveToons",
+          "why": "already here"
+        },
+        {
+          "id": "ZonaTMO",
+          "why": "already from Felii"
+        }
+      ],
+      "commit": "a79a41f9b35ea980866b14daa36820f3facfe96e"
+    },
+    {
+      "repo": "PoppingMangoSources/popmango-paperback-sources",
+      "label": "PoppingMango",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/PoppingMangoSources/popmango-paperback-sources",
+      "url": "https://github.com/PoppingMangoSources/popmango-paperback-sources",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "BunManga",
+        "Chikari",
+        "Cocomic",
+        "GalaxyManga",
+        "KaliScan",
+        "KingOfShojo",
+        "LikeManga",
+        "LuaComic",
+        "MangaBerri",
+        "MangaCherri",
+        "MangaTown",
+        "MyReadingManga",
+        "OManga",
+        "ReiManga",
+        "RokariComics",
+        "RinkoComics",
+        "StoneScape",
+        "TempleScan",
+        "ValirScans",
+        "VyManga",
+        "XCOMIC"
+      ],
+      "skipped": [
+        {
+          "id": "Mangago",
+          "why": "already here"
+        }
+      ],
+      "commit": "cf3b39f726ceec981c54ec820aa08f67f56ac67e"
+    },
+    {
+      "repo": "timkuel/PaperBackExtension",
+      "label": "Timkuel",
+      "license": "MIT",
+      "licenseFile": "MIT-PaperBackExtension.txt",
+      "sourceCode": "https://github.com/timkuel/PaperBackExtension",
+      "url": "https://github.com/timkuel/PaperBackExtension",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Mangahub",
+          "why": "already from Kittykat"
+        }
+      ],
+      "commit": "2026-10-04T21:55:16.073Z"
+    },
+    {
+      "repo": "HailXD/pb-extensions",
+      "label": "HailXD",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/HailXD/pb-extensions",
+      "url": "https://github.com/HailXD/pb-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Mangahub",
+          "why": "already from Kittykat"
+        }
+      ],
+      "commit": "0b1d3d8c18766f2b9f03642ffc6347fc57ef40a9"
+    },
+    {
+      "repo": "karrot0/kakarotextension0.8",
+      "label": "Kakarot",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/karrot0/kakarotextension0.8",
+      "url": "https://github.com/karrot0/kakarotextension0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Atsumaru",
+          "why": "already here"
+        },
+        {
+          "id": "Elftoon",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "BatCave",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "GodaComic",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "Mangaball",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "Mangacloud",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "Rawkuma",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "Projectsuki",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "ReadAllComics",
+          "why": "already from Kakarot"
+        }
+      ],
+      "commit": "c40fa4220861a6e7cae95d50acd72c2d89dd23ab"
+    },
+    {
+      "repo": "naufaljct48/nopools-ext",
+      "label": "Nopools",
+      "license": "MIT",
+      "licenseFile": "MIT-nopools-ext.txt",
+      "sourceCode": "https://github.com/naufaljct48/nopools-ext",
+      "url": "https://github.com/naufaljct48/nopools-ext",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "AinzScan",
+        "Comick",
+        "DoujinDesu",
+        "Ikiru",
+        "Kanzenin",
+        "Kiryuu",
+        "KomikIndoTop",
+        "KomikTap",
+        "Komikcast",
+        "Komiknesia",
+        "Komiksin",
+        "Komiku",
+        "KomikuAsia",
+        "LumosKomik",
+        "Mangasusu",
+        "Manhwalist",
+        "Shinigami",
+        "Tenshi",
+        "Voratoon",
+        "WestManga"
+      ],
+      "skipped": [],
+      "commit": "eb5793a5524f1fdc1f9c9057be866353aa4c635c"
+    },
+    {
+      "repo": "ryukajinokami/paperback-extensions",
+      "label": "Ryukajinokami",
+      "license": "MIT",
+      "licenseFile": "MIT-ryukajinokami-paperback-extensions.txt",
+      "sourceCode": "https://github.com/ryukajinokami/paperback-extensions",
+      "url": "https://github.com/ryukajinokami/paperback-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "AstralManga",
+        "EpsilonSoft",
+        "PoseidonScans"
+      ],
+      "skipped": [
+        {
+          "id": "LelManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaDistrict",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangasOrigines2026",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "OmegaScans",
+          "why": "already from Sinon"
+        }
+      ],
+      "commit": "2026-08-11T21:16:30.496Z"
+    },
+    {
+      "repo": "g2asell2019/numby-extensions",
+      "label": "Numby",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/g2asell2019/numby-extensions",
+      "url": "https://github.com/g2asell2019/numby-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "McReader",
+          "why": "already here"
+        },
+        {
+          "id": "WeebCentral",
+          "why": "already here"
+        }
+      ],
+      "commit": "44949c6d4a9cf8b73eeda2a082567898d11a49ac"
+    },
+    {
+      "repo": "gabrielcwt/gabe-extensions",
+      "label": "Gabe",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/gabrielcwt/gabe-extensions",
+      "url": "https://github.com/gabrielcwt/gabe-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "MangaPill",
+          "why": "already here"
+        },
+        {
+          "id": "WeebCentral",
+          "why": "already here"
+        }
+      ],
+      "commit": "004c16f4fb179b28e721084ec535698bae037c86"
+    },
+    {
+      "repo": "TheNetsky/community-extensions",
+      "label": "Netsky Community",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/TheNetsky/community-extensions",
+      "url": "https://github.com/TheNetsky/community-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "BatoTo",
+          "why": "already from Kinso"
+        },
+        {
+          "id": "Hentai2Read",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "MangaDex",
+          "why": "already here"
+        },
+        {
+          "id": "MangaPlus",
+          "why": "already here"
+        },
+        {
+          "id": "NHentai",
+          "why": "already from Kakarot"
+        }
+      ],
+      "commit": "94ecb78aef0492db9914b8d5009c9260aeb42790"
+    },
+    {
+      "repo": "ivanmatthew/ivans-paperback-extensions",
+      "label": "Ivan",
+      "license": "MIT",
+      "licenseFile": "MIT-ivans-paperback-extensions.txt",
+      "sourceCode": "https://github.com/ivanmatthew/ivans-paperback-extensions",
+      "url": "https://github.com/ivanmatthew/ivans-paperback-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "ToonilyMe",
+        "RizzFables",
+        "MangaBuddy"
+      ],
+      "skipped": [
+        {
+          "id": "FlameComics",
+          "why": "already here"
+        },
+        {
+          "id": "AsuraScans",
+          "why": "already from Kodama"
+        },
+        {
+          "id": "MangaK",
+          "why": "already from Kakarot"
+        }
+      ],
+      "commit": "fb0fc30cdd65363315449590c01737d1eb97bc27"
+    },
+    {
+      "repo": "awwrch/extension",
+      "label": "Awwrch",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/awwrch/extension",
+      "url": "https://github.com/awwrch/extension",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Paperback",
+          "why": "already from Paperback"
+        },
+        {
+          "id": "WeebCentral",
+          "why": "already here"
+        }
+      ],
+      "commit": "a5a096c27a2d8cb3987aec1c4421ba2617c0cad5"
+    },
+    {
+      "repo": "Seyden/community-extensions",
+      "label": "Seyden",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Seyden/community-extensions",
+      "url": "https://github.com/Seyden/community-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "AsuraScans",
+          "why": "already from Kodama"
+        },
+        {
+          "id": "BatoTo",
+          "why": "already from Kinso"
+        },
+        {
+          "id": "Hentai2Read",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "MangaDex",
+          "why": "already here"
+        },
+        {
+          "id": "MangaPlus",
+          "why": "already here"
+        },
+        {
+          "id": "NHentai",
+          "why": "already from Kakarot"
+        }
+      ],
+      "commit": "0ad5c963c8f2210b2ae128843528b6483458f40d"
+    },
+    {
+      "repo": "Paperback-iOS/extensions-default",
+      "label": "Paperback",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Paperback-iOS/extensions-default",
+      "url": "https://github.com/Paperback-iOS/extensions-default",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Paperback",
+          "why": "already from Paperback"
+        }
+      ],
+      "commit": "59ffcaeb836992d73bb13b5252bdef9bf5afdb6f"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "AstralLibrary",
+        "AzoraWorld",
+        "DarkScans",
+        "HariManga",
+        "HuntManga",
+        "KnightNoScanlation",
+        "LSComic",
+        "MangaClash",
+        "MangaLek",
+        "ManhuaFast",
+        "ManhuaSY",
+        "ManhwaFull",
+        "NovelMic",
+        "PlatinumScans",
+        "RDScans",
+        "ResetScans",
+        "TheBlank"
+      ],
+      "skipped": [
+        {
+          "id": "AllPornComic",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ArthurScan",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "CoffeeManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "DragonTea",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "GourmetScans",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "HiperDex",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "KunManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "LHTranslation",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "LilyManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MadaraDex",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Manga3asq",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaOrigines",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaReadOrg",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaScantrad",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhuaPlus",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhwaRaw",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Manhuaus",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhwaTop",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "SamuraiScan",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "SetsuScans",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ToonGod",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Toonily",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "UToon",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "WebtoonXYZ",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ZinManga",
+          "why": "already from Kittykat"
+        }
+      ],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "AnigliScans",
+        "AstraScans",
+        "AsuraScansFree",
+        "CypherScans",
+        "ElarcPage",
+        "IgnisComic",
+        "LunarScans",
+        "MangaTX",
+        "MyShojo",
+        "NightScans",
+        "QuantumScans",
+        "eDoujin",
+        "xCalibrScans"
+      ],
+      "skipped": [
+        {
+          "id": "DrakeScans",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Hentai20",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "LelManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhwaX",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "RawKuma",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "SushiScan",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ThunderScans",
+          "why": "already from Inkdex"
+        }
+      ],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "Natomanga"
+      ],
+      "skipped": [
+        {
+          "id": "MangaBat",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangakakalotGG",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Manganato",
+          "why": "already from Inkdex"
+        }
+      ],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "Read7DeadlySins",
+        "ReadAttackOnTitan",
+        "ReadBerserk",
+        "ReadBlackClover",
+        "ReadBleach",
+        "ReadBlueLock",
+        "ReadChainsawMan",
+        "ReadDemonSlayer",
+        "ReadDrStone",
+        "ReadDragonBall",
+        "ReadFairyTail",
+        "ReadHaikyuu",
+        "ReadHunterxHunter",
+        "ReadJoJos",
+        "ReadJujutsuKaisen",
+        "ReadKagurabachi",
+        "ReadKaguyaSama",
+        "ReadKingdom",
+        "ReadMyHeroAcademia",
+        "ReadNarutoBoruto",
+        "ReadNoblesse",
+        "ReadOnePiece",
+        "ReadOnePunchMan",
+        "ReadSoloLeveling",
+        "ReadThePromisedNeverland",
+        "ReadTokyoGhoul",
+        "ReadTokyoRevengers",
+        "ReadTowerOfGod",
+        "ReadVinlandSaga"
+      ],
+      "skipped": [],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "BeeHentai",
+        "BoxManhwa",
+        "MangaCute",
+        "MangaFab",
+        "MangaForest",
+        "MangaMad",
+        "MangaSaga",
+        "MangaSpin",
+        "MangaXYZ",
+        "ManhuaSite",
+        "ManhwaTube",
+        "TooniTube",
+        "TrueManga"
+      ],
+      "skipped": [
+        {
+          "id": "MangaBuddy",
+          "why": "already from Ivan"
+        },
+        {
+          "id": "ToonilyMe",
+          "why": "already from Ivan"
+        }
+      ],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "DocTruyenFives",
+        "MangaSect",
+        "ManhuaPlusORG",
+        "Manhuagold"
+      ],
+      "skipped": [
+        {
+          "id": "MangaKoma",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Raw1001",
+          "why": "already from Inkdex"
+        }
+      ],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "OmegaScans",
+          "why": "already from Sinon"
+        }
+      ],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/extensions-generic-0.8",
+      "label": "Netsky Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "url": "https://github.com/TheNetsky/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "MangaLife",
+        "Mangasee"
+      ],
+      "skipped": [],
+      "commit": "390102dd5f8c5b0431bcfd1a8e90f7f9a36ccc80"
+    },
+    {
+      "repo": "TheNetsky/netskys-extensions",
+      "label": "Netsky",
+      "license": "MIT",
+      "licenseFile": "MIT-netskys-extensions.txt",
+      "sourceCode": "https://github.com/TheNetsky/netskys-extensions",
+      "url": "https://github.com/TheNetsky/netskys-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "DynastyScans",
+        "HentaiCosplay",
+        "HentaiHere",
+        "MangaHasu",
+        "MangaHere",
+        "Ososedki"
+      ],
+      "skipped": [
+        {
+          "id": "MangaDemon",
+          "why": "already here"
+        },
+        {
+          "id": "MangaFox",
+          "why": "already here"
+        },
+        {
+          "id": "MangaKatana",
+          "why": "already here"
+        },
+        {
+          "id": "Mangahub",
+          "why": "already from Kittykat"
+        },
+        {
+          "id": "McReader",
+          "why": "already here"
+        },
+        {
+          "id": "Mitaku",
+          "why": "already from Netsky"
+        },
+        {
+          "id": "ReadAllComics",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "ReadComicsOnline",
+          "why": "already from Kakarot"
+        }
+      ],
+      "commit": "01148ddd98f5e990b337ac3d19c6d237d17f8f7b"
+    },
+    {
+      "repo": "CookieSylvia/cookies-extensions",
+      "label": "Cookie",
+      "license": "MIT",
+      "licenseFile": "MIT-cookies-extensions.txt",
+      "sourceCode": "https://github.com/CookieSylvia/cookies-extensions",
+      "url": "https://github.com/CookieSylvia/cookies-extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "NHentai",
+          "why": "already from Kakarot"
+        }
+      ],
+      "commit": "0209247d6251e7fd8d40bb2d6fd80752edb6ec48"
+    },
+    {
+      "repo": "Seyden/extensions-generic-0.8",
+      "label": "Seyden Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-Seyden-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/Seyden/extensions-generic-0.8",
+      "url": "https://github.com/Seyden/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "BibiManga",
+        "ChibiManga",
+        "ColoredManga",
+        "ImmortalUpdates",
+        "KissManga",
+        "Manga3S",
+        "MangaBob",
+        "PianManga",
+        "ReaperScansFR",
+        "TeenManhua"
+      ],
+      "skipped": [
+        {
+          "id": "AllPornComic",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ArthurScan",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "AstralLibrary",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "AzoraWorld",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "CoffeeManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "DarkScans",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "DragonTea",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "GourmetScans",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "HiperDex",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "HuntManga",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "KnightNoScanlation",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "KunManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "LHTranslation",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "LSComic",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "LilyManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MadaraDex",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Manga3asq",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaClash",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "MangaLek",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "MangaReadOrg",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaScantrad",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaTX",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "ManhuaFast",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "ManhuaPlus",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhuaSY",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "Manhuaga",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "Manhuaus",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhwaFull",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "ManhwaTop",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "NovelMic",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "PlatinumScans",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "ResetScans",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "SamuraiScan",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "SetsuScans",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ToonGod",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "Toonily",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "WebtoonXYZ",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ZinManga",
+          "why": "already from Kittykat"
+        }
+      ],
+      "commit": "7c5816860866822eae57b412f30746bb00fe77b7"
+    },
+    {
+      "repo": "Seyden/extensions-generic-0.8",
+      "label": "Seyden Generic",
+      "license": "MIT",
+      "licenseFile": "MIT-Seyden-extensions-generic-0.8.txt",
+      "sourceCode": "https://github.com/Seyden/extensions-generic-0.8",
+      "url": "https://github.com/Seyden/extensions-generic-0.8",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "AresManga",
+        "FreakScans",
+        "HelScans",
+        "InfernalVoidScans",
+        "LuminousScans",
+        "ReadKomik",
+        "SkyMangas",
+        "SuryaScans",
+        "TeamxNovel"
+      ],
+      "skipped": [
+        {
+          "id": "AnigliScans",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "AsuraScans",
+          "why": "already from Kodama"
+        },
+        {
+          "id": "ElarcPage",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "FlameComics",
+          "why": "already here"
+        },
+        {
+          "id": "Hentai20",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "LelManga",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "ManhwaX",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "NightScans",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "QuantumScans",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "RawKuma",
+          "why": "already from Kakarot"
+        },
+        {
+          "id": "SushiScan",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "eDoujin",
+          "why": "already from Netsky Generic"
+        },
+        {
+          "id": "xCalibrScans",
+          "why": "already from Netsky Generic"
+        }
+      ],
+      "commit": "7c5816860866822eae57b412f30746bb00fe77b7"
+    },
+    {
+      "repo": "ACK72/kavya-paperback",
+      "label": "Kavya",
+      "license": "BSD-2-Clause",
+      "licenseFile": "BSD-2-Clause-kavya-paperback.txt",
+      "sourceCode": "https://github.com/ACK72/kavya-paperback",
+      "url": "https://github.com/ACK72/kavya-paperback",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Kavya",
+          "why": "already from Kittykat"
+        }
+      ],
+      "commit": "c877a296d5557bdc11595589c29f7b5b54b4ae8f"
+    },
+    {
+      "repo": "ACK72/kavya-paperback-tracker",
+      "label": "Kavya Tracker",
+      "license": "BSD-2-Clause",
+      "licenseFile": "BSD-2-Clause-kavya-paperback-tracker.txt",
+      "sourceCode": "https://github.com/ACK72/kavya-paperback-tracker",
+      "url": "https://github.com/ACK72/kavya-paperback-tracker",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Kavya",
+          "why": "already from Kittykat"
+        }
+      ],
+      "commit": "470a33616ce340c45f4b9c065128cf82eed7c52f"
+    },
+    {
+      "repo": "hoang3402/extensions-vn",
+      "label": "Hoang",
+      "license": "MIT",
+      "licenseFile": "MIT-extensions-vn.txt",
+      "sourceCode": "https://github.com/hoang3402/extensions-vn",
+      "url": "https://github.com/hoang3402/extensions-vn",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [
+        "BaoTangTruyen",
+        "CManga",
+        "HentaiVN",
+        "LxManga",
+        "Nettruyen",
+        "SayHentai",
+        "Yurineko"
+      ],
+      "skipped": [],
+      "commit": "95cac34f27474c3f89424674857d083ae61ff136"
+    },
+    {
+      "repo": "Paperback-iOS/extensions",
+      "label": "Paperback Trackers",
+      "license": "GPL-3.0",
+      "licenseFile": "GPL-3.0.txt",
+      "sourceCode": "https://github.com/Paperback-iOS/extensions",
+      "url": "https://github.com/Paperback-iOS/extensions",
+      "appVersion": "0.8",
+      "added": [],
+      "ported": [],
+      "skipped": [
+        {
+          "id": "Anilist",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MangaUpdates",
+          "why": "already from Inkdex"
+        },
+        {
+          "id": "MyAnimeList",
+          "why": "not a manga source (tracker or other)"
+        }
+      ],
+      "commit": "bd8f58ecc2702ffd7661a9957d15d97beac595dc"
     }
   ]
 }
