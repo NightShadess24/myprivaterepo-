@@ -37,6 +37,10 @@ const MAX_CHUNKS = 60;
 
 const continuing = new Set<string>();
 
+// When a chapter list was last stopped for comix's check (see getChapterItems).
+const checkAskedAt = new Map<string, number>();
+const CHECK_AGAIN_MS = 10 * 60_000;
+
 // Settings → Chapter Lists: wait for the whole list before showing it (the
 // default), or show the newest chapters first and read the rest in the
 // background.
@@ -116,9 +120,21 @@ export async function getChapterItems(
 
   const frame = result.frame ? ", comix showed its check frame (carried on)" : "";
   if (result.stopped) {
+    // comix wants its check partway: what was read is saved above, so after
+    // the check (when Paperback asks again) the list carries on from there.
+    // At most once per manga every 10 minutes, so it can never loop.
+    const askedAt = checkAskedAt.get(mangaId) ?? 0;
+    if (/check/.test(result.stopped.reason) && Date.now() - askedAt > CHECK_AGAIN_MS) {
+      checkAskedAt.set(mangaId, Date.now());
+      logEvent(
+        "chapter list cut short",
+        `${mangaId}: comix wanted its check at page ${result.stopped.page} of ${result.lastPage} (${items.length} chapters so far, saved). Opening comix's check; the list carries on after it.`,
+      );
+      throw await signedCheckError(`chapter list of ${mangaId}`, result.stopped.reason);
+    }
     logEvent(
       "chapter list cut short",
-      `${mangaId}: showing ${items.length} chapters; page ${result.stopped.page} of ${result.lastPage} failed (${result.stopped.reason}). Open the manga again later for the rest.`,
+      `${mangaId}: showing ${items.length} chapters; page ${result.stopped.page} of ${result.lastPage} failed (${result.stopped.reason}). Pull down on the chapter list later for the rest.`,
     );
   } else if (nextPage !== null) {
     logEvent(
@@ -253,7 +269,9 @@ async function chapterListSigned(mangaId: string, opts: ListOptions): Promise<Ch
     if (requests > 0 && unit > lastPage) return result({ nextPage: null });
     if (requests > 0 && opts.refresh) return result({});
     if (requests > 0 && Date.now() > stopAt) return result({});
-    const big = !bigPagesRefused && (unit - 1) % 5 === 0 && (opts.startPage === null || unit > 1);
+    // 100 at once only for the first page: comix answers that, but refuses
+    // later pages of 100 ("captcha required") and then stops the whole list.
+    const big = !bigPagesRefused && unit === 1;
     const limit = big ? 100 : 20;
     const page = big ? (unit - 1) / 5 + 1 : unit;
     const wait = lastSignedRequest + chapterGapMs() - Date.now();
