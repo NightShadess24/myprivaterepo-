@@ -680,8 +680,18 @@ ul { margin-top: 0; }
 .about li { margin: 2px 0; }
 .el-tag.tag--recommended { background-color: #c9a45c; border-color: #c9a45c; color: #1b1b1d; font-weight: 700; }
 .el-tag.tag--popular { background-color: #3a3a40; border-color: #3a3a40; color: #f2f2f2; }
-.stats-note { margin: 22px 0 0; font-size: 12px; line-height: 1.6; opacity: .6; }
-.stats-note .health { margin: 0 4px 0 2px; }
+.stats-note { margin: 26px 0 0; font-size: 13px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; padding: 0; list-style: none; color: #c9c9cf; }
+.legend li { display: flex; align-items: center; }
+.legend-note { margin: 10px 0 0; font-size: 12px; opacity: .55; }
+/* v9 / v8: the gold pill flows to the other side like liquid (a gooey
+   filter merges the pill and its droplets) */
+[data-theme="noir"] .version-switch { position: relative; isolation: isolate; }
+.version-goo { position: absolute; inset: 0; z-index: -1; pointer-events: none; filter: url(#goo); }
+.version-blob { position: absolute; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 999px; background: var(--gold, #c9a45c); transform-origin: center; }
+.version-drop { position: absolute; top: 50%; left: 0; width: 20px; height: 20px; margin-top: -10px; border-radius: 50%; background: var(--gold, #c9a45c); opacity: 0; }
+[data-theme="noir"] .version-switch.has-blob .version-tab[aria-pressed="true"] { background: transparent; }
+[data-theme="noir"] .version-switch.has-blob .version-tab { transition: color .25s ease .12s; }
 [data-theme="noir"] .sortbar { display: flex; justify-content: center; flex-wrap: wrap; align-items: center; gap: 6px; margin: -10px auto 24px; max-width: 920px; }
 [data-theme="noir"] .sortbar__label { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-right: 4px; }
 [data-theme="noir"] .sortbar button {
@@ -713,6 +723,7 @@ ul { margin-top: 0; }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><filter id="goo"><feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/><feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter></svg>
 
 <!-- Noir: top bar, banners, filter tabs above the sources -->
 <div class="topbar noir-only js-repo-name">${escapeHtml(name)}</div>
@@ -735,10 +746,8 @@ ul { margin-top: 0; }
 
 <div class="noir-only">
 <a class="banner js-add-repo" href="${escapeHtml(addRepoLink(name, baseUrl))}"><span class="banner__label">Paperback</span><span class="banner__text">Add this repository</span><span class="banner__chevron">›</span></a>
-<a class="banner" href="https://paperback.moe/help/guides/adding-repos/"><span class="banner__label">Guide</span><span class="banner__text">How to add a repository</span><span class="banner__chevron">›</span></a>
 <section class="hero">
 <h1 class="js-repo-name">${escapeHtml(name)}</h1>
-<p class="js-repo-description">${escapeHtml(description)}</p>
 <div class="baseUrlBar"><code class="js-base-url">${escapeHtml(baseUrl)}</code><button class="copyButton" type="button">Copy URL</button></div>
 </section>
 <h2 class="section-title js-available">AVAILABLE<br>SOURCES</h2>
@@ -751,11 +760,6 @@ ${filterLabels.map((label) => `<button class="tab" type="button" data-filter="${
 
 <div class="content">
 <div class="classic-only">
-<p id="repositoryDescription" class="js-repo-description">${escapeHtml(description)}</p>
-<blockquote>
-<p>A guide is available to learn everything about extensions repositories.</p>
-<p>Check it <a href="https://paperback.moe/help/guides/adding-repos/">here</a> to learn how to add and use this repository in Paperback.</p>
-</blockquote>
 <blockquote>
 <p><span>On a Paperback installed device, press </span><a class="js-add-repo" href="${escapeHtml(addRepoLink(name, baseUrl))}">Add to Paperback</a><span> or use the base URL to add this repository to the app.</span></p>
 </blockquote>
@@ -773,7 +777,15 @@ ${sources.map(sourceItem).join("\n")}
 </ul>
 <p class="status" hidden></p>
 <p class="empty noir-only" hidden>No sources match this filter.</p>
-<p class="stats-note"${pageStats ? "" : " hidden"}><span class="health health--ok"></span>works, <span class="health health--cf"></span>needs Cloudflare's check (works in the app once you pass it), <span class="health health--fail"></span>failed: from a daily automatic check of each source (some sites turn away automated visitors, so a failed check isn't always a broken source). Hover over a source, or tap it, for what it has, its version and its checks. In the sort bar, tap a sort again for the opposite order (a third tap turns it off), and pick several to find the sources that do best on all of them. Titles are counted from the site's sitemap (the list of pages it publishes for search engines), so they're approximate. Age is how long ago the site's address was registered. What a site mostly has comes from a sample of its titles looked up on <a href="https://anilist.co">AniList</a>. Paperback doesn't publish how many people use each source, so popularity is the website's own rank in the <a href="https://tranco-list.eu">Tranco list</a> of the most visited sites. Recommended: worked in recent checks and the site is popular. Sources that stop working (the site is gone, or they fail every check for three days) are left out until a daily check finds them working again.</p>
+<div class="stats-note"${pageStats ? "" : " hidden"}>
+<ul class="legend">
+<li><span class="health health--ok"></span>Works</li>
+<li><span class="health health--cf"></span>Works after a quick check in the app</li>
+<li><span class="health health--fail"></span>Not working right now</li>
+<li><span class="health"></span>Not checked</li>
+</ul>
+<p class="legend-note">Checked daily. Tap a source for details. Popularity: <a href="https://tranco-list.eu">Tranco</a> · types: <a href="https://anilist.co">AniList</a></p>
+</div>
 </div>
 <section class="credits js-credits"${credits.length ? "" : " hidden"}>${creditsHtml(credits)}</section>
 <nav class="others-switch" aria-label="Other repositories">${otherLinks}</nav>
@@ -792,7 +804,7 @@ ${sources.map(sourceItem).join("\n")}
   var data = {};
   data[CURRENT] = ${jsonForScript(embedded)};
 
-  // Each repository lives at <site root><branch>, e.g. …/myprivaterepo-/0.9/stable
+  // Each repository lives at <site root><branch>, e.g. …/repobutgood/0.9/stable
   function siteRoot() {
     var at = location.pathname.indexOf("/" + CURRENT);
     if (/^https?:$/.test(location.protocol) && at !== -1) {
@@ -1300,8 +1312,56 @@ ${sources.map(sourceItem).join("\n")}
   }
   window.addEventListener("resize", markRows);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(markRows);
+  // The gold pill behind the active version tab; switching splashes it
+  // across (stretch, droplets, a little overshoot) unless reduced motion.
+  var versionSwitch = document.querySelector(".version-switch");
+  var goo = el("span", "version-goo");
+  var blob = el("span", "version-blob");
+  var drops = [0, 1, 2].map(function () { var drop = el("span", "version-drop"); goo.appendChild(drop); return drop; });
+  goo.insertBefore(blob, goo.firstChild);
+  versionSwitch.insertBefore(goo, versionSwitch.firstChild);
+  versionSwitch.classList.add("has-blob");
+  function activeVersionTab() {
+    return versionTabs.filter(function (tab) { return tab.getAttribute("aria-pressed") === "true"; })[0];
+  }
+  function placeBlob() {
+    var tab = activeVersionTab();
+    if (!tab) return;
+    blob.style.left = tab.offsetLeft + "px";
+    blob.style.width = tab.offsetWidth + "px";
+  }
+  function splash(from, to) {
+    placeBlob();
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!from || from === to || reduce || !blob.animate) return;
+    var a = { left: from.offsetLeft, width: from.offsetWidth };
+    var b = { left: to.offsetLeft, width: to.offsetWidth };
+    var dir = b.left > a.left ? 1 : -1;
+    var reachLeft = dir > 0 ? a.left : b.left + b.width * 0.55;
+    var reachRight = dir > 0 ? b.left + b.width * 0.45 : a.left + a.width;
+    blob.animate([
+      { left: a.left + "px", width: a.width + "px", transform: "scaleY(1)" },
+      { left: reachLeft + "px", width: (reachRight - reachLeft) + "px", transform: "scaleY(.78)", offset: 0.35 },
+      { left: (b.left - (dir < 0 ? 0 : 7)) + "px", width: (b.width + 7) + "px", transform: "scaleY(1.1)", offset: 0.72 },
+      { left: b.left + "px", width: b.width + "px", transform: "scaleY(1)" },
+    ], { duration: 680, easing: "cubic-bezier(.3,.7,.25,1)" });
+    drops.forEach(function (drop, i) {
+      var start = a.left + a.width / 2 - 10;
+      var end = b.left + b.width / 2 - 10 + dir * (4 + i * 6);
+      var middle = (start + end) / 2 + dir * i * 6;
+      drop.animate([
+        { transform: "translate(" + start + "px, 0) scale(.9)", opacity: 1 },
+        { transform: "translate(" + middle + "px, " + (-9 - i * 6) + "px) scale(" + (1.05 - i * 0.18) + ")", opacity: 1, offset: 0.5 },
+        { transform: "translate(" + end + "px, 1px) scale(.5)", opacity: 0 },
+      ], { duration: 520 + i * 110, delay: 60 + i * 55, easing: "cubic-bezier(.45,0,.2,1)" });
+    });
+  }
+  window.addEventListener("resize", placeBlob);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeBlob);
   function showVersion(version) {
+    var before = activeVersionTab();
     versionTabs.forEach(function (tab) { tab.setAttribute("aria-pressed", String(tab.dataset.version === version)); });
+    splash(before, activeVersionTab());
     document.querySelectorAll(".repo-group").forEach(function (group) { group.hidden = group.dataset.version !== version; });
     markRows();
   }

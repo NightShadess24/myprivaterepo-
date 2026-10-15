@@ -85,7 +85,7 @@ async function previousStats() {
       return {};
     }
   }
-  const repository = process.env.GITHUB_REPOSITORY || "NightShadess24/myprivaterepo-";
+  const repository = process.env.GITHUB_REPOSITORY || "NightShadess24/repobutgood";
   const url = `https://raw.githubusercontent.com/${repository}/gh-pages/${branchName()}/stats.json`;
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
@@ -398,7 +398,7 @@ const BRANCHES = [
 
 async function otherBranchesSites() {
   if (flag("--previous")) return [];
-  const repository = process.env.GITHUB_REPOSITORY || "NightShadess24/myprivaterepo-";
+  const repository = process.env.GITHUB_REPOSITORY || "NightShadess24/repobutgood";
   return Promise.all(
     BRANCHES.filter((branch) => branch !== branchName()).map(async (branch) => {
       try {
