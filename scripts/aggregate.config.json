@@ -383,24 +383,24 @@
   ],
   "repositories": {
     "0.9/stable": {
-      "name": "NightShadess24 Extensions (0.9)",
-      "description": "Paperback 0.9 extensions in English: Inkdex's General Extensions with a fixed Comix source, plus the sources of other open-source 0.9 repositories and the 0.8-only sources ported to 0.9 (credited below). Other languages and 18+ sources have their own repositories."
+      "name": "NightShadess24 Extensions (0.9 SFW)",
+      "description": "Paperback 0.9 extensions in English, safe for work (mature included): Inkdex's General Extensions with a fixed Comix source, plus the sources of other open-source 0.9 repositories and the 0.8-only sources ported to 0.9 (credited below). 18+ sources are in NSFW, other languages in Others."
     },
     "0.9/languages": {
-      "name": "NightShadess24 Extensions (0.9 Languages)",
-      "description": "Paperback 0.9 extensions in languages other than English (Indonesian, Spanish, French, Arabic, Italian, …): from open-source 0.9 repositories, plus ones only made for 0.8, ported to 0.9 (credited below). 18+ sources are in the NSFW repository."
+      "name": "NightShadess24 Extensions (0.9 Others)",
+      "description": "Paperback 0.9 extensions in languages other than English (Indonesian, Spanish, French, Arabic, Italian, …), safe for work: from open-source 0.9 repositories, plus ones only made for 0.8, ported to 0.9 (credited below). 18+ sources are in NSFW."
     },
     "0.9/nsfw": {
       "name": "NightShadess24 Extensions (0.9 NSFW)",
       "description": "Paperback 0.9 extensions rated 18+: from Inkdex's General Extensions and other open-source 0.9 repositories, plus 18+ sources only made for 0.8, ported to 0.9 (credited below)."
     },
     "0.8/stable": {
-      "name": "NightShadess24 Extensions (0.8)",
-      "description": "Paperback 0.8 extensions in English: the sources of open-source 0.8 repositories, plus the sources only made for 0.9, ported to 0.8 (credited below). Other languages and 18+ sources have their own repositories."
+      "name": "NightShadess24 Extensions (0.8 SFW)",
+      "description": "Paperback 0.8 extensions in English, safe for work (mature included): the sources of open-source 0.8 repositories, plus the sources only made for 0.9, ported to 0.8 (credited below). 18+ sources are in NSFW, other languages in Others."
     },
     "0.8/languages": {
-      "name": "NightShadess24 Extensions (0.8 Languages)",
-      "description": "Paperback 0.8 extensions in languages other than English (Indonesian, Spanish, French, Arabic, Vietnamese, …): from open-source 0.8 repositories, plus ones only made for 0.9, ported to 0.8 (credited below). 18+ sources are in the NSFW repository."
+      "name": "NightShadess24 Extensions (0.8 Others)",
+      "description": "Paperback 0.8 extensions in languages other than English (Indonesian, Spanish, French, Arabic, Vietnamese, …), safe for work: from open-source 0.8 repositories, plus ones only made for 0.9, ported to 0.8 (credited below). 18+ sources are in NSFW."
     },
     "0.8/nsfw": {
       "name": "NightShadess24 Extensions (0.8 NSFW)",

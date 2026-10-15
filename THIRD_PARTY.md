@@ -3,8 +3,8 @@
 This site has three repositories for each app version (the homepage has a
 v9 / v8 tab for each version):
 
-- `stable`: English (and multi-language) sources for everyone or mature readers
-- `languages`: sources in other languages (Indonesian, Spanish, French, …)
+- `stable` (shown as SFW): English (and multi-language) sources for everyone or mature readers
+- `languages` (shown as Others): sources in other languages (Indonesian, Spanish, French, …)
 - `nsfw`: sources rated 18+, in any language
 
 Each source goes in one of them, by its own content rating and language
