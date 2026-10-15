@@ -96,3 +96,11 @@ from `scripts/stats.mjs`: once a day every source is opened the way the app
 would (home page or a search, then one manga's chapters) and the results of
 the last 14 days are kept. Website popularity is each site's rank in the
 [Tranco list](https://tranco-list.eu) of the most visited websites.
+
+What each source's website has (`scripts/site-info.mjs`), shown on hover or tap:
+roughly how many titles, counted from the site's sitemap; when the site's
+address was registered, from the public domain registration records
+([RDAP](https://rdap.org)); and whether it mostly has manga, manhwa, manhua,
+Western comics or novels, from a sample of its titles looked up on
+[AniList](https://anilist.co). Paperback doesn't publish how many people use
+each source, so popularity stays the website's Tranco rank.

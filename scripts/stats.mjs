@@ -12,12 +12,16 @@
 //   ranks        how popular each source's website is: its rank in the Tranco
 //                list of the most visited websites (https://tranco-list.eu)
 //   recommended  sources that worked in recent checks and whose site is popular
+//   about        what each source's website has: roughly how many titles,
+//                when its address was registered and whether it's mostly
+//                manga, manhwa, manhua, Western comics or novels
+//                (scripts/site-info.mjs; `sites` keeps it per website)
 //
 // Daily runs (`--check`, or STATS_CHECK=1) check every source and refresh the
 // ranks; other builds carry the last stats over. Some sites block automated
 // visitors, so a failed check doesn't always mean the source is broken.
 //
-// Usage: node scripts/stats.mjs [bundleFolder] [--check] [--previous file] [--ranks file]
+// Usage: node scripts/stats.mjs [bundleFolder] [--check] [--previous file] [--ranks file] [--no-sites]
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -26,6 +30,14 @@ import path from "node:path";
 import vm from "node:vm";
 
 import { portToV9 } from "./crossport.mjs";
+import {
+  countTitles,
+  isNovelSource,
+  kindFromName,
+  kindOf,
+  registeredDomain,
+  registeredOn,
+} from "./site-info.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -162,13 +174,48 @@ function classify(error) {
   return { r: "fail", why: message.split("\n")[0].slice(0, 140) };
 }
 
-async function check(id, entry) {
+// The pages each site was asked for during the checks, to see where a source
+// opens a title ("/manga/<slug>") for scripts/site-info.mjs.
+const pathsSeen = new Map();
+const bareHost = (host) =>
+  String(host ?? "")
+    .toLowerCase()
+    .replace(/^www\./, "");
+
+function titlePathOf(host, mangaId) {
+  const slug = String(mangaId ?? "")
+    .split("/")
+    .filter(Boolean)
+    .pop();
+  if (!slug || slug.length < 3) return undefined;
+  for (const seen of [...(pathsSeen.get(bareHost(host)) ?? [])].reverse()) {
+    const at = seen.lastIndexOf(`/${slug}`);
+    if (at < 1 || !["", "/"].includes(seen.slice(at + 1 + slug.length))) continue;
+    const prefix = seen.slice(0, at + 1);
+    if (prefix.split("/").length <= 4) return prefix;
+  }
+  return undefined;
+}
+
+const titleOf = (item) => String(item?.title ?? item?.primaryTitle ?? "").trim();
+
+async function check(id, entry, host) {
   const capabilities = Array.isArray(entry.capabilities)
     ? entry.capabilities
     : [entry.intents ?? 1].flat();
   const chapters = capabilities.some((c) => Number(c) & 1);
   if (!chapters) return { r: "skip", why: "not a manga source" };
   if (SERVER_CLIENTS.test(id)) return { r: "skip", why: "needs your own server" };
+  // Titles seen on the way, for what the site mostly has (scripts/site-info.mjs)
+  const sample = { titles: [], tags: {} };
+  const note = (items) => {
+    for (const item of items) {
+      const title = titleOf(item);
+      if (title && sample.titles.length < 12 && !sample.titles.includes(title))
+        sample.titles.push(title);
+    }
+  };
+  const withSample = (result) => (sample.titles.length ? { ...result, sample } : result);
   try {
     const ext = await withTimeout(loadExtension(id, entry), STEP_SECONDS, "loading");
     // Trackers and the like say they have chapters but don't.
@@ -180,20 +227,22 @@ async function check(id, entry) {
       try {
         const sections =
           (await withTimeout(ext.getDiscoverSections(), STEP_SECONDS, "home page")) ?? [];
-        for (const section of sections.filter((s) => s.type !== 4).slice(0, 2)) {
+        for (const section of sections.filter((s) => s.type !== 4).slice(0, 3)) {
           const page = await withTimeout(
             ext.getDiscoverSectionItems(section, undefined),
             STEP_SECONDS,
             "home section",
           );
-          items = (page?.items ?? []).filter((item) => item?.mangaId);
-          if (items.length) break;
+          const found = (page?.items ?? []).filter((item) => item?.mangaId);
+          note(found);
+          if (!items.length) items = found;
+          if (items.length && sample.titles.length >= 8) break;
         }
       } catch (error) {
         if (classify(error).r === "cf") throw error;
       }
     }
-    if (!items.length && typeof ext.getSearchResults === "function") {
+    if ((!items.length || sample.titles.length < 6) && typeof ext.getSearchResults === "function") {
       let sorting;
       try {
         sorting = (await ext.getSortingOptions?.({ title: "a" }))?.[0];
@@ -201,12 +250,19 @@ async function check(id, entry) {
         sorting = undefined;
       }
       for (const title of ["a", "one"]) {
-        const page = await withTimeout(
-          ext.getSearchResults({ title }, undefined, sorting),
-          STEP_SECONDS,
-          "search",
-        );
-        items = (page?.items ?? []).filter((item) => item?.mangaId);
+        try {
+          const page = await withTimeout(
+            ext.getSearchResults({ title }, undefined, sorting),
+            STEP_SECONDS,
+            "search",
+          );
+          const found = (page?.items ?? []).filter((item) => item?.mangaId);
+          note(found);
+          if (!items.length) items = found;
+        } catch (error) {
+          // Only a search that was needed counts against the source.
+          if (!items.length) throw error;
+        }
         if (items.length) break;
       }
     }
@@ -217,12 +273,17 @@ async function check(id, entry) {
         STEP_SECONDS,
         "manga page",
       );
+      sample.path ??= titlePathOf(host, item.mangaId);
+      const tags = (manga?.mangaInfo?.tagGroups ?? []).flatMap((group) =>
+        (group?.tags ?? []).map((tag) => String(tag?.title ?? "")),
+      );
+      if (tags.length && titleOf(item)) sample.tags[titleOf(item)] = tags.slice(0, 40);
       const list = await withTimeout(ext.getChapters(manga), STEP_SECONDS, "chapter list");
-      if ((list ?? []).length) return { r: "ok" };
+      if ((list ?? []).length) return withSample({ r: "ok" });
     }
-    return { r: "fail", why: "found manga but no chapters" };
+    return withSample({ r: "fail", why: "found manga but no chapters" });
   } catch (error) {
-    return classify(error);
+    return withSample(classify(error));
   }
 }
 
@@ -231,15 +292,27 @@ async function checkAll(sources) {
   const queue = [...sources];
   // Real requests to real sites: a few at a time, a few per source.
   const realFetch = globalThis.fetch;
-  globalThis.fetch = (url, init = {}) =>
-    realFetch(url, { signal: AbortSignal.timeout(25_000), ...init });
+  globalThis.fetch = (url, init = {}) => {
+    try {
+      const parsed = new URL(String(url));
+      const seen = pathsSeen.get(bareHost(parsed.hostname)) ?? [];
+      seen.push(parsed.pathname);
+      if (seen.length > 100) seen.shift();
+      pathsSeen.set(bareHost(parsed.hostname), seen);
+    } catch {
+      // not a URL; fetch says so
+    }
+    return realFetch(url, { signal: AbortSignal.timeout(25_000), ...init });
+  };
   process.on("unhandledRejection", () => {});
   const worker = async () => {
     for (let source = queue.shift(); source; source = queue.shift()) {
       const started = Date.now();
-      results[source.id] = await withTimeout(check(source.id, source), 120, "the check").catch(
-        classify,
-      );
+      results[source.id] = await withTimeout(
+        check(source.id, source, hosts[source.id]),
+        120,
+        "the check",
+      ).catch(classify);
       console.log(
         `[stats] ${source.id}: ${results[source.id].r}${results[source.id].why ? ` (${results[source.id].why})` : ""} ${Math.round((Date.now() - started) / 1000)}s`,
       );
@@ -301,6 +374,124 @@ async function trancoRanks(wanted) {
   return ranks;
 }
 
+// ── What each website has (scripts/site-info.mjs) ────────────────────────
+
+// Kept per website, and shared between the repositories (most sites are in
+// both the 0.9 and 0.8 ones): the newest of each wins.
+const SITE_FIELDS = [
+  ["titles", "titlesOn", ["path"]],
+  ["since", "sinceOn", []],
+  ["kind", "kindOn", []],
+];
+const BRANCHES = [
+  "0.9/stable",
+  "0.9/languages",
+  "0.9/nsfw",
+  "0.8/stable",
+  "0.8/languages",
+  "0.8/nsfw",
+];
+
+async function otherBranchesSites() {
+  if (flag("--previous")) return [];
+  const repository = process.env.GITHUB_REPOSITORY || "NightShadess24/myprivaterepo-";
+  return Promise.all(
+    BRANCHES.filter((branch) => branch !== branchName()).map(async (branch) => {
+      try {
+        const response = await fetch(
+          `https://raw.githubusercontent.com/${repository}/gh-pages/${branch}/stats.json`,
+          { signal: AbortSignal.timeout(30_000) },
+        );
+        return response.ok ? ((await response.json()).sites ?? {}) : {};
+      } catch {
+        return {};
+      }
+    }),
+  );
+}
+
+function mergeSites(lists) {
+  const merged = {};
+  for (const list of lists) {
+    for (const [host, info] of Object.entries(list ?? {})) {
+      const into = (merged[host] ??= {});
+      for (const [field, on, extra] of SITE_FIELDS) {
+        if (!info?.[on] || (into[on] && into[on] >= info[on])) continue;
+        into[field] = info[field] ?? null;
+        into[on] = info[on];
+        for (const name of extra) if (info[name] !== undefined) into[name] = info[name];
+      }
+    }
+  }
+  return merged;
+}
+
+const daysSince = (date) => (Date.parse(today) - Date.parse(date)) / 86_400_000;
+
+async function pool(jobs, workers, deadline, run) {
+  const queue = [...jobs];
+  const worker = async () => {
+    for (let job = queue.shift(); job !== undefined; job = queue.shift()) {
+      if (Date.now() > deadline) return;
+      await run(job);
+    }
+  };
+  await Promise.all(Array.from({ length: workers }, worker));
+}
+
+// Looks up what's due: titles weekly, what it has monthly (when the check
+// saw some titles), when the address was registered once.
+async function lookUpSites(sites, samples) {
+  const deadline = Date.now() + 20 * 60_000;
+  const idsOf = new Map();
+  for (const id of ids) {
+    const host = bareHost(hosts[id]);
+    if (host) idsOf.set(host, [...(idsOf.get(host) ?? []), id]);
+  }
+  const sampleOf = (host) =>
+    (idsOf.get(host) ?? [])
+      .map((id) => samples[id])
+      .filter(Boolean)
+      .sort((a, b) => b.titles.length - a.titles.length)[0];
+  const pathOf = (host) =>
+    (idsOf.get(host) ?? []).map((id) => samples[id]?.path).find(Boolean) ?? sites[host]?.path;
+  const set = (host, values) => Object.assign((sites[host] ??= {}), values);
+  const all = [...idsOf.keys()];
+  const titleJobs = all.filter(
+    (host) => !sites[host]?.titlesOn || daysSince(sites[host].titlesOn) >= 7,
+  );
+  const sinceJobs = all.filter((host) => {
+    const site = sites[host];
+    return !site?.sinceOn || (!site.since && daysSince(site.sinceOn) >= 30);
+  });
+  const kindJobs = all.filter((host) => {
+    const site = sites[host];
+    return sampleOf(host) && (!site?.kindOn || daysSince(site.kindOn) >= (site.kind ? 30 : 7));
+  });
+  const started = Date.now();
+  await Promise.all([
+    pool(titleJobs, 4, deadline, async (host) => {
+      const titles = await withTimeout(countTitles(host, pathOf(host)), 90, "sitemap").catch(
+        () => null,
+      );
+      set(host, { titles, titlesOn: today, path: pathOf(host) });
+    }),
+    pool(sinceJobs, 1, deadline, async (host) => {
+      const since = await registeredOn(registeredDomain(host));
+      if (since !== undefined) set(host, { since, sinceOn: today });
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }),
+    pool(kindJobs, 1, deadline, async (host) => {
+      const kind = await kindOf(sampleOf(host)).catch(() => null);
+      set(host, { kind, kindOn: today });
+    }),
+  ]);
+  console.log(
+    `[stats] websites: ${titleJobs.length} title counts, ${sinceJobs.length} registration dates, ` +
+      `${kindJobs.length} samples looked up in ${Math.round((Date.now() - started) / 1000)}s`,
+  );
+}
+
 // ── Build stats.json ─────────────────────────────────────────────────────
 
 const previous = await previousStats();
@@ -311,14 +502,18 @@ for (const [id, history] of Object.entries(previous.checks ?? {})) {
 }
 let ranks = Object.fromEntries(Object.entries(previous.ranks ?? {}).filter(([id]) => ids.has(id)));
 let ranksUpdated = previous.ranksUpdated;
+const sites = mergeSites([previous.sites, ...(await otherBranchesSites())]);
 
 if (runChecks) {
   const results = await checkAll(versioning.sources);
-  for (const [id, result] of Object.entries(results)) {
+  const samples = {};
+  for (const [id, { sample, ...result }] of Object.entries(results)) {
+    if (sample) samples[id] = sample;
     const history = (checks[id] ?? []).filter((entry) => entry.d !== today);
     history.push({ d: today, ...result });
     checks[id] = history.slice(-KEEP_DAYS);
   }
+  if (!args.includes("--no-sites")) await lookUpSites(sites, samples);
   try {
     const wanted = new Set(Object.values(hosts).flatMap(candidates));
     const found = await trancoRanks(wanted);
@@ -345,12 +540,31 @@ for (const id of ids) {
     recommended.push(id);
 }
 
+// For the page: what each source's website has.
+const about = {};
+const ownSites = {};
+for (const source of versioning.sources) {
+  const host = bareHost(hosts[source.id]);
+  const site = sites[host] ?? {};
+  if (sites[host]) ownSites[host] = site;
+  const kind = isNovelSource(source, host)
+    ? { novel: 1 }
+    : (site.kind ?? kindFromName(source, host));
+  const entry = {};
+  if (kind) entry.kind = kind;
+  if (site.titles) entry.titles = site.titles;
+  if (site.since) entry.since = site.since;
+  if (Object.keys(entry).length) about[source.id] = entry;
+}
+
 const stats = {
   updated: runChecks ? today : previous.updated,
   ranksUpdated,
   checks,
   ranks,
   recommended,
+  about,
+  sites: ownSites,
 };
 fs.writeFileSync(path.join(folder, "stats.json"), JSON.stringify(stats));
 const counted = Object.values(checks).map((history) => history.at(-1)?.r);
