@@ -505,8 +505,13 @@ for (const { upstream, record, list } of nativeLists) {
     }
     // Trackers get an "Automatic updates" page (timer and history) in their
     // settings, like this repository's MyAnimeList (scripts/tracker-history.mjs).
-    if (version === "0.9" && !upstream.own && isTracker(entry)) {
-      const added = await addTrackerHistory({ dir: path.join(folder, id), id, entry });
+    if (!upstream.own && isTracker(entry)) {
+      const added = await addTrackerHistory({
+        dir: path.join(folder, id),
+        id,
+        entry,
+        app: version,
+      });
       if (!added) console.log(`[aggregate] ${id}: no update history (the layer didn't load)`);
     }
     versioning.sources.push(entry);
