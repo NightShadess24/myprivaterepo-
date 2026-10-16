@@ -69,6 +69,53 @@ export interface SyncLine {
   text: string;
   /** ISO date of when the chapter was read in the app */
   readAt?: string;
+  kind?: UpdateKind;
+}
+
+// ── History: the tracker's recent updates, newest first ──────────────────
+
+const HISTORY_KEY = "mal-history";
+const HISTORY_SIZE = 100;
+
+/** saved, already up to date, MyAnimeList kept less, failed, or set by hand */
+export type UpdateKind = "saved" | "same" | "capped" | "failed" | "manual";
+
+export interface HistoryEntry {
+  /** ISO date of the update */
+  at: string;
+  text: string;
+  kind: UpdateKind;
+  /** ISO date the chapter was read (automatic updates) */
+  readAt?: string;
+}
+
+const kindOfText = (text: string): UpdateKind =>
+  /already at/.test(text)
+    ? "same"
+    : /stopped at/.test(text)
+      ? "capped"
+      : /saved/.test(text)
+        ? "saved"
+        : "failed";
+
+export function getHistory(): HistoryEntry[] {
+  const history = Application.getState(HISTORY_KEY);
+  if (Array.isArray(history)) return history as HistoryEntry[];
+  // Before there was a history (1.0.1, 1.0.2): start it from the last update.
+  const report = getSyncReport();
+  return (report?.lines ?? []).map((line) => {
+    const { text, readAt, kind } = typeof line === "string" ? { text: line } : line;
+    return { at: report!.at, text, readAt, kind: kind ?? kindOfText(text) };
+  });
+}
+
+export function addHistory(entries: HistoryEntry[]): void {
+  if (!entries.length) return;
+  Application.setState([...entries, ...getHistory()].slice(0, HISTORY_SIZE), HISTORY_KEY);
+}
+
+export function clearHistory(): void {
+  Application.setState([], HISTORY_KEY);
 }
 
 /** "45s", "2m 05s", "3h 12m", "2d 4h" */

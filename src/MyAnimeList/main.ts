@@ -29,6 +29,7 @@ import type { MalListStatus, MalManga, MalPage } from "./models";
 import type MyAnimeListConfig from "./pbconfig";
 import {
   accessToken,
+  addHistory,
   API,
   CLIENT_ID,
   dateOf,
@@ -39,6 +40,7 @@ import {
   wasSignedIn,
   type SyncLine,
   type SyncReport,
+  type UpdateKind,
   type User,
 } from "./session";
 
@@ -170,11 +172,18 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
     if (status < 400) setUser(json as User);
   }
 
-  private async saveListStatus(mangaId: string, change: ListStatusChange): Promise<void> {
+  private async saveListStatus(
+    mangaId: string,
+    change: ListStatusChange,
+    title = `Manga ${mangaId}`,
+  ): Promise<void> {
+    const manual = (text: string) =>
+      addHistory([{ at: new Date().toISOString(), kind: "manual", text: `${title}: ${text}` }]);
     const id = Number.parseInt(mangaId, 10);
     if (change.status === "remove") {
       const { status } = await this.api(`/manga/${id}/my_list_status`, { method: "DELETE" }, true);
       if (status >= 400 && status !== 404) throw new Error(`MyAnimeList answered ${status}`);
+      manual("removed from your list by hand");
       return;
     }
     const { status } = await this.api(
@@ -193,6 +202,7 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
       true,
     );
     if (status >= 400) throw new Error(`MyAnimeList didn't save the change (${status})`);
+    manual(`chapter ${Math.max(0, Math.floor(change.chapters))} saved by hand`);
   }
 
   // ── Settings ───────────────────────────────────────────────────────────
@@ -324,7 +334,9 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
   async getMangaProgressManagementForm(sourceManga: SourceManga): Promise<Form> {
     if (!isLoggedIn()) return new MalProgressForm(undefined, async () => {});
     const manga = await this.fetchManga(sourceManga.mangaId);
-    return new MalProgressForm(manga, (change) => this.saveListStatus(sourceManga.mangaId, change));
+    return new MalProgressForm(manga, (change) =>
+      this.saveListStatus(sourceManga.mangaId, change, manga?.title),
+    );
   }
 
   async getMangaProgress(sourceManga: SourceManga): Promise<MangaProgress | undefined> {
@@ -378,8 +390,8 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
     };
     const lines: SyncLine[] = [];
     let readAt: Date | undefined;
-    const log = (message: string) => {
-      lines.push({ text: message, readAt: readAt?.toISOString() });
+    const log = (kind: UpdateKind, message: string) => {
+      lines.push({ text: message, readAt: readAt?.toISOString(), kind });
       console.log(`[MyAnimeList] ${message}`);
     };
     console.log(`[MyAnimeList] reading updates: ${actions.length}`);
@@ -429,14 +441,14 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
         );
         if (chapter <= 0) {
           // Nothing to count (a chapter 0, or one without a number).
-          log(`Manga ${mangaId}: the chapter has no number, so there's nothing to count`);
+          log("same", `Manga ${mangaId}: the chapter has no number, so there's nothing to count`);
           result.successfulItems.push(...ids);
           report.unchanged++;
           continue;
         }
         const manga = await this.fetchManga(mangaId, "id,title,num_chapters,my_list_status");
         if (!manga) {
-          log(`Manga ${mangaId}: MyAnimeList doesn't have it (link it again)`);
+          log("failed", `Manga ${mangaId}: MyAnimeList doesn't have it (link it again)`);
           result.failedItems.push(...ids);
           report.failed++;
           report.error = `MyAnimeList doesn't have manga ${mangaId}`;
@@ -446,6 +458,7 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
         const list: MalListStatus = manga.my_list_status ?? {};
         if ((list.num_chapters_read ?? 0) >= chapter) {
           log(
+            "same",
             `${name}: read chapter ${chapter}${titleSays}, your list is already at ${list.num_chapters_read}`,
           );
           result.successfulItems.push(...ids);
@@ -472,23 +485,27 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
           const kept = (json as MalListStatus | undefined)?.num_chapters_read;
           if (typeof kept === "number" && kept < chapter) {
             log(
+              "capped",
               `${name}: you read chapter ${chapter}${titleSays}, but MyAnimeList stopped at ${kept}` +
                 (manga.num_chapters ? ` (its entry has ${manga.num_chapters} chapters)` : ""),
             );
           } else {
-            log(`${name}: chapter ${chapter} saved${titleSays}`);
+            log("saved", `${name}: chapter ${chapter} saved${titleSays}`);
           }
           result.successfulItems.push(...ids);
           report.updated++;
         } else {
           console.log(`[MyAnimeList] ${JSON.stringify(json ?? "").slice(0, 200)}`);
-          log(`${name}: MyAnimeList didn't save chapter ${chapter} (${status})`);
+          log("failed", `${name}: MyAnimeList didn't save chapter ${chapter} (${status})`);
           result.failedItems.push(...ids);
           report.failed++;
           report.error = `MyAnimeList answered ${status}`;
         }
       } catch (error) {
-        log(`Manga ${mangaId}: ${String((error as Error)?.message ?? error).slice(0, 160)}`);
+        log(
+          "failed",
+          `Manga ${mangaId}: ${String((error as Error)?.message ?? error).slice(0, 160)}`,
+        );
         result.failedItems.push(...ids);
         report.failed++;
         report.error = String((error as Error)?.message ?? error).slice(0, 200);
@@ -496,6 +513,14 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
     }
     report.lines = lines.slice(0, 8);
     setSyncReport(report);
+    addHistory(
+      lines.map(({ text, readAt: read, kind }) => ({
+        at: report.at,
+        text,
+        readAt: read,
+        kind: kind ?? "failed",
+      })),
+    );
     return result;
   }
 }

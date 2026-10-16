@@ -6,6 +6,7 @@ import {
   Form,
   InputRow,
   LabelRow,
+  NavigationRow,
   OAuthButtonRow,
   Section,
   SelectRow,
@@ -16,9 +17,11 @@ import {
 import type { MalManga } from "./models";
 import {
   AUTHORIZE_URL,
+  clearHistory,
   CLIENT_ID,
   dateOf,
   durationText,
+  getHistory,
   getSyncReport,
   getUser,
   isLoggedIn,
@@ -27,6 +30,8 @@ import {
   setUser,
   TOKEN_URL,
   tokensFromLogin,
+  type HistoryEntry,
+  type UpdateKind,
 } from "./session";
 
 /** "2:14 PM" (or the phone's own format) */
@@ -36,6 +41,97 @@ function timeOfDay(date: Date | undefined): string {
     return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   } catch {
     return date.toLocaleTimeString();
+  }
+}
+
+const seconds = (later: Date, earlier: Date) => (later.getTime() - earlier.getTime()) / 1000;
+
+const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+
+/** "Today", "Yesterday" or "Oct 14" */
+function dayOf(date: Date): string {
+  const now = new Date();
+  if (sameDay(date, now)) return "Today";
+  if (sameDay(date, new Date(now.getTime() - 86400000))) return "Yesterday";
+  try {
+    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  } catch {
+    return date.toLocaleDateString();
+  }
+}
+
+const MARKS: Record<UpdateKind, string> = {
+  saved: "✓",
+  same: "=",
+  capped: "⚠︎",
+  failed: "✕",
+  manual: "✎",
+};
+
+const RECENT = 5;
+
+/** One update: what happened, when, and how long after reading it reached MyAnimeList. */
+function historyRow(entry: HistoryEntry, id: string, withDay = true) {
+  const at = dateOf(entry.at);
+  const read = dateOf(entry.readAt);
+  return LabelRow(id, {
+    title: `${MARKS[entry.kind] ?? "•"} ${entry.text}`,
+    subtitle: [
+      at ? (withDay ? `${dayOf(at)} ${timeOfDay(at)}` : timeOfDay(at)) : undefined,
+      at && read ? `${durationText(seconds(at, read))} after you read it` : undefined,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  });
+}
+
+/** Every update the tracker made (the last 100), by day. */
+export class MalHistoryForm extends Form {
+  override getSections(): FormSectionElement<unknown>[] {
+    const history = getHistory();
+    if (!history.length) {
+      return [
+        Section("none", [
+          LabelRow("none", {
+            title: "No updates yet",
+            subtitle: "Chapters you read in linked manga show up here.",
+          }),
+        ]),
+      ];
+    }
+    const days: { day: string; entries: HistoryEntry[] }[] = [];
+    for (const entry of history) {
+      const at = dateOf(entry.at);
+      const day = at ? dayOf(at) : "Earlier";
+      let last = days[days.length - 1];
+      if (last?.day !== day) days.push((last = { day, entries: [] }));
+      last.entries.push(entry);
+    }
+    return [
+      ...days.map(({ day, entries }, d) =>
+        Section(
+          { id: `day-${d}`, header: day },
+          entries.map((entry, index) => historyRow(entry, `entry-${d}-${index}`, false)),
+        ),
+      ),
+      Section(
+        {
+          id: "key",
+          footer: "✓ saved · = already up to date · ⚠︎ MyAnimeList kept less · ✕ failed · ✎ by hand",
+        },
+        [
+          ButtonRow("clear", {
+            title: "Clear history",
+            onSelect: Application.Selector(this as MalHistoryForm, "clear"),
+          }),
+        ],
+      ),
+    ];
+  }
+
+  async clear(): Promise<void> {
+    clearHistory();
+    this.reloadForm();
   }
 }
 
@@ -57,6 +153,8 @@ export class MalSettingsForm extends Form {
   // The timer: while this page is open, it's redrawn every second so the
   // "Last update" time counts up, and a new update shows up right away.
   private ticking = 0;
+  // One history page, kept while the settings are redrawn.
+  private historyForm?: MalHistoryForm;
 
   override formDidAppear(): void {
     this.startTimer();
@@ -81,7 +179,7 @@ export class MalSettingsForm extends Form {
     if (isLoggedIn()) {
       const sync = getSyncReport();
       const when = dateOf(sync?.at);
-      const seconds = (later: Date, earlier: Date) => (later.getTime() - earlier.getTime()) / 1000;
+      const history = getHistory();
       return [
         Section(
           {
@@ -104,18 +202,27 @@ export class MalSettingsForm extends Form {
                     .join(" · ")
                 : "Read a chapter of a linked manga, then come back here.",
             }),
-            ...(sync?.lines ?? []).map((line, index) => {
-              const { text, readAt } = typeof line === "string" ? { text: line } : line;
-              const read = dateOf(readAt);
-              return LabelRow(`sync-line-${index}`, {
-                title: text,
-                subtitle:
-                  read && when
-                    ? `Read at ${timeOfDay(read)} · reached MyAnimeList ${durationText(seconds(when, read))} later`
-                    : undefined,
-              });
-            }),
           ],
+        ),
+        Section(
+          { id: "recent", header: "Recent updates" },
+          history.length
+            ? [
+                ...history
+                  .slice(0, RECENT)
+                  .map((entry, index) => historyRow(entry, `recent-${index}`)),
+                NavigationRow("history", {
+                  title: "See all",
+                  value: String(history.length),
+                  form: (this.historyForm ??= new MalHistoryForm()),
+                }),
+              ]
+            : [
+                LabelRow("recent-none", {
+                  title: "Nothing yet",
+                  subtitle: "Chapters you read in linked manga show up here.",
+                }),
+              ],
         ),
         Section("account", [
           LabelRow("user", { title: "Signed in as", value: getUser()?.name ?? "MyAnimeList user" }),
