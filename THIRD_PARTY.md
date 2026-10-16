@@ -16,7 +16,12 @@ own content rating and language (`scripts/languages.mjs`).
 repositories when they are built (on every push and once a day):
 
 - each repository copies the published bundles made for its own app version,
-  unchanged
+  unchanged; on 0.9, trackers (AniList, MangaUpdates, …) get a small layer
+  after their unchanged bundle (`scripts/tracker-history/layer.js`, made here)
+  that adds an "Automatic updates" page to their settings: a timer since
+  Paperback last sent them what you read, and a history of what was sent. Their
+  version gets two more digits so the app offers it (1.0.0-alpha.19 →
+  1.0.0-alpha.1901).
 - sources that exist for only one app version are also offered on the other:
   `scripts/crossport.mjs` puts the original bundle, unchanged, behind a small
   layer that provides the app it was written for (`scripts/crossport/v8on9.js`

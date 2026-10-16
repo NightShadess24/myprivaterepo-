@@ -38,6 +38,7 @@ import path from "node:path";
 
 import { portToV8, portToV9, read08Info } from "./crossport.mjs";
 import { domainLanguage, isEnglish, languageCode } from "./languages.mjs";
+import { addTrackerHistory } from "./tracker-history.mjs";
 
 const args = process.argv.slice(2);
 const versionFlag = args.indexOf("--version");
@@ -501,6 +502,12 @@ for (const { upstream, record, list } of nativeLists) {
     fs.cpSync(dir, path.join(folder, id), { recursive: true });
     if (RATING_OVERRIDES[id] && fs.existsSync(path.join(folder, id, "info.json"))) {
       fs.writeFileSync(path.join(folder, id, "info.json"), JSON.stringify(entry));
+    }
+    // Trackers get an "Automatic updates" page (timer and history) in their
+    // settings, like this repository's MyAnimeList (scripts/tracker-history.mjs).
+    if (version === "0.9" && !upstream.own && isTracker(entry)) {
+      const added = await addTrackerHistory({ dir: path.join(folder, id), id, entry });
+      if (!added) console.log(`[aggregate] ${id}: no update history (the layer didn't load)`);
     }
     versioning.sources.push(entry);
     if (!isEnglish(language)) languages[id] = language;
