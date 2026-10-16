@@ -31,11 +31,13 @@ import {
   accessToken,
   API,
   CLIENT_ID,
+  dateOf,
   formBody,
   isLoggedIn,
   setSyncReport,
   setUser,
   wasSignedIn,
+  type SyncLine,
   type SyncReport,
   type User,
 } from "./session";
@@ -116,6 +118,8 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
     bufferInterval: 1,
     ignoreImages: true,
   });
+
+  private queueTurn: Promise<unknown> = Promise.resolve();
 
   async initialise(): Promise<void> {
     this.rateLimiter.registerInterceptor();
@@ -349,8 +353,12 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
   async processChapterReadActionQueue(
     actions: TrackedMangaChapterReadAction[],
   ): Promise<ChapterReadActionQueueProcessingResult> {
+    // One batch at a time: two at once could each read your list before the
+    // other saved, and the older chapter would win.
+    const turn = this.queueTurn.then(() => this.syncReadActions(actions));
+    this.queueTurn = turn.catch(() => undefined);
     try {
-      return await this.syncReadActions(actions);
+      return await turn;
     } catch (error) {
       // Never throw back at the app: leave everything queued for next time.
       console.log(`[MyAnimeList] reading updates stopped: ${String(error)}`);
@@ -368,9 +376,10 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
       unchanged: 0,
       failed: 0,
     };
-    const lines: string[] = [];
+    const lines: SyncLine[] = [];
+    let readAt: Date | undefined;
     const log = (message: string) => {
-      lines.push(message);
+      lines.push({ text: message, readAt: readAt?.toISOString() });
       console.log(`[MyAnimeList] ${message}`);
     };
     console.log(`[MyAnimeList] reading updates: ${actions.length}`);
@@ -393,8 +402,27 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
     }
     for (const [mangaId, mangaActions] of byManga) {
       const ids = mangaActions.map((action) => action.id);
+      // When the newest of these chapters was read, for the settings' timer.
+      readAt = mangaActions
+        .map((action) => dateOf(action.creationDate))
+        .reduce<Date | undefined>(
+          (newest, date) => (date && (!newest || date > newest) ? date : newest),
+          undefined,
+        );
       try {
         const chapter = Math.floor(Math.max(0, ...mangaActions.map(chapterNumberOf)));
+        // A chapter whose title gives another number ("Chapter 133" for 128):
+        // the source numbers its chapters its own way.
+        const newest = mangaActions.find(
+          (action) => Math.floor(chapterNumberOf(action)) === chapter,
+        );
+        const titled = /(?:^|[^a-z])(?:chapter|chap|ch)[\s._-]*(\d+(?:\.\d+)?)/i.exec(
+          String(newest?.readChapter?.title ?? ""),
+        );
+        const titleSays =
+          titled && Math.floor(Number(titled[1])) !== chapter
+            ? ` (its title says chapter ${titled[1]})`
+            : "";
         const volume = Math.max(
           0,
           ...mangaActions.map((action) => Math.floor(Number(action.chapterVolume ?? 0)) || 0),
@@ -418,7 +446,7 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
         const list: MalListStatus = manga.my_list_status ?? {};
         if ((list.num_chapters_read ?? 0) >= chapter) {
           log(
-            `${name}: read chapter ${chapter}, your list is already at ${list.num_chapters_read}`,
+            `${name}: read chapter ${chapter}${titleSays}, your list is already at ${list.num_chapters_read}`,
           );
           result.successfulItems.push(...ids);
           report.unchanged++;
@@ -439,7 +467,17 @@ export class MyAnimeListExtension implements ExtensionImpl<typeof MyAnimeListCon
           true,
         );
         if (status < 400) {
-          log(`${name}: chapter ${chapter} saved`);
+          // What MyAnimeList kept: it won't go past the number of chapters
+          // its entry lists, whatever is sent.
+          const kept = (json as MalListStatus | undefined)?.num_chapters_read;
+          if (typeof kept === "number" && kept < chapter) {
+            log(
+              `${name}: you read chapter ${chapter}${titleSays}, but MyAnimeList stopped at ${kept}` +
+                (manga.num_chapters ? ` (its entry has ${manga.num_chapters} chapters)` : ""),
+            );
+          } else {
+            log(`${name}: chapter ${chapter} saved${titleSays}`);
+          }
           result.successfulItems.push(...ids);
           report.updated++;
         } else {

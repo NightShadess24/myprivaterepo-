@@ -17,6 +17,8 @@ import type { MalManga } from "./models";
 import {
   AUTHORIZE_URL,
   CLIENT_ID,
+  dateOf,
+  durationText,
   getSyncReport,
   getUser,
   isLoggedIn,
@@ -26,6 +28,16 @@ import {
   TOKEN_URL,
   tokensFromLogin,
 } from "./session";
+
+/** "2:14 PM" (or the phone's own format) */
+function timeOfDay(date: Date | undefined): string {
+  if (!date) return "";
+  try {
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return date.toLocaleTimeString();
+  }
+}
 
 export const STATUSES = [
   { id: "reading", title: "Reading" },
@@ -42,23 +54,49 @@ export class MalSettingsForm extends Form {
     super();
   }
 
+  // The timer: while this page is open, it's redrawn every second so the
+  // "Last update" time counts up, and a new update shows up right away.
+  private ticking = 0;
+
+  override formDidAppear(): void {
+    this.startTimer();
+  }
+
+  override formWillDisappear(): void {
+    this.ticking++;
+  }
+
+  private startTimer(): void {
+    const run = ++this.ticking;
+    void (async () => {
+      // At most half an hour, in case the page is closed without notice.
+      for (let tick = 0; tick < 1800 && run === this.ticking && isLoggedIn(); tick++) {
+        await Application.sleep(1);
+        if (run === this.ticking) this.reloadForm();
+      }
+    })();
+  }
+
   override getSections(): FormSectionElement<unknown>[] {
     if (isLoggedIn()) {
       const sync = getSyncReport();
-      const when = sync ? new Date(sync.at) : undefined;
+      const when = dateOf(sync?.at);
+      const seconds = (later: Date, earlier: Date) => (later.getTime() - earlier.getTime()) / 1000;
       return [
         Section(
           {
             id: "sync",
             header: "Automatic updates",
-            footer: "Paperback sends what you read in batches, so updates can take a few minutes.",
+            footer:
+              "The timer counts up while this page is open and goes back to 0 each time Paperback sends what you've read, usually a few minutes after you finish a chapter.",
           },
           [
             LabelRow("last-sync", {
               title: "Last update",
-              value: when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : "Not yet",
+              value: when ? `${durationText(seconds(new Date(), when))} ago` : "Not yet",
               subtitle: sync
                 ? [
+                    timeOfDay(when),
                     `${sync.updated} saved, ${sync.unchanged} already up to date, ${sync.failed} failed`,
                     sync.error,
                   ]
@@ -66,9 +104,17 @@ export class MalSettingsForm extends Form {
                     .join(" · ")
                 : "Read a chapter of a linked manga, then come back here.",
             }),
-            ...(sync?.lines ?? []).map((line, index) =>
-              LabelRow(`sync-line-${index}`, { title: line }),
-            ),
+            ...(sync?.lines ?? []).map((line, index) => {
+              const { text, readAt } = typeof line === "string" ? { text: line } : line;
+              const read = dateOf(readAt);
+              return LabelRow(`sync-line-${index}`, {
+                title: text,
+                subtitle:
+                  read && when
+                    ? `Read at ${timeOfDay(read)} · reached MyAnimeList ${durationText(seconds(when, read))} later`
+                    : undefined,
+              });
+            }),
           ],
         ),
         Section("account", [
@@ -109,6 +155,7 @@ export class MalSettingsForm extends Form {
       await this.refreshUser();
     } finally {
       this.reloadForm();
+      this.startTimer();
     }
   }
 

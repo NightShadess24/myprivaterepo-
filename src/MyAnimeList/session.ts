@@ -61,8 +61,38 @@ export interface SyncReport {
   unchanged: number;
   failed: number;
   error?: string;
-  /** What happened to each manga ("Berserk: chapter 12 saved") */
-  lines?: string[];
+  /** What happened to each manga ("Berserk: chapter 12 saved"); text only in 1.0.1 */
+  lines?: (string | SyncLine)[];
+}
+
+export interface SyncLine {
+  text: string;
+  /** ISO date of when the chapter was read in the app */
+  readAt?: string;
+}
+
+/** "45s", "2m 05s", "3h 12m", "2d 4h" */
+export function durationText(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${String(m % 60).padStart(2, "0")}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
+/** A date the app hands over (a Date, text, or a number), if it's a real one. */
+export function dateOf(value: unknown): Date | undefined {
+  let date: Date;
+  if (value instanceof Date) date = value;
+  // A date made outside the extension isn't `instanceof Date` here.
+  else if (typeof (value as Date | null)?.getTime === "function")
+    date = new Date((value as Date).getTime());
+  else if (typeof value === "number") date = new Date(value < 1e11 ? value * 1000 : value);
+  else if (typeof value === "string" && value) date = new Date(value);
+  else return undefined;
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 export function getSyncReport(): SyncReport | undefined {
