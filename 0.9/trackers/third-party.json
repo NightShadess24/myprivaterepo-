@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-15T18:45:39.007Z",
+  "generated": "2026-10-16T04:45:33.229Z",
   "appVersion": "0.9",
   "languages": {},
   "hosts": {
@@ -374,7 +374,7 @@
           "why": "in the Stable repository"
         }
       ],
-      "commit": "ae4c76dd3ffcfef9cee4303f6c02e0763a125a9e"
+      "commit": "20b7f8fca595dbc25072bea8b39536c6db30aec2"
     },
     {
       "repo": "Catta1997/Sinon-Paperback-Extensions",
@@ -592,7 +592,7 @@
           "why": "in the Stable repository"
         }
       ],
-      "commit": "6bf7f743f561388ea9bdea4685314ef4a4d9745e"
+      "commit": "826f2efcec7cb21f30c3ce100830c19d002e8642"
     },
     {
       "repo": "feliivk/felii-extensions",
