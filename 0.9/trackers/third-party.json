@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-16T10:09:39.350Z",
+  "generated": "2026-10-17T09:42:33.758Z",
   "appVersion": "0.9",
   "languages": {},
   "hosts": {
@@ -580,6 +580,10 @@
           "why": "in the Stable repository"
         },
         {
+          "id": "MangaStash",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "MangaSushi",
           "why": "18+ (in the NSFW repository)"
         },
@@ -588,11 +592,15 @@
           "why": "18+ (in the NSFW repository)"
         },
         {
+          "id": "Noveli",
+          "why": "18+ (in the NSFW repository)"
+        },
+        {
           "id": "VortexScans",
           "why": "in the Stable repository"
         }
       ],
-      "commit": "c689aa0497c0771bf522fb7fb253ca089e911c7a"
+      "commit": "1e7313f72aac658912b588f1e4f1a561495c3eeb"
     },
     {
       "repo": "feliivk/felii-extensions",
